@@ -133,6 +133,7 @@ button{cursor:pointer}
     <div id="brand">Atelier<span>3D</span></div>
     <div class="sep"></div>
     <div class="group">
+      <button class="btn" id="newProject" title="Vide le plateau pour repartir de zéro">Nouveau projet</button>
       <button class="btn" id="undo" title="Ctrl+Z">Annuler</button>
       <button class="btn" id="redo" title="Ctrl+Y">Rétablir</button>
     </div>
@@ -147,6 +148,7 @@ button{cursor:pointer}
       <button class="btn" id="snap" aria-pressed="true" title="Déplacement par pas de 1 mm, rotation par pas de 15°">Aimant 1 mm</button>
       <button class="btn" id="multi" aria-pressed="false" title="Ajoute chaque objet touché à la sélection. Au clavier : Maj+clic">Sélection multiple</button>
       <button class="btn" id="frame">Recentrer la vue</button>
+      <button class="btn danger" id="delTop" title="Supprime les objets sélectionnés (touche Suppr)" disabled>Supprimer</button>
     </div>
     <div class="spacer"></div>
     <button class="btn" id="toggleInspector" aria-expanded="false">Objet</button>
@@ -179,6 +181,13 @@ button{cursor:pointer}
     <p id="empty">Touchez un objet sur le plateau pour le modifier, ou ajoutez une forme.</p>
     <section id="props" hidden>
       <p id="multiTitle" hidden></p>
+      <div class="actions">
+        <button class="btn" id="grp" title="Ctrl+G" hidden>Grouper</button>
+        <button class="btn" id="ungrp" title="Ctrl+Maj+G" hidden>Dégrouper</button>
+        <button class="btn" id="dup" title="Ctrl+D">Dupliquer</button>
+        <button class="btn" id="drop">Poser sur le plateau</button>
+        <button class="btn danger" id="del" title="Suppr">Supprimer</button>
+      </div>
       <div id="single">
       <div class="field"><label for="name">Nom</label><input type="text" id="name" autocomplete="off"></div>
       <div>
@@ -217,13 +226,6 @@ button{cursor:pointer}
         <span class="rowlabel">Couleur</span>
         <div id="swatches"></div>
       </div>
-      </div>
-      <div class="actions">
-        <button class="btn" id="grp" title="Ctrl+G" hidden>Grouper</button>
-        <button class="btn" id="ungrp" title="Ctrl+Maj+G" hidden>Dégrouper</button>
-        <button class="btn" id="dup" title="Ctrl+D">Dupliquer</button>
-        <button class="btn" id="drop">Poser sur le plateau</button>
-        <button class="btn danger" id="del" title="Suppr">Supprimer</button>
       </div>
     </section>
   </aside>
@@ -583,6 +585,11 @@ function applySnap(){
   tc.setScaleSnap(on?(state.sel.length>1?0.1:1):null);
 }
 function setSnap(on){ state.snap = on; applySnap(); $('snap').setAttribute('aria-pressed',String(on)); }
+function newProject(){
+  if (!state.objs.length){ toast('Le plateau est déjà vide.'); return; }
+  state.objs = []; state.sel = []; rebuild(); commit(); frameView();
+  toast('Nouveau projet. Touchez Annuler pour retrouver l\u2019ancien.');
+}
 function undo(){ if (hIndex>0) restore(hIndex-1); }
 function redo(){ if (hIndex<history.length-1) restore(hIndex+1); }
 
@@ -624,6 +631,7 @@ function refreshUI(){
   var o = one();
   var n = state.sel.length, os = selObjs();
   $('props').hidden = n===0; $('single').hidden = !o; $('empty').hidden = n>0;
+  $('delTop').disabled = n===0;
   $('multiTitle').hidden = n<2; $('multiTitle').textContent = n+' objets sélectionnés';
   $('grp').hidden = n<2 || (os[0].g!=null && os.every(function(x){ return x.g===os[0].g; }));
   $('ungrp').hidden = !os.some(function(x){ return x.g!=null; });
@@ -666,11 +674,12 @@ document.querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener(
 document.querySelectorAll('[data-mode]').forEach(function(b){ b.addEventListener('click',function(){ setMode(b.dataset.mode); }); });
 $('snap').addEventListener('click',function(){ setSnap(!state.snap); });
 $('frame').addEventListener('click',frameView);
+$('newProject').addEventListener('click',newProject);
 $('undo').addEventListener('click',undo); $('redo').addEventListener('click',redo);
 $('solidBtn').addEventListener('click',function(){ setHole(false); }); $('holeBtn').addEventListener('click',function(){ setHole(true); });
 $('grp').addEventListener('click',group); $('ungrp').addEventListener('click',ungroup);
 $('multi').addEventListener('click',function(){ state.multi = !state.multi; this.setAttribute('aria-pressed',String(state.multi)); });
-$('dup').addEventListener('click',duplicate); $('del').addEventListener('click',remove); $('drop').addEventListener('click',dropToPlate);
+$('dup').addEventListener('click',duplicate); $('del').addEventListener('click',remove); $('delTop').addEventListener('click',remove); $('drop').addEventListener('click',dropToPlate);
 $('toggleInspector').addEventListener('click',function(){
   var open = $('inspector').classList.toggle('open'); this.setAttribute('aria-expanded',String(open));
 });
