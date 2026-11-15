@@ -23,7 +23,7 @@ jobs:
           cp -r index.html manifest.webmanifest sw.js lib icons build/www/
           cd build
           npm init -y
-          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
           npx cap init "Atelier 3D" io.github.pxx69.atelier3d --web-dir www
           npx cap add android
           npx cap sync android

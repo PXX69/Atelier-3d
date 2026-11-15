@@ -46,7 +46,7 @@ button{cursor:pointer}
   grid-template-areas:"bar bar bar" "shapes stage inspector"}
 
 /* Barre d'outils */
-#bar{grid-area:bar;display:flex;align-items:center;gap:14px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+#bar{grid-area:bar;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
 #brand{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.02em;white-space:nowrap}
 #brand span{color:var(--accent)}
 .group{display:flex;gap:4px;align-items:center}
@@ -73,9 +73,21 @@ button{cursor:pointer}
 #view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #plate{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:11px;color:var(--muted);pointer-events:none}
 #hint{position:absolute;left:14px;top:12px;font-size:12px;color:var(--muted);pointer-events:none;max-width:60%}
-#drawBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
-#drawBar[hidden]{display:none}
-#drawBar .group{flex-wrap:wrap}
+#drawBar,#paintBar,#measureBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
+#drawBar[hidden],#paintBar[hidden],#measureBar[hidden],#drawUndo[hidden],#warn[hidden],.modal[hidden],#exportNote[hidden]{display:none}
+#drawBar .group,#paintBar .group{flex-wrap:wrap}
+#measureMsg{font-variant-numeric:tabular-nums}
+.shape svg .t{fill:var(--ink);stroke:none}
+#warn{position:absolute;right:14px;bottom:12px;max-width:60%;background:var(--panel);border:1px solid var(--danger);color:var(--danger);border-radius:6px;padding:5px 9px;font-size:12px}
+.item.out small{color:var(--danger)}
+.modal{position:fixed;inset:0;z-index:20;background:rgba(10,14,20,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;width:100%;max-width:440px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.sheet h2{margin:0;font-family:var(--display);font-size:20px;letter-spacing:-.01em}
+.sheet select{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.choice{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:12px 14px}
+.choice:hover{border-color:var(--accent)}
+.choice b{font-size:15px}
+.choice span{color:var(--muted);font-size:13px;line-height:1.4}
 .shape[aria-pressed="true"]{border-color:var(--accent);background:var(--bg)}
 #toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:86%;text-align:center}
 #toast.on{opacity:1}
@@ -146,22 +158,27 @@ button{cursor:pointer}
       <button class="btn" data-mode="translate" aria-pressed="true" title="Touche T">Déplacer</button>
       <button class="btn" data-mode="rotate" aria-pressed="false" title="Touche R">Tourner</button>
       <button class="btn" data-mode="scale" aria-pressed="false" title="Touche E">Dimensionner</button>
+      <button class="btn" id="measureBtn" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
+      <button class="btn" id="paintBtn" aria-pressed="false" title="Choisissez une couleur puis touchez les objets à colorer">Peindre</button>
     </div>
     <div class="sep"></div>
     <div class="group">
       <button class="btn" id="snap" aria-pressed="true" title="Déplacement par pas de 1 mm, rotation par pas de 15°">Aimant 1 mm</button>
       <button class="btn" id="multi" aria-pressed="false" title="Ajoute chaque objet touché à la sélection. Au clavier : Maj+clic">Sélection multiple</button>
       <button class="btn" id="frame">Recentrer la vue</button>
+      <button class="btn" id="printerBtn" title="Imprimante et taille du plateau">Imprimante</button>
       <button class="btn danger" id="delTop" title="Supprime les objets sélectionnés (touche Suppr)" disabled>Supprimer</button>
     </div>
     <div class="spacer"></div>
     <button class="btn" id="toggleInspector" aria-expanded="false">Objet</button>
-    <button class="btn primary" id="export">Exporter en STL</button>
+    <button class="btn primary" id="export">Exporter</button>
   </header>
 
   <nav id="shapes" aria-label="Ajouter une forme">
     <h2>Formes</h2>
     <button class="shape" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
+    <button class="shape" data-free aria-pressed="false" title="Dessinez un contour d'un seul trait : il devient un objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
+    <button class="shape" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
     <button class="shape" data-add="cube"><svg viewBox="0 0 36 36"><path class="f" d="M6 12l12-6 12 6v14l-12 6-12-6z"/><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14"/></svg>Cube</button>
     <button class="shape" data-add="sphere"><svg viewBox="0 0 36 36"><circle class="f" cx="18" cy="18" r="13"/><circle cx="18" cy="18" r="13"/><ellipse cx="18" cy="18" rx="13" ry="5"/></svg>Sphère</button>
     <button class="shape" data-add="cylinder"><svg viewBox="0 0 36 36"><path class="f" d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9z"/><ellipse cx="18" cy="9" rx="11" ry="4.5"/><path d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9"/></svg>Cylindre</button>
@@ -175,6 +192,7 @@ button{cursor:pointer}
     <canvas id="view" aria-label="Vue 3D du modèle"></canvas>
     <div id="hint">Glisser : tourner la vue · Molette ou pincement : zoom · Clic droit ou deux doigts : déplacer la vue</div>
     <div id="plate">Plateau 200 × 200 mm · carreau 10 mm</div>
+    <div id="warn" hidden></div>
     <div id="drawBar" hidden>
       <span id="drawMsg"></span>
       <div class="group">
@@ -182,6 +200,15 @@ button{cursor:pointer}
         <button class="btn primary" id="drawDone">Terminer la forme</button>
         <button class="btn" id="drawCancel">Abandonner</button>
       </div>
+    </div>
+    <div id="measureBar" hidden>
+      <span id="measureMsg"></span>
+      <button class="btn" id="measureDone">Terminer</button>
+    </div>
+    <div id="paintBar" hidden>
+      <span>Touchez un objet pour le colorer.</span>
+      <div id="paintSw" class="group"></div>
+      <button class="btn" id="paintDone">Terminer</button>
     </div>
     <div id="toast" role="status"></div>
   </main>
@@ -242,6 +269,47 @@ button{cursor:pointer}
       </div>
     </section>
   </aside>
+</div>
+
+<div class="modal" id="printerDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="printerTitle">
+    <h2 id="printerTitle">Imprimante et plateau</h2>
+    <div class="field"><label for="printerSel">Modèle d'imprimante</label><select id="printerSel"></select></div>
+    <div>
+      <span class="rowlabel">Volume d'impression (mm) : largeur, profondeur, hauteur</span>
+      <div class="triple">
+        <div class="num"><b>L</b><input type="number" id="plW" min="20" max="2000" step="1" aria-label="Largeur du plateau en mm"></div>
+        <div class="num"><b>P</b><input type="number" id="plD" min="20" max="2000" step="1" aria-label="Profondeur du plateau en mm"></div>
+        <div class="num"><b>H</b><input type="number" id="plH" min="20" max="2000" step="1" aria-label="Hauteur maximale en mm"></div>
+      </div>
+    </div>
+    <p class="note">Le plateau et le volume affichés suivent ces dimensions, et l'app signale les objets qui dépassent. Vérifiez les valeurs dans la notice de votre machine. La hauteur de couche, le remplissage et les températures se règlent ensuite dans le logiciel de l'imprimante.</p>
+    <div class="actions"><button class="btn primary" id="plApply">Appliquer</button><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
+<div class="modal" id="sizeDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sizeTitle">
+    <h2 id="sizeTitle">Créer une forme sur mesure</h2>
+    <div class="field"><label for="szType">Forme</label><select id="szType"></select></div>
+    <div>
+      <span class="rowlabel">Dimensions (mm) : largeur, hauteur, profondeur</span>
+      <div class="triple">
+        <div class="num"><b>L</b><input type="number" id="szW" min="0.5" step="1" value="20" aria-label="Largeur en mm"></div>
+        <div class="num"><b>H</b><input type="number" id="szH" min="0.5" step="1" value="20" aria-label="Hauteur en mm"></div>
+        <div class="num"><b>P</b><input type="number" id="szD" min="0.5" step="1" value="20" aria-label="Profondeur en mm"></div>
+      </div>
+    </div>
+    <div class="actions"><button class="btn primary" id="szCreate">Créer la forme</button><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
+<div class="modal" id="exportDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <h2 id="exportTitle">Exporter le modèle</h2>
+    <button class="choice" id="exp3mf"><b>Fichier 3MF</b><span>Garde les couleurs, les noms et la position sur le plateau. Le meilleur choix pour l'impression.</span></button>
+    <button class="choice" id="expStl"><b>Fichier STL</b><span>La forme seule, sans couleur. Accepté par tous les logiciels.</span></button>
+    <p class="note" id="exportNote" hidden>Dans cette fenêtre, le fichier est rangé dans un .zip : décompressez-le pour obtenir le fichier.</p>
+    <div class="actions"><button class="btn" data-close>Fermer</button></div>
+  </div>
 </div>
 
 <script src="lib/three.min.js"></script>
@@ -417,7 +485,13 @@ var meshes = {}; var meshList = [];
 var helper = new THREE.BoxHelper(new THREE.Mesh(GEO.cube),0xff0000); helper.visible = false; scene.add(helper);
 
 var down = null, gizmoUsed = false;
-canvas.addEventListener('pointerdown',function(e){ down = {x:e.clientX,y:e.clientY}; gizmoUsed = false; },true);
+var stroking = false;
+canvas.addEventListener('pointerdown',function(e){
+  down = {x:e.clientX,y:e.clientY}; gizmoUsed = false;
+  if (draw && draw.free && e.button===0){ stroking = true; draw.pts = []; strokeAdd(e); try { canvas.setPointerCapture(e.pointerId); } catch(err){} }
+},true);
+canvas.addEventListener('pointermove',function(e){ if (stroking) strokeAdd(e); });
+canvas.addEventListener('pointercancel',function(){ if (stroking) strokeEnd(); });
 
 var orbit = new THREE.OrbitControls(camera,canvas);
 orbit.enableDamping = true; orbit.dampingFactor = 0.12; orbit.minDistance = 20; orbit.maxDistance = 1200;
@@ -441,15 +515,47 @@ tc.addEventListener('objectChange',function(){
   syncFromMesh(o); fillFields(o);
 });
 
-function frameView(){ camera.position.set(95,80,125); orbit.target.set(0,12,0); orbit.update(); }
+var PLATE_KEY = 'atelier3d.plate.v1';
+var PRINTERS = [['Personnalisée'],['Bambu Lab A1 mini',180,180,180],['Bambu Lab A1, P1S, X1C',256,256,256],['Prusa MK4S',250,210,220],['Prusa MINI+',180,180,180],
+  ['Creality Ender-3 V3 SE',220,220,250],['Anycubic Kobra 2',220,220,250],['Elegoo Neptune 4',225,225,265]];
+var plate = {w:200,d:200,h:200,name:''};
+(function(){
+  try { var s = JSON.parse(localStorage.getItem(PLATE_KEY)||'null');
+    if (s && [s.w,s.d,s.h].every(function(v){ return typeof v==='number' && v>=20 && v<=2000; })) plate = {w:s.w,d:s.d,h:s.h,name:String(s.name||'')};
+  } catch(e){}
+})();
+function frameView(){
+  var k = Math.max(plate.w,plate.d)/200;
+  orbit.maxDistance = 1200*Math.max(1,k);
+  camera.position.set(95*k,80*k,125*k); orbit.target.set(0,12*k,0); orbit.update();
+}
+function seg(points,color,opacity){
+  var m = new THREE.LineBasicMaterial({color:new THREE.Color(color),transparent:opacity<1,opacity:opacity});
+  return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),m);
+}
+function buildPlate(){
+  if (grid){ scene.remove(grid); grid.children.forEach(function(c){ c.geometry.dispose(); c.material.dispose(); }); }
+  grid = new THREE.Group();
+  var w = plate.w/2, d = plate.d/2, h = plate.h, fine = [], strong = [], vol = [], i, V = function(x,y,z){ return new THREE.Vector3(x,y,z); };
+  for (i=10;i<w;i+=10){ fine.push(V(i,0,-d),V(i,0,d),V(-i,0,-d),V(-i,0,d)); }
+  for (i=10;i<d;i+=10){ fine.push(V(-w,0,i),V(w,0,i),V(-w,0,-i),V(w,0,-i)); }
+  strong.push(V(-w,0,-d),V(w,0,-d),V(w,0,-d),V(w,0,d),V(w,0,d),V(-w,0,d),V(-w,0,d),V(-w,0,-d),V(0,0,-d),V(0,0,d),V(-w,0,0),V(w,0,0));
+  [[-w,-d],[w,-d],[w,d],[-w,d]].forEach(function(c,j,a){ var n = a[(j+1)%4]; vol.push(V(c[0],0,c[1]),V(c[0],h,c[1]),V(c[0],h,c[1]),V(n[0],h,n[1])); });
+  grid.add(seg(fine,cssVar('--grid')||'#aab5c1',1),seg(strong,cssVar('--grid-strong')||'#74828f',1),seg(vol,cssVar('--grid-strong')||'#74828f',0.45));
+  scene.add(grid);
+  $('plate').textContent = (plate.name?plate.name+' · ':'')+'Plateau '+plate.w+' × '+plate.d+' mm · hauteur '+plate.h+' mm · carreau 10 mm';
+}
+function outside(o){
+  var m = meshes[o.id]; if (!m || o.hole) return false;
+  var b = primBox(o,m), e = 0.01;
+  return b.min.x<-plate.w/2-e || b.max.x>plate.w/2+e || b.min.z<-plate.d/2-e || b.max.z>plate.d/2+e || b.min.y<-e || b.max.y>plate.h+e;
+}
 frameView();
 
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function applyTheme(){
   renderer.setClearColor(new THREE.Color(cssVar('--stage')||'#dfe5ea'));
-  if (grid){ scene.remove(grid); grid.geometry.dispose(); }
-  grid = new THREE.GridHelper(200,20,cssVar('--grid-strong')||'#8f9cab',cssVar('--grid')||'#c3ccd5');
-  scene.add(grid);
+  buildPlate();
   helper.material.color.set(cssVar('--accent')||'#d9520b');
 }
 applyTheme();
@@ -578,12 +684,12 @@ function ungroup(){
 }
 
 /* ---------- Actions ---------- */
-function addShape(type){
+function addShape(type,dims){
   if (draw) cancelDraw();
-  var b = BASE[type], k = 20, s = [k,k,k];
+  var b = BASE[type], k = 20, s = dims ? [dims[0]/b[0],dims[1]/b[1],dims[2]/b[2]] : [k,k,k];
   var n = state.objs.filter(function(o){ return o.type===type; }).length+1;
   var o = {id:nextId++,type:type,name:NAMES[type]+' '+n,color:COLORS[state.objs.length%COLORS.length],
-    p:[Math.round(orbit.target.x),b[1]*k/2,Math.round(orbit.target.z)],r:[0,0,0],s:s};
+    p:[Math.round(orbit.target.x),b[1]*s[1]/2,Math.round(orbit.target.z)],r:[0,0,0],s:s};
   state.objs.push(o); state.sel = [o.id]; rebuild(); commit();
 }
 function duplicate(){
@@ -619,7 +725,7 @@ function applySnap(){
 }
 function setSnap(on){ state.snap = on; applySnap(); $('snap').setAttribute('aria-pressed',String(on)); }
 function newProject(){
-  if (draw) cancelDraw();
+  if (draw) cancelDraw(); if (measure) setMeasure(false);
   if (!state.objs.length){ toast('Le plateau est déjà vide.'); return; }
   state.objs = []; state.sel = []; rebuild(); commit(); frameView();
   toast('Nouveau projet. Touchez Annuler pour retrouver l\u2019ancien.');
@@ -630,14 +736,17 @@ function redo(){ if (hIndex<history.length-1) restore(hIndex+1); }
 /* ---------- Sélection au clic / au toucher ---------- */
 var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 canvas.addEventListener('pointerup',function(e){
+  if (stroking){ down = null; strokeEnd(); return; }
   if (!down) return;
   var d = Math.hypot(e.clientX-down.x,e.clientY-down.y); down = null;
   if (d>6 || gizmoUsed || e.button>0) return;
-  if (draw){ addPoint(e); return; }
+  if (draw){ if (!draw.free) addPoint(e); return; }
   var r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
   ray.setFromCamera(ndc,camera);
   var hit = ray.intersectObjects(meshList,false)[0];
+  if (measure){ measureAt(hit); return; }
+  if (paint){ if (hit) paintAt(hit.object.userData.id); return; }
   pick(hit?hit.object.userData.id:null,e.shiftKey||state.multi);
 });
 
@@ -646,25 +755,91 @@ var draw = null, drawLine = null, drawDots = null, ground = new THREE.Plane(new 
 function drawRefresh(){
   [drawLine,drawDots].forEach(function(x){ if (x){ scene.remove(x); x.geometry.dispose(); x.material.dispose(); } });
   drawLine = drawDots = null;
-  $('drawBar').hidden = !draw; $('hint').style.visibility = draw ? 'hidden' : '';
-  document.querySelector('[data-draw]').setAttribute('aria-pressed',String(!!draw));
+  $('drawBar').hidden = !draw; hintVis();
+  document.querySelector('[data-draw]').setAttribute('aria-pressed',String(!!draw && !draw.free));
+  document.querySelector('[data-free]').setAttribute('aria-pressed',String(!!draw && !!draw.free));
+  if (!draw || !draw.free) orbit.enabled = true;
   if (!draw) return;
   var n = draw.pts.length;
-  $('drawMsg').textContent = n<3 ? 'Touchez le plateau pour poser les points du contour ('+n+' sur 3 minimum).' : n+' points. Ajoutez-en d\u2019autres ou terminez la forme.';
-  $('drawDone').disabled = n<3; $('drawUndo').disabled = n===0;
+  if (draw.free) $('drawMsg').textContent = stroking ? 'Relâchez pour fermer le contour.' : (n<3 ? 'Dessinez le contour sur le plateau d\u2019un seul trait, au doigt ou à la souris. La vue est figée pendant le dessin.' : 'Contour prêt. Terminez la forme, ou redessinez pour recommencer.');
+  else $('drawMsg').textContent = n<3 ? 'Touchez le plateau pour poser les points du contour ('+n+' sur 3 minimum).' : n+' points. Ajoutez-en d\u2019autres ou terminez la forme.';
+  $('drawDone').disabled = n<3 || stroking; $('drawUndo').disabled = n===0; $('drawUndo').hidden = !!draw.free;
   if (!n) return;
   var v = draw.pts.map(function(p){ return new THREE.Vector3(p[0],0.2,p[1]); }), col = new THREE.Color(cssVar('--accent')||'#d9520b');
   var g = new THREE.BufferGeometry().setFromPoints(v);
-  drawLine = new (n>=3?THREE.LineLoop:THREE.Line)(g,new THREE.LineBasicMaterial({color:col,depthTest:false})); drawLine.renderOrder = 10; scene.add(drawLine);
-  drawDots = new THREE.Points(g.clone(),new THREE.PointsMaterial({color:col,size:10,sizeAttenuation:false,depthTest:false})); drawDots.renderOrder = 11; scene.add(drawDots);
+  drawLine = new (n>=3 && !stroking?THREE.LineLoop:THREE.Line)(g,new THREE.LineBasicMaterial({color:col,depthTest:false})); drawLine.renderOrder = 10; scene.add(drawLine);
+  if (!draw.free) drawDots = new THREE.Points(g.clone(),new THREE.PointsMaterial({color:col,size:10,sizeAttenuation:false,depthTest:false})); if (drawDots){ drawDots.renderOrder = 11; scene.add(drawDots); }
 }
-function startDraw(){ if (draw){ cancelDraw(); return; } draw = {pts:[]}; setSel([]); drawRefresh(); }
-function cancelDraw(){ draw = null; drawRefresh(); }
-function addPoint(e){
+function hintVis(){ $('hint').style.visibility = (draw || paint || measure) ? 'hidden' : ''; }
+function startDraw(free){
+  free = free===true;
+  if (draw){ var same = !!draw.free===free; cancelDraw(); if (same) return; }
+  if (paint) setPaint(false); if (measure) setMeasure(false);
+  draw = {pts:[],free:free}; orbit.enabled = !free; setSel([]); drawRefresh();
+}
+function cancelDraw(){ draw = null; stroking = false; drawRefresh(); }
+function groundPoint(e){
   var r = canvas.getBoundingClientRect(), hit = new THREE.Vector3();
   ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
   ray.setFromCamera(ndc,camera);
-  if (!ray.ray.intersectPlane(ground,hit) || Math.abs(hit.x)>1000 || Math.abs(hit.z)>1000){ toast('Visez le plateau pour poser un point.'); return; }
+  if (!ray.ray.intersectPlane(ground,hit) || Math.abs(hit.x)>1000 || Math.abs(hit.z)>1000) return null;
+  return hit;
+}
+function strokeAdd(e){
+  var g = groundPoint(e); if (!g || !draw) return;
+  var pts = draw.pts, n = pts.length;
+  if (n && Math.hypot(g.x-pts[n-1][0],g.z-pts[n-1][1])<0.8) return;
+  pts.push([g.x,g.z]); drawRefresh();
+}
+function rdp(p,a,b,tol,out){
+  var max = 0, idx = -1, ax = p[a][0], az = p[a][1], dx = p[b][0]-ax, dz = p[b][1]-az, len = Math.hypot(dx,dz), i, dist;
+  for (i=a+1;i<b;i++){
+    dist = len<1e-6 ? Math.hypot(p[i][0]-ax,p[i][1]-az) : Math.abs((p[i][0]-ax)*dz-(p[i][1]-az)*dx)/len;
+    if (dist>max){ max = dist; idx = i; }
+  }
+  if (max>tol){ rdp(p,a,idx,tol,out); out.push(p[idx]); rdp(p,idx,b,tol,out); }
+}
+function strokeEnd(){
+  stroking = false; if (!draw) return;
+  var p = draw.pts, out = [];
+  if (p.length>=3){ out = [p[0]]; rdp(p,0,p.length-1,0.6,out); out.push(p[p.length-1]); }
+  if (out.length>3 && Math.hypot(out[0][0]-out[out.length-1][0],out[0][1]-out[out.length-1][1])<2) out.pop();
+  draw.pts = out.map(function(q){ return [Math.round(q[0]*10)/10,Math.round(q[1]*10)/10]; });
+  if (draw.pts.length<3){ draw.pts = []; toast('Dessinez un contour plus grand, d\u2019un seul trait.'); }
+  drawRefresh();
+}
+
+/* ---------- Mesure entre deux points ---------- */
+var measure = null, mLine = null, mDots = null;
+function fr(v){ return fmt(v).replace('.',','); }
+function measureRefresh(){
+  [mLine,mDots].forEach(function(x){ if (x){ scene.remove(x); x.geometry.dispose(); x.material.dispose(); } });
+  mLine = mDots = null;
+  $('measureBar').hidden = !measure; $('measureBtn').setAttribute('aria-pressed',String(!!measure)); hintVis();
+  if (!measure) return;
+  var p = measure.pts, n = p.length;
+  if (n===0) $('measureMsg').textContent = 'Touchez un premier point, sur un objet ou sur le plateau.';
+  else if (n===1) $('measureMsg').textContent = 'Touchez le second point.';
+  else $('measureMsg').textContent = 'Distance : '+fr(p[0].distanceTo(p[1]))+' mm  ·  en largeur (X) '+fr(Math.abs(p[1].x-p[0].x))+'  ·  en hauteur (Y) '+fr(Math.abs(p[1].y-p[0].y))+'  ·  en profondeur (Z) '+fr(Math.abs(p[1].z-p[0].z));
+  if (!n) return;
+  var col = new THREE.Color(cssVar('--ink')||'#18212c'), g = new THREE.BufferGeometry().setFromPoints(p);
+  mDots = new THREE.Points(g,new THREE.PointsMaterial({color:col,size:10,sizeAttenuation:false,depthTest:false})); mDots.renderOrder = 13; scene.add(mDots);
+  if (n===2){ mLine = new THREE.Line(g.clone(),new THREE.LineBasicMaterial({color:col,depthTest:false})); mLine.renderOrder = 12; scene.add(mLine); }
+}
+function setMeasure(on){
+  if (on){ if (draw) cancelDraw(); if (paint) setPaint(false); setSel([]); }
+  measure = on ? {pts:[]} : null; measureRefresh();
+}
+function measureAt(hit){
+  var pt = null;
+  if (hit) pt = hit.point.clone();
+  else { pt = new THREE.Vector3(); if (!ray.ray.intersectPlane(ground,pt)){ toast('Visez un objet ou le plateau.'); return; } }
+  if (measure.pts.length>=2) measure.pts = [];
+  measure.pts.push(pt); measureRefresh();
+}
+function addPoint(e){
+  var hit = groundPoint(e);
+  if (!hit){ toast('Visez le plateau pour poser un point.'); return; }
   var x = state.snap ? Math.round(hit.x) : Math.round(hit.x*10)/10, z = state.snap ? Math.round(hit.z) : Math.round(hit.z*10)/10;
   var pts = draw.pts, n = pts.length;
   if (n>=3 && Math.hypot(x-pts[0][0],z-pts[0][1])<2.5){ finishDraw(); return; }
@@ -684,6 +859,67 @@ function finishDraw(){
   toast('Forme créée, haute de 10 mm. Changez sa hauteur dans les dimensions.');
 }
 
+/* ---------- Peinture : une couleur, puis toucher les objets ---------- */
+var paint = false, paintColor = COLORS[0];
+function paintSwatches(){
+  document.querySelectorAll('#paintSw .sw').forEach(function(s){ s.setAttribute('aria-pressed',String(s.dataset.pc===paintColor)); });
+  $('paintCustom').value = paintColor;
+}
+function setPaint(on){
+  if (on && draw) cancelDraw();
+  if (on && measure) setMeasure(false);
+  paint = on; if (on) setSel([]);
+  $('paintBar').hidden = !on; $('paintBtn').setAttribute('aria-pressed',String(on));
+  hintVis();
+  paintSwatches();
+}
+function paintAt(id){
+  var o = getObj(id); if (!o) return;
+  if (o.hole){ toast('Un trou n\u2019a pas de couleur.'); return; }
+  if (o.color===paintColor) return;
+  o.color = paintColor; meshes[id].material.color.set(paintColor).convertSRGBToLinear(); commit();
+}
+(function(){
+  var box = $('paintSw');
+  COLORS.forEach(function(c){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.dataset.pc = c; b.style.background = c;
+    b.setAttribute('aria-label','Peindre en '+c); b.setAttribute('aria-pressed','false');
+    b.addEventListener('click',function(){ paintColor = c; paintSwatches(); }); box.appendChild(b);
+  });
+  var custom = document.createElement('input'); custom.type = 'color'; custom.id = 'paintCustom'; custom.setAttribute('aria-label','Autre couleur');
+  custom.addEventListener('input',function(){ paintColor = this.value; paintSwatches(); }); box.appendChild(custom);
+  $('paintBtn').addEventListener('click',function(){ setPaint(!paint); });
+  $('paintDone').addEventListener('click',function(){ setPaint(false); });
+})();
+
+/* ---------- Fenêtres : imprimante et export ---------- */
+function closeModals(){
+  var open = false;
+  document.querySelectorAll('.modal').forEach(function(m){ if (!m.hidden){ m.hidden = true; open = true; } });
+  return open;
+}
+document.querySelectorAll('.modal').forEach(function(m){
+  m.addEventListener('click',function(e){ if (e.target===m || e.target.hasAttribute('data-close')) m.hidden = true; });
+});
+(function(){
+  var sel = $('printerSel');
+  PRINTERS.forEach(function(pr,i){ var o = document.createElement('option'); o.value = i; o.textContent = pr.length>1 ? pr[0]+' ('+pr[1]+' × '+pr[2]+' × '+pr[3]+' mm)' : pr[0]; sel.appendChild(o); });
+  sel.addEventListener('change',function(){ var pr = PRINTERS[+sel.value]; if (pr.length>1){ $('plW').value = pr[1]; $('plD').value = pr[2]; $('plH').value = pr[3]; } });
+  ['plW','plD','plH'].forEach(function(id){ $(id).addEventListener('input',function(){ sel.value = 0; }); });
+  $('printerBtn').addEventListener('click',function(){
+    var idx = 0; PRINTERS.forEach(function(pr,i){ if (pr[0]===plate.name && pr[1]===plate.w && pr[2]===plate.d && pr[3]===plate.h) idx = i; });
+    sel.value = idx; $('plW').value = plate.w; $('plD').value = plate.d; $('plH').value = plate.h; $('printerDlg').hidden = false;
+  });
+  $('plApply').addEventListener('click',function(){
+    var w = parseFloat($('plW').value), d = parseFloat($('plD').value), hh = parseFloat($('plH').value);
+    if (![w,d,hh].every(function(v){ return isFinite(v) && v>=20 && v<=2000; })){ toast('Chaque dimension doit être comprise entre 20 et 2000 mm.'); return; }
+    var pr = PRINTERS[+sel.value];
+    plate = {w:w,d:d,h:hh,name:pr.length>1?pr[0]:''};
+    try { localStorage.setItem(PLATE_KEY,JSON.stringify(plate)); } catch(e){}
+    buildPlate(); frameView(); refreshUI(); $('printerDlg').hidden = true;
+  });
+})();
+
 /* ---------- Interface ---------- */
 function fmt(v){ return String(Math.round(v*10)/10); }
 function fillFields(o){
@@ -694,18 +930,20 @@ function fillFields(o){
 }
 function setVal(id,v){ var el = $(id); if (document.activeElement!==el) el.value = v; }
 function refreshUI(){
-  var list = $('list'); list.textContent = '';
+  var list = $('list'), nOut = 0; list.textContent = '';
   state.objs.forEach(function(o){
-    var b = document.createElement('button'); b.className = 'item'; b.type = 'button';
+    var isOut = outside(o); if (isOut) nOut++;
+    var b = document.createElement('button'); b.className = isOut ? 'item out' : 'item'; b.type = 'button';
     b.setAttribute('aria-current',String(state.sel.indexOf(o.id)>=0));
     var dot = document.createElement('span'); dot.className = o.hole ? 'dot hole' : 'dot'; if (!o.hole) dot.style.background = o.color;
     var t = document.createElement('span'); t.textContent = o.name;
     var sm = document.createElement('small'); var bs = baseOf(o);
-    sm.textContent = (o.g!=null?'gr. '+o.g+' · ':'')+fmt(o.s[0]*bs[0])+'×'+fmt(o.s[1]*bs[1])+'×'+fmt(o.s[2]*bs[2]);
+    sm.textContent = (isOut?'dépasse · ':'')+(o.g!=null?'gr. '+o.g+' · ':'')+fmt(o.s[0]*bs[0])+'×'+fmt(o.s[1]*bs[1])+'×'+fmt(o.s[2]*bs[2]);
     b.appendChild(dot); b.appendChild(t); b.appendChild(sm);
     b.addEventListener('click',function(ev){ pick(o.id,ev.shiftKey||state.multi); });
     list.appendChild(b);
   });
+  $('warn').hidden = !nOut; $('warn').textContent = nOut>1 ? nOut+' objets dépassent du volume d\u2019impression.' : 'Un objet dépasse du volume d\u2019impression.';
   var o = one();
   var n = state.sel.length, os = selObjs();
   $('props').hidden = n===0; $('single').hidden = !o; $('empty').hidden = n>0;
@@ -717,7 +955,7 @@ function refreshUI(){
   if (o){
     if (document.activeElement!==$('name')) $('name').value = o.name;
     fillFields(o);
-    document.querySelectorAll('.sw').forEach(function(s){ s.setAttribute('aria-pressed',String(s.dataset.c===o.color)); });
+    document.querySelectorAll('#swatches .sw').forEach(function(s){ s.setAttribute('aria-pressed',String(s.dataset.c===o.color)); });
     $('custom').value = o.color;
     $('colorRow').hidden = !!o.hole;
     $('solidBtn').setAttribute('aria-pressed',String(!o.hole)); $('holeBtn').setAttribute('aria-pressed',String(!!o.hole));
@@ -754,6 +992,18 @@ $('snap').addEventListener('click',function(){ setSnap(!state.snap); });
 $('frame').addEventListener('click',frameView);
 $('newProject').addEventListener('click',newProject);
 document.querySelector('[data-draw]').addEventListener('click',startDraw);
+document.querySelector('[data-free]').addEventListener('click',function(){ startDraw(true); });
+$('measureBtn').addEventListener('click',function(){ setMeasure(!measure); }); $('measureDone').addEventListener('click',function(){ setMeasure(false); });
+(function(){
+  var sel = $('szType');
+  Object.keys(BASE).forEach(function(k){ var o = document.createElement('option'); o.value = k; o.textContent = NAMES[k]; sel.appendChild(o); });
+  $('sizeBtn').addEventListener('click',function(){ $('sizeDlg').hidden = false; });
+  $('szCreate').addEventListener('click',function(){
+    var d = [parseFloat($('szW').value),parseFloat($('szH').value),parseFloat($('szD').value)];
+    if (!d.every(function(v){ return isFinite(v) && v>=0.5 && v<=2000; })){ toast('Chaque dimension doit être comprise entre 0,5 et 2000 mm.'); return; }
+    $('sizeDlg').hidden = true; addShape(sel.value,d);
+  });
+})();
 $('drawUndo').addEventListener('click',function(){ if (draw){ draw.pts.pop(); drawRefresh(); } });
 $('drawDone').addEventListener('click',finishDraw); $('drawCancel').addEventListener('click',cancelDraw);
 $('undo').addEventListener('click',undo); $('redo').addEventListener('click',redo);
@@ -773,7 +1023,7 @@ window.addEventListener('keydown',function(e){
   else if (mod && k==='g'){ e.preventDefault(); if (e.shiftKey) ungroup(); else group(); }
   else if (k==='delete'||k==='backspace'){ e.preventDefault(); remove(); }
   else if (k==='t') setMode('translate'); else if (k==='r') setMode('rotate'); else if (k==='e') setMode('scale');
-  else if (k==='escape'){ if (draw) cancelDraw(); else setSel([]); }
+  else if (k==='escape'){ if (!closeModals()){ if (draw) cancelDraw(); else if (paint) setPaint(false); else if (measure) setMeasure(false); else setSel([]); } }
 });
 
 var toastTimer = 0;
@@ -805,19 +1055,93 @@ var downloads = null;
 (function(){
   try { var p = window.claude && window.claude.use && window.claude.use('downloads'); if (p && p.then) p.then(function(d){ downloads = d; },function(){}); } catch(e){}
 })();
-$('export').addEventListener('click',function(){
-  var text = buildSTL();
-  if (!text){ toast('Ajoutez une forme solide avant d’exporter.'); return; }
+/* 3MF : un zip contenant le modèle en XML, avec une matière de couleur par objet */
+var CRC = (function(){ var t = [], n, k, c; for (n=0;n<256;n++){ c = n; for (k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[n] = c>>>0; } return t; })();
+function crc32(u){ var c = 0xFFFFFFFF; for (var i=0;i<u.length;i++) c = CRC[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zip(files){
+  var enc = new TextEncoder(), parts = [], central = [], offset = 0;
+  files.forEach(function(f){
+    var name = enc.encode(f.name), data = f.data, crc = crc32(data);
+    var lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(8,0,true); lh.setUint16(10,0,true); lh.setUint16(12,33,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true); lh.setUint16(26,name.length,true); lh.setUint16(28,0,true);
+    var ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true); ch.setUint16(10,0,true); ch.setUint16(12,0,true); ch.setUint16(14,33,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,data.length,true); ch.setUint32(24,data.length,true); ch.setUint16(28,name.length,true); ch.setUint32(42,offset,true);
+    parts.push(new Uint8Array(lh.buffer),name,data); central.push(new Uint8Array(ch.buffer),name);
+    offset += 30+name.length+data.length;
+  });
+  var cdSize = 0; central.forEach(function(c){ cdSize += c.length; });
+  var end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true); end.setUint32(12,cdSize,true); end.setUint32(16,offset,true);
+  var all = parts.concat(central,[new Uint8Array(end.buffer)]), total = 0; all.forEach(function(a){ total += a.length; });
+  var out = new Uint8Array(total), pos = 0; all.forEach(function(a){ out.set(a,pos); pos += a.length; });
+  return out;
+}
+function xmlEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function build3MF(){
+  var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count; });
+  if (!solids.length) return null;
+  var mats = [], objs = [], items = [], v = new THREE.Vector3();
+  solids.forEach(function(m,k){
+    var o = getObj(m.userData.id); m.updateMatrixWorld(true);
+    var g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, pos = g.attributes.position, map = {}, verts = [], tris = [], idx = [], i, j;
+    for (i=0;i<pos.count;i+=3){
+      for (j=0;j<3;j++){
+        v.fromBufferAttribute(pos,i+j).applyMatrix4(m.matrixWorld);
+        var x = (v.x+plate.w/2).toFixed(4), y = (-v.z+plate.d/2).toFixed(4), z = v.y.toFixed(4), key = x+' '+y+' '+z;
+        if (map[key]===undefined){ map[key] = verts.length; verts.push('<vertex x="'+x+'" y="'+y+'" z="'+z+'"/>'); }
+        idx[j] = map[key];
+      }
+      if (idx[0]!==idx[1] && idx[1]!==idx[2] && idx[0]!==idx[2]) tris.push('<triangle v1="'+idx[0]+'" v2="'+idx[1]+'" v3="'+idx[2]+'"/>');
+    }
+    if (g!==m.geometry) g.dispose();
+    if (!tris.length) return;
+    mats.push('<base name="'+xmlEsc(o.name)+'" displaycolor="'+o.color.toUpperCase()+'"/>');
+    var id = objs.length+2;
+    objs.push('<object id="'+id+'" type="model" name="'+xmlEsc(o.name)+'" pid="1" pindex="'+(mats.length-1)+'"><mesh><vertices>'+verts.join('')+'</vertices><triangles>'+tris.join('')+'</triangles></mesh></object>');
+    items.push('<item objectid="'+id+'"/>');
+  });
+  if (!objs.length) return null;
+  var model = '<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="fr" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
+    +'<metadata name="Application">Atelier 3D</metadata><resources><basematerials id="1">'+mats.join('')+'</basematerials>'+objs.join('')+'</resources><build>'+items.join('')+'</build></model>';
+  var enc = new TextEncoder();
+  return zip([
+    {name:'[Content_Types].xml',data:enc.encode('<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>')},
+    {name:'_rels/.rels',data:enc.encode('<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>')},
+    {name:'3D/3dmodel.model',data:enc.encode(model)}
+  ]);
+}
+function saveFile(name,bytes){
+  var cap = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins;
+  if (cap && cap.Filesystem && cap.Share){
+    var bin = '', i; for (i=0;i<bytes.length;i+=0x8000) bin += String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+    cap.Filesystem.writeFile({path:name,data:btoa(bin),directory:'CACHE'})
+      .then(function(r){ return cap.Share.share({title:name,url:r.uri}); })
+      .then(function(){},function(){ toast('L\u2019export n\u2019a pas abouti sur cet appareil.'); });
+    return;
+  }
   if (downloads){
-    downloads.save({filename:'atelier-3d.stl',data:text}).then(function(){ toast('Fichier STL enregistré.'); },function(){ toast('Export annulé.'); });
+    downloads.save({filename:name.replace(/\.\w+$/,'')+'.zip',data:new Blob([zip([{name:name,data:bytes}])])}).then(
+      function(){ toast('Enregistré dans un .zip : décompressez-le pour obtenir '+name+'.'); },
+      function(e){ toast(e && e.code==='declined' ? 'Export annulé.' : 'L\u2019export n\u2019a pas abouti dans cette fenêtre.'); });
     return;
   }
   try {
-    var url = URL.createObjectURL(new Blob([text],{type:'model/stl'}));
-    var link = document.createElement('a'); link.href = url; link.download = 'atelier-3d.stl'; document.body.appendChild(link); link.click(); link.remove();
+    var url = URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
+    var link = document.createElement('a'); link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove();
     setTimeout(function(){ URL.revokeObjectURL(url); },2000);
-    toast('Export STL lancé.');
-  } catch(e){ toast('L’export n’est pas disponible dans cette fenêtre.'); }
+    toast('Fichier '+name+' exporté.');
+  } catch(e){ toast('L\u2019export n\u2019est pas disponible dans cette fenêtre.'); }
+}
+$('export').addEventListener('click',function(){ $('exportNote').hidden = !downloads; $('exportDlg').hidden = false; });
+$('expStl').addEventListener('click',function(){
+  var text = buildSTL(); if (!text){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
+  $('exportDlg').hidden = true; saveFile('atelier-3d.stl',new TextEncoder().encode(text));
+});
+$('exp3mf').addEventListener('click',function(){
+  var bytes = build3MF(); if (!bytes){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
+  $('exportDlg').hidden = true; saveFile('atelier-3d.3mf',bytes);
 });
 
 /* ---------- Démarrage ---------- */
