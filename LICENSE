@@ -1,0 +1,31 @@
+Atelier 3D
+Copyright (c) 2026 PXX69. Tous droits réservés.
+
+Ce dépôt est public uniquement pour permettre l'hébergement et la distribution
+de l'application. Aucune licence n'est accordée sur son code source.
+
+Sans autorisation écrite préalable du titulaire des droits, il est interdit de
+copier, modifier, redistribuer, publier, vendre ou réutiliser tout ou partie du
+code, des textes et des éléments graphiques de ce projet, y compris pour en
+dériver une autre application.
+
+L'utilisation de l'application elle-même, telle que distribuée par le titulaire
+des droits, reste libre.
+
+Composants tiers, qui restent soumis à leurs propres licences :
+- three.js, licence MIT (voir lib/LICENSE-three.txt)
+- Manifold, licence Apache 2.0 (https://github.com/elalish/manifold)
+
+--------------------------------------------------------------------------------
+
+Atelier 3D
+Copyright (c) 2026 PXX69. All rights reserved.
+
+This repository is public only so that the application can be hosted and
+distributed. No license is granted to its source code. Copying, modifying,
+redistributing, publishing, selling or reusing any part of the code, texts or
+graphics of this project, including to derive another application, is prohibited
+without prior written permission from the copyright holder.
+
+Third-party components remain under their own licenses: three.js (MIT) and
+Manifold (Apache 2.0).

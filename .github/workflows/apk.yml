@@ -8,6 +8,9 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,28 +24,44 @@ jobs:
         run: |
           mkdir -p build/www build/assets
           cp -r index.html manifest.webmanifest sw.js lib icons build/www/
+          # L'application installée ne contacte aucun serveur : on retire les polices chargées chez Google.
+          sed -i '/fonts\.googleapis\.com/d' build/www/index.html
           cp android-assets/logo.png build/assets/logo.png
           cd build
           npm init -y
-          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
+          npm i @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/filesystem@latest @capacitor/share@latest
           npx cap init "Atelier 3D" io.github.pxx69.atelier3d --web-dir www
           npx cap add android
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName\|targetSdk" android/app/build.gradle android/variables.gradle || true
       - name: Icône de l'application
         continue-on-error: true
         run: |
           cd build
           npm i -D @capacitor/assets
           npx @capacitor/assets generate --android --iconBackgroundColor '#d9520b' --iconBackgroundColorDark '#d9520b' --splashBackgroundColor '#12161b' --splashBackgroundColorDark '#12161b'
-      - name: Construire l'APK
+      - name: Construire (signature définitive si la clé est enregistrée, sinon version de test)
         run: |
           cd build
           npx cap sync android
           cd android
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ../../atelier-3d.apk
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            SIGN="-Pandroid.injected.signing.store.file=$RUNNER_TEMP/upload.jks -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD -Pandroid.injected.signing.key.alias=atelier3d -Pandroid.injected.signing.key.password=$KEYSTORE_PASSWORD"
+            ./gradlew assembleRelease bundleRelease --no-daemon $SIGN
+            cp app/build/outputs/apk/release/app-release.apk ../../atelier-3d.apk
+            cp app/build/outputs/bundle/release/app-release.aab ../../atelier-3d-playstore.aab
+            rm -f "$RUNNER_TEMP/upload.jks"
+          else
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../../atelier-3d.apk
+          fi
+          ls -la ../../atelier-3d*
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk
           name: Atelier 3D - téléchargements
-          body: Application Android (.apk) et application Windows (.exe). Versions de test, non signées.
-          files: atelier-3d.apk
+          body: Application Android (.apk), fichier pour le Play Store (.aab) et application Windows (.exe).
+          files: |
+            atelier-3d.apk
+            atelier-3d-playstore.aab
