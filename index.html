@@ -103,6 +103,12 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 .check{display:flex;gap:8px;align-items:center}
 #imgFile{max-width:100%}
 #imgThr{width:100%}
+#aiText{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips .btn{white-space:normal;text-align:left;font-size:12px;min-height:0;padding:5px 8px}
+#aiStatus{margin:0;min-height:1.2em;font-size:13px}
+#aiStatus:empty{display:none}
+#aiStop[hidden]{display:none}
 .choice{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:12px 14px}
 .choice:hover{border-color:var(--accent)}
 .choice b{font-size:15px}
@@ -201,6 +207,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 
   <nav id="shapes" aria-label="Ajouter une forme">
     <h2>Formes</h2>
+    <button class="shape" id="aiBtn" title="Décrivez un objet avec vos mots : l'assistant le construit"><svg viewBox="0 0 36 36"><path class="f" d="M5 8h26v16H16l-7 6v-6H5z"/><path d="M5 8h26v16H16l-7 6v-6H5zM12 16h.1M18 16h.1M24 16h.1" stroke-width="2"/></svg>Assistant</button>
     <button class="shape" id="negBtn" aria-pressed="false" title="Activé : les formes que vous ajoutez deviennent des trous qui creusent les autres"><svg viewBox="0 0 36 36"><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14" stroke-dasharray="3 3"/><path d="M13 22h10" stroke-width="2.4"/></svg>Trou</button>
     <button class="shape adv" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
     <button class="shape" data-free aria-pressed="false" title="Dessinez un contour d'un seul trait : il devient un objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
@@ -374,6 +381,16 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
     </ol>
     <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ».</p>
     <div class="actions"><button class="btn primary" data-close>C'est parti</button></div>
+  </div>
+</div>
+<div class="modal" id="aiDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+    <h2 id="aiTitle">Assistant de création</h2>
+    <div class="field"><label for="aiText">Décrivez l'objet à créer</label><textarea id="aiText" rows="4" placeholder="Exemple : une boîte de 60 x 40 x 30 mm avec couvercle"></textarea></div>
+    <div class="chips"><button class="btn" data-ex>une plaque de 80 x 50 mm épaisseur 3 avec 4 trous de 5 mm</button><button class="btn" data-ex>un gobelet bleu de 70 mm de diamètre</button><button class="btn" data-ex>une table de 80 x 50 mm, hauteur 40</button></div>
+    <p class="note" id="aiNote"></p>
+    <p id="aiStatus" role="status"></p>
+    <div class="actions"><button class="btn primary" id="aiGo">Créer l'objet</button><button class="btn" id="aiStop" hidden>Arrêter</button><button class="btn" data-close>Fermer</button></div>
   </div>
 </div>
 <div class="modal" id="exportDlg" hidden>
@@ -1528,6 +1545,141 @@ $('imgBtn').addEventListener('click',function(){ if (draw) cancelDraw(); if (pai
 $('imgFile').addEventListener('change',function(){ if (this.files && this.files[0]) loadImage(this.files[0]); });
 ['imgThr','imgInv'].forEach(function(id){ $(id).addEventListener('input',imgPreview); });
 $('imgCreate').addEventListener('click',createFromImage);
+
+/* ---------- Assistant de création : une description devient un assemblage de formes ---------- */
+var COLOR_WORDS = {rouge:'#d64550',bleu:'#3a7ca5',vert:'#4c9f70',jaune:'#f2c14e',orange:'#e8590c',noir:'#3b4350',blanc:'#e9e4d8',gris:'#8a96a6',violet:'#7d5ba6',rose:'#e58fb1',marron:'#8a5a3c'};
+function createFromSpec(parts,label){
+  var ok = [], types = Object.keys(BASE);
+  (Array.isArray(parts)?parts:[]).slice(0,60).forEach(function(p){
+    if (!p || types.indexOf(p.type)<0) return;
+    var s = p.size, c = p.pos || [0,0,0], r = p.rot || [0,0,0];
+    if (!Array.isArray(s) || s.length<3 || !Array.isArray(c) || !Array.isArray(r)) return;
+    var nums = s.slice(0,3).concat(c.slice(0,3),r.slice(0,3)).map(Number);
+    if (nums.length<9 || nums.some(function(v){ return !isFinite(v); })) return;
+    var b = BASE[p.type], sz = nums.slice(0,3).map(function(v){ return Math.min(2000,Math.max(0.5,Math.abs(v))); });
+    ok.push({id:nextId++,type:p.type,name:String(p.name||NAMES[p.type]).slice(0,40),color:/^#[0-9a-f]{6}$/i.test(p.color||'')?p.color.toLowerCase():null,
+      hole:!!p.negative,p:nums.slice(3,6),r:nums.slice(6,9).map(function(d){ return THREE.MathUtils.degToRad(d); }),s:[sz[0]/b[0],sz[1]/b[1],sz[2]/b[2]]});
+  });
+  if (!ok.length) return 0;
+  /* Pose le nouvel objet à côté de ce qui est déjà sur le plateau, s'il y a la place */
+  var used = -Infinity, lo = Infinity, hi = -Infinity;
+  state.objs.forEach(function(o){ var m = meshes[o.id]; if (m && !o.hole) used = Math.max(used,primBox(o,m).max.x); });
+  ok.forEach(function(o){ var b = BASE[o.type], half = Math.max(o.s[0]*b[0],o.s[2]*b[2])/2; lo = Math.min(lo,o.p[0]-half); hi = Math.max(hi,o.p[0]+half); });
+  if (isFinite(used) && used>lo-10){ var dx = used+10-lo; if (hi+dx<=plate.w/2) ok.forEach(function(o){ o.p[0] += dx; }); }
+  var g = ok.length>1 ? newGroupId() : null, base = COLORS[state.objs.length%COLORS.length];
+  ok.forEach(function(o){ if (!o.color) o.color = base; if (!o.hole) delete o.hole; if (g!=null) o.g = g; state.objs.push(o); });
+  state.sel = ok.map(function(o){ return o.id; }); rebuild(); commit();
+  return ok.length;
+}
+function localAssistant(text){
+  var t = ' '+text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’']/g,' ')+' ';
+  [['deux',2],['trois',3],['quatre',4],['cinq',5],['six',6],['huit',8],['dix',10]].forEach(function(w){ t = t.replace(new RegExp(' '+w[0]+' ','g'),' '+w[1]+' '); });
+  var N = '(\\d+(?:[.,]\\d+)?)';
+  function num(s){ return parseFloat(String(s).replace(',','.')); }
+  t = t.replace(new RegExp(N+'\\s*cm\\b','g'),function(_,n){ return (num(n)*10)+' mm'; });
+  function val(re){ var m = t.match(re); return m ? num(m[1]) : null; }
+  function has(re){ return re.test(t); }
+  var color = null; Object.keys(COLOR_WORDS).forEach(function(k){ if (t.indexOf(' '+k)>=0) color = COLOR_WORDS[k]; });
+  var tri = t.match(new RegExp(N+'\\s*(?:mm)?\\s*(?:x|par|\\*)\\s*'+N+'\\s*(?:mm)?(?:\\s*(?:x|par|\\*)\\s*'+N+')?'));
+  var L = null, P = null, H = null;
+  if (tri){ L = num(tri[1]); P = num(tri[2]); if (tri[3]) H = num(tri[3]); }
+  var lon = val(new RegExp('long(?:ueur)?\\s*(?:de\\s*)?'+N)), lar = val(new RegExp('larg(?:e|eur)\\s*(?:de\\s*)?'+N)), pro = val(new RegExp('profond(?:eur)?\\s*(?:de\\s*)?'+N)),
+      hau = val(new RegExp('haut(?:e|eur)?\\s*(?:de\\s*)?'+N)), ep = val(new RegExp('epais(?:se|seur)?\\s*(?:de\\s*)?'+N)),
+      dia = val(new RegExp('diametre\\s*(?:de\\s*)?'+N)) || val(new RegExp(N+'\\s*(?:mm)?\\s*de\\s*diametre')), ray = val(new RegExp('rayon\\s*(?:de\\s*)?'+N)), cote = (function(){ var m = t.replace(/trous?[^,;.]*/,'').match(new RegExp('(?:cote|de)\\s+'+N+'\\s*mm(?!\\s*de\\s*diametre)')); return m ? num(m[1]) : null; })();
+  if (dia==null && ray!=null) dia = ray*2;
+  if (lon!=null) L = lon; if (lar!=null){ if (lon!=null || L!=null && P==null) P = lar; else L = lar; } if (pro!=null) P = pro; if (hau!=null) H = hau;
+  var nHoles = has(/ trous? /) ? (val(/(\d+)\s*trous/) || 1) : 0, holeD = val(new RegExp('trous?[^0-9]{0,30}'+N)) || 5;
+  var parts = [], what = '';
+  function add(type,name,size,pos,neg,rot){ var p = {type:type,name:name,size:size,pos:pos,negative:!!neg,rot:rot||[0,0,0]}; if (color && !neg) p.color = color; parts.push(p); return p; }
+  var e, d, i, main = null;
+  if (has(/ bonhomme de neige /)){ what = 'un bonhomme de neige'; add('sphere','Corps',[40,40,40],[0,19,0]); add('sphere','Buste',[30,30,30],[0,50,0]); add('sphere','Tête',[20,20,20],[0,73,0]); add('cone','Nez',[4,10,4],[0,73,13],false,[90,0,0]); }
+  else if (has(/ (boite|caisse|bac|coffret|tiroir|boitier) /)){
+    L = L||60; P = P||40; H = H||30; e = ep||2; what = 'une boîte de '+L+' × '+P+' × '+H+' mm';
+    main = add('cube','Boîte',[L,H,P],[0,H/2,0]); add('cube','Creux',[L-2*e,H,P-2*e],[0,e+H/2,0],true);
+    if (has(/ couvercle /)){ what += ' avec couvercle'; add('cube','Couvercle',[L,e,P],[L+10,e/2,0]); add('cube','Rebord du couvercle',[L-2*e-0.4,e,P-2*e-0.4],[L+10,e*1.5,0]); }
+  }
+  else if (has(/ (tube|tuyau|manchon|bague d ecartement|entretoise) /)){ d = dia||30; H = H||40; e = ep||2; what = 'un tube de '+d+' mm de diamètre'; main = add('cylinder','Tube',[d,H,d],[0,H/2,0]); add('cylinder','Intérieur',[d-2*e,H+2,d-2*e],[0,H/2,0],true); nHoles = 0; }
+  else if (has(/ (gobelet|verre|pot|vase|bol|tasse|seau|pot a crayons) /)){ var bol = has(/ bol /); d = dia||(bol?90:60); H = H||(bol?40:80); e = ep||2; what = 'un récipient de '+d+' mm de diamètre'; main = add('cylinder','Récipient',[d,H,d],[0,H/2,0]); add('cylinder','Creux',[d-2*e,H,d-2*e],[0,e+H/2,0],true); nHoles = 0; }
+  else if (has(/ (table|tabouret|banc|bureau) /)){
+    L = L||80; P = P||50; H = H||50; what = 'une table de '+L+' × '+P+' × '+H+' mm'; var leg = Math.max(4,Math.min(L,P)/10);
+    add('cube','Plateau',[L,4,P],[0,H-2,0]);
+    [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(function(c,k){ add('cube','Pied '+(k+1),[leg,H-3.8,leg],[c[0]*(L/2-leg/2-2),(H-3.8)/2,c[1]*(P/2-leg/2-2)]); });
+  }
+  else if (has(/ (escalier|marches?) /)){ var n = Math.min(20,val(/(\d+)\s*marches/)||5); L = L||40; what = 'un escalier de '+n+' marches'; for (i=0;i<n;i++) add('cube','Marche '+(i+1),[L,8*(i+1),12.2],[0,4*(i+1),(i-(n-1)/2)*12]); }
+  else if (has(/ maison /)){ what = 'une maison'; add('cube','Murs',[30,20,30],[0,10,0]); add('pyramid','Toit',[36,14,36],[0,26.9,0]).color = color||'#e8590c'; add('cube','Porte',[8,12,6],[0,6,14],true); }
+  else if (has(/ roue /)){ d = dia||50; e = ep||12; what = 'une roue de '+d+' mm'; add('cylinder','Roue',[d,e,d],[0,d/2,0],false,[90,0,0]); add('cylinder','Axe',[holeD>5?holeD:8,e+2,holeD>5?holeD:8],[0,d/2,0],true,[90,0,0]); nHoles = 0; }
+  else if (has(/ rondelle /)){ d = dia||30; e = ep||3; what = 'une rondelle de '+d+' mm'; main = add('cylinder','Rondelle',[d,e,d],[0,e/2,0]); nHoles = 1; if (!has(/ trous? /)) holeD = d/3; }
+  else if (has(/ (anneau|bague|tore|donut) /)){ d = dia||40; e = ep||d/5; what = 'un anneau de '+d+' mm'; add('torus','Anneau',[d,e,d],[0,e/2,0]); }
+  else if (has(/ (plaque|socle|plateau|support|planche|base|platine) /)){ L = L||80; P = P||50; e = ep||H||3; what = 'une plaque de '+L+' × '+P+' × '+e+' mm'; main = add('cube','Plaque',[L,e,P],[0,e/2,0]); }
+  else {
+    var shapes = [['cube',/ (\d+ )?(cubes?|paves?|blocs?|briques?) /],['sphere',/ (\d+ )?(spheres?|boules?|balles?|billes?) /],['cylinder',/ (\d+ )?(cylindres?|piliers?|colonnes?|disques?|rondins?|poteaux?) /],
+      ['cone',/ (\d+ )?(cones?) /],['pyramid',/ (\d+ )?(pyramides?) /],['ramp',/ (\d+ )?(rampes?|pentes?|coins?|cales?) /]], x = 0;
+    shapes.forEach(function(sh){
+      var m = t.match(sh[1]); if (!m) return;
+      var n = Math.min(20,m[1]?parseInt(m[1],10):1), sz;
+      if (sh[0]==='sphere'){ d = dia||cote||20; sz = [d,d,d]; }
+      else if (sh[0]==='cylinder' || sh[0]==='cone'){ d = dia||L||cote||20; sz = [d,H||(sh[0]==='cylinder' && /disque/.test(m[2])?3:d),d]; }
+      else { var a = L||cote||20; sz = [a,H||(L&&!cote?(P||a):a),P||a]; if (!tri && !lon && !lar && cote) sz = [cote,H||cote,cote]; }
+      for (i=0;i<n;i++){ var p = add(sh[0],NAMES[sh[0]]+(n>1?' '+(i+1):''),sz,[x+sz[0]/2,sz[1]/2,0]); if (!main) main = p; x += sz[0]+5; }
+      what += (what?', ':'')+n+' '+NAMES[sh[0]].toLowerCase()+(n>1?'s':'');
+    });
+    if (parts.length){ var shift = (x-5)/2; parts.forEach(function(p){ p.pos[0] -= shift; }); if (parts.length>1) nHoles = 0; }
+  }
+  if (!parts.length) return null;
+  if (nHoles && main){
+    var mw = main.size[0], mh = main.size[1], md = main.size[2], cx = main.pos[0], cz = main.pos[2], r = holeD/2, pts = [];
+    nHoles = Math.min(24,nHoles);
+    if (nHoles===1) pts = [[0,0]];
+    else if (nHoles===4 && main.type==='cube'){ var ix = mw/2-Math.max(r+2,mw*0.12), iz = md/2-Math.max(r+2,md*0.12); pts = [[-ix,-iz],[ix,-iz],[ix,iz],[-ix,iz]]; }
+    else for (i=0;i<nHoles;i++) pts.push([(i+0.5)/nHoles*mw-mw/2,0]);
+    pts.forEach(function(q,k){ add('cylinder','Trou'+(pts.length>1?' '+(k+1):''),[holeD,mh+2,holeD],[cx+q[0],main.pos[1],cz+q[1]],true); });
+    what += ' avec '+nHoles+' trou'+(nHoles>1?'s':'')+' de '+holeD+' mm';
+  }
+  return {parts:parts,what:what};
+}
+var askClaude = null, aiCtl = null;
+(function(){ try { var p = window.claude && window.claude.use && window.claude.use('sample'); if (p && p.then) p.then(function(s){ askClaude = s; aiMode(); },function(){}); } catch(e){} })();
+function aiMode(){
+  $('aiNote').textContent = askClaude ? 'Ici, Claude construit l’objet à partir de votre description, en assemblant des formes simples. La création peut prendre jusqu’à une minute.'
+    : 'Ici, l’assistant comprend les descriptions simples : boîte, tube, plaque, table, gobelet, escalier, roue, anneau, cube, sphère, cylindre… avec des dimensions, une couleur et des trous.';
+}
+function aiBusy(on,msg){ $('aiGo').disabled = on; $('aiStop').hidden = !on; $('aiStatus').textContent = msg||''; }
+function aiLocal(text,prefix){
+  var res = localAssistant(text);
+  if (!res){ aiBusy(false,(prefix||'')+'Je n’ai pas reconnu d’objet dans cette description. Essayez par exemple : « une boîte de 60 x 40 x 30 mm avec couvercle ».'); return; }
+  createFromSpec(res.parts); aiBusy(false,''); $('aiDlg').hidden = true; toast('Créé : '+res.what+'.');
+}
+function aiRun(){
+  var text = $('aiText').value.trim();
+  if (text.length<3){ aiBusy(false,'Décrivez l’objet en quelques mots.'); return; }
+  if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false);
+  if (!askClaude){ aiLocal(text); return; }
+  var prompt = 'Tu es l’assistant de l’application de modélisation 3D « Atelier 3D », destinée à l’impression 3D. Transforme la description de l’utilisateur en une liste de formes simples à assembler.\n\n'
+    +'Repère : millimètres. Le plateau est le plan y = 0, centré en x = 0 et z = 0. x va vers la droite, y vers le haut, z vers l’avant. Plateau de '+plate.w+' × '+plate.d+' mm, hauteur maximale '+plate.h+' mm.\n\n'
+    +'Formes disponibles (champ type). size = [largeur en x, hauteur en y, profondeur en z] de la boîte englobante avant rotation :\n'
+    +'- cube : pavé plein\n- sphere : sphère ou ellipsoïde\n- cylinder : cylindre d’axe vertical (y)\n- cone : cône, pointe en haut\n- pyramid : pyramide à base carrée, pointe en haut\n'
+    +'- ramp : prisme triangulaire ; face verticale haute côté x négatif, pente qui descend vers x positif, même section sur toute la profondeur\n'
+    +'- torus : anneau couché à plat (axe y) ; x et z = diamètre extérieur, y = épaisseur du tube\n\n'
+    +'Chaque objet : {"type": ..., "name": nom court en français, "color": "#rrggbb", "size": [x,y,z], "pos": [x,y,z] du centre de la forme, "rot": [rx,ry,rz] en degrés (ordre XYZ), "negative": true ou false}.\n'
+    +'Une forme "negative": true creuse toutes les formes pleines qu’elle traverse : sers-t’en pour les trous, creux, fentes et évidements, et fais-la dépasser d’au moins 1 mm de chaque côté ouvert.\n'
+    +'Règles : l’objet repose sur le plateau (point le plus bas à y = 0) et est centré ; les pièces pleines se chevauchent d’au moins 0,2 mm pour former un seul bloc ; parois d’au moins 1,2 mm ; dimensions réalistes si l’utilisateur n’en donne pas ; 40 formes au maximum.\n\n'
+    +'Réponds uniquement par un tableau JSON de ces objets, sans aucun autre texte.\n\nDescription de l’utilisateur : « '+text.slice(0,1500)+' »';
+  aiCtl = new AbortController(); aiBusy(true,'Claude réfléchit à votre objet…');
+  askClaude.json(prompt,{signal:aiCtl.signal,cache:false}).then(function(data){
+    var n = createFromSpec(Array.isArray(data) ? data : (data && data.objects));
+    if (!n){ aiBusy(false,'La réponse ne contenait aucune forme utilisable. Reformulez la description, ou réessayez.'); return; }
+    aiBusy(false,''); $('aiDlg').hidden = true; toast('Objet créé par l’assistant : '+n+' forme'+(n>1?'s':'')+', groupées.');
+  },function(e){
+    var c = e && e.code;
+    if (c==='cancelled'){ aiBusy(false,'Création arrêtée.'); return; }
+    if (c==='not_granted' || c==='sampling_disabled' || c==='not_declared' || c==='capability_disabled' || c==='capability_removed'){ askClaude = null; aiMode(); aiLocal(text,'Claude n’est pas disponible ici. '); return; }
+    aiBusy(false,c==='rate_limited' ? 'Trop de demandes pour l’instant : réessayez dans un moment.' : (c==='refused' ? 'Claude a refusé cette demande : décrivez l’objet autrement.' : 'La création n’a pas abouti. Réessayez.'));
+  });
+}
+$('aiBtn').addEventListener('click',function(){ aiMode(); aiBusy(false,''); $('aiDlg').hidden = false; $('aiText').focus(); });
+$('aiGo').addEventListener('click',aiRun);
+$('aiStop').addEventListener('click',function(){ if (aiCtl) aiCtl.abort(); });
+document.querySelectorAll('[data-ex]').forEach(function(b){ b.addEventListener('click',function(){ $('aiText').value = b.textContent; }); });
 
 /* ---------- Interface ---------- */
 function fmt(v){ return String(Math.round(v*10)/10); }
