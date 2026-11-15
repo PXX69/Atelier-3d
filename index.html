@@ -59,6 +59,16 @@ button{cursor:pointer}
 .btn.danger{color:var(--danger)}
 .spacer{flex:1}
 #toggleInspector{display:none}
+body.simple .adv{display:none!important}
+#hint{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:7px 11px;font-size:13px;line-height:1.35;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+#boxRect{position:absolute;z-index:2;border:2px dashed var(--accent);background:rgba(217,82,11,.10);pointer-events:none;border-radius:3px}
+#boxRect[hidden]{display:none}
+.tick{width:20px;height:20px;border:1.5px solid var(--grid-strong);border-radius:5px;flex:none;display:inline-flex;align-items:center;justify-content:center;margin:-4px 0 -4px -2px;padding:0}
+.item[aria-current="true"] .tick{background:var(--accent);border-color:var(--accent)}
+.item[aria-current="true"] .tick::after{content:"\2713";color:var(--accent-ink);font-size:13px;font-weight:700}
+ol.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px}
+ol.steps li b{display:block;font-size:15px}
+ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 
 /* Formes */
 #shapes{grid-area:shapes;background:var(--panel);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:6px;overflow:auto}
@@ -148,7 +158,7 @@ button{cursor:pointer}
   #inspector{position:absolute;left:0;right:0;bottom:0;z-index:5;max-height:58%;border-left:0;border-top:1px solid var(--line);
     box-shadow:0 -8px 24px rgba(0,0,0,.18);display:none;padding:12px 16px 20px}
   #inspector.open{display:flex}
-  #hint{display:none}
+  #hint{max-width:none;right:12px;font-size:12px}
 }
 </style>
 </head>
@@ -166,19 +176,24 @@ button{cursor:pointer}
     <div class="group" role="group" aria-label="Outil">
       <button class="btn" data-mode="translate" aria-pressed="true" title="Touche T">Déplacer</button>
       <button class="btn" data-mode="rotate" aria-pressed="false" title="Touche R">Tourner</button>
-      <button class="btn" data-mode="scale" aria-pressed="false" title="Touche E">Dimensionner</button>
-      <button class="btn" id="measureBtn" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
-      <button class="btn" id="eraseBtn" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
+      <button class="btn" data-mode="scale" aria-pressed="false" title="Changer la taille (touche E)">Taille</button>
+      <button class="btn adv" id="measureBtn" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
+      <button class="btn adv" id="eraseBtn" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
       <button class="btn" id="paintBtn" aria-pressed="false" title="Choisissez une couleur puis touchez les objets à colorer">Peindre</button>
     </div>
     <div class="sep"></div>
     <div class="group">
-      <button class="btn" id="snap" aria-pressed="true" title="Déplacement par pas de 1 mm, rotation par pas de 15°">Aimant 1 mm</button>
-      <button class="btn" id="multi" aria-pressed="false" title="Ajoute chaque objet touché à la sélection. Au clavier : Maj+clic">Sélection multiple</button>
-      <button class="btn" id="frame">Recentrer la vue</button>
-      <button class="btn" id="printerBtn" title="Imprimante et taille du plateau">Imprimante</button>
+      <button class="btn adv" id="snap" aria-pressed="true" title="Déplacement par pas de 1 mm, rotation par pas de 15°">Aimant 1 mm</button>
+      <button class="btn" id="multi" aria-pressed="false" title="Activé : chaque objet touché s'ajoute à la sélection. Au clavier : Maj+clic">Choisir plusieurs</button>
+      <button class="btn" id="selAll" title="Choisit tous les objets (Ctrl+A)">Tout choisir</button>
+      <button class="btn" id="boxBtn" aria-pressed="false" title="Glissez un cadre sur le plateau pour choisir les objets qu'il contient">Cadre</button>
+      <button class="btn" id="frame" title="Remet la vue face au plateau">Recentrer</button>
+      <button class="btn adv" id="printerBtn" title="Imprimante et taille du plateau">Imprimante</button>
+      <button class="btn" id="mergeTop" title="Réunit les formes sélectionnées en un seul objet (Ctrl+M). Sélectionnez-en au moins deux." disabled>Fusionner</button>
       <button class="btn danger" id="delTop" title="Supprime les objets sélectionnés (touche Suppr)" disabled>Supprimer</button>
     </div>
+    <button class="btn" id="helpBtn" title="Revoir le guide de démarrage">? Aide</button>
+    <button class="btn" id="levelBtn" title="Affiche ou cache les outils avancés">Mode expert</button>
     <div class="spacer"></div>
     <button class="btn" id="toggleInspector" aria-expanded="false">Objet</button>
     <button class="btn primary" id="export">Exporter</button>
@@ -186,12 +201,12 @@ button{cursor:pointer}
 
   <nav id="shapes" aria-label="Ajouter une forme">
     <h2>Formes</h2>
-    <button class="shape" id="negBtn" aria-pressed="false" title="Activé : les formes créées sont négatives, elles creusent les solides"><svg viewBox="0 0 36 36"><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14" stroke-dasharray="3 3"/><path d="M13 22h10" stroke-width="2.4"/></svg>Négatif</button>
-    <button class="shape" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
+    <button class="shape" id="negBtn" aria-pressed="false" title="Activé : les formes que vous ajoutez deviennent des trous qui creusent les autres"><svg viewBox="0 0 36 36"><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14" stroke-dasharray="3 3"/><path d="M13 22h10" stroke-width="2.4"/></svg>Trou</button>
+    <button class="shape adv" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
     <button class="shape" data-free aria-pressed="false" title="Dessinez un contour d'un seul trait : il devient un objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
     <button class="shape" id="imgBtn" title="Transformez la photo ou le fichier d'un dessin en objet"><svg viewBox="0 0 36 36"><path class="f" d="M5 7h26v22H5z"/><path d="M5 7h26v22H5zM5 24l8-8 6 6 4-4 8 8"/><circle cx="24" cy="13" r="2.5"/></svg>Image</button>
     <button class="shape" id="importBtn" title="Ouvrez un fichier STL ou 3MF pour le modifier ici"><svg viewBox="0 0 36 36"><path class="f" d="M6 22v8h24v-8z"/><path d="M6 22v8h24v-8M18 5v17M11 15l7 7 7-7"/></svg>Importer</button>
-    <button class="shape" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
+    <button class="shape adv" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
     <button class="shape" data-add="cube"><svg viewBox="0 0 36 36"><path class="f" d="M6 12l12-6 12 6v14l-12 6-12-6z"/><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14"/></svg>Cube</button>
     <button class="shape" data-add="sphere"><svg viewBox="0 0 36 36"><circle class="f" cx="18" cy="18" r="13"/><circle cx="18" cy="18" r="13"/><ellipse cx="18" cy="18" rx="13" ry="5"/></svg>Sphère</button>
     <button class="shape" data-add="cylinder"><svg viewBox="0 0 36 36"><path class="f" d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9z"/><ellipse cx="18" cy="9" rx="11" ry="4.5"/><path d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9"/></svg>Cylindre</button>
@@ -204,6 +219,7 @@ button{cursor:pointer}
   <main id="stage">
     <canvas id="view" aria-label="Vue 3D du modèle"></canvas>
     <div id="hint">Glisser : tourner la vue · Molette ou pincement : zoom · Clic droit ou deux doigts : déplacer la vue</div>
+    <div id="boxRect" hidden></div>
     <div id="plate">Plateau 200 × 200 mm · carreau 10 mm</div>
     <div id="warn" hidden></div>
     <div id="drawBar" hidden>
@@ -244,10 +260,11 @@ button{cursor:pointer}
       <div class="actions">
         <button class="btn" id="grp" title="Ctrl+G" hidden>Grouper</button>
         <button class="btn" id="ungrp" title="Ctrl+Maj+G" hidden>Dégrouper</button>
+        <button class="btn" id="mergeBtn" title="Réunit les formes sélectionnées en un seul objet (les négatifs sélectionnés sont creusés)" hidden>Fusionner</button>
         <button class="btn" id="dup" title="Ctrl+D">Dupliquer</button>
         <button class="btn" id="drop">Poser sur le plateau</button>
-        <button class="btn" id="alignZero" title="Place la sélection dans le coin avant gauche du plateau, le zéro de l'imprimante">Aligner au zéro</button>
-        <button class="btn" id="centerBtn">Centrer sur le plateau</button>
+        <button class="btn adv" id="alignZero" title="Place la sélection dans le coin avant gauche du plateau, le zéro de l'imprimante">Aligner au zéro</button>
+        <button class="btn adv" id="centerBtn">Centrer sur le plateau</button>
         <button class="btn danger" id="del" title="Suppr">Supprimer</button>
       </div>
       <div id="single">
@@ -260,7 +277,7 @@ button{cursor:pointer}
           <div class="num"><b>P</b><input type="number" id="dz" step="1" min="0.5" aria-label="Profondeur en mm"></div>
         </div>
       </div>
-      <div>
+      <div class="adv">
         <span class="rowlabel">Position du centre (mm)</span>
         <div class="triple">
           <div class="num"><b>X</b><input type="number" id="px" step="1" aria-label="Position X"></div>
@@ -268,7 +285,7 @@ button{cursor:pointer}
           <div class="num"><b>Z</b><input type="number" id="pz" step="1" aria-label="Position Z"></div>
         </div>
       </div>
-      <div>
+      <div class="adv">
         <span class="rowlabel">Rotation (degrés)</span>
         <div class="triple">
           <div class="num"><b>X</b><input type="number" id="rx" step="15" aria-label="Rotation X"></div>
@@ -279,8 +296,8 @@ button{cursor:pointer}
       <div>
         <span class="rowlabel">Matière</span>
         <div class="group" role="group" aria-label="Matière">
-          <button class="btn" id="solidBtn" aria-pressed="true">Solide</button>
-          <button class="btn" id="holeBtn" aria-pressed="false">Négatif (trou)</button>
+          <button class="btn" id="solidBtn" aria-pressed="true">Plein</button>
+          <button class="btn" id="holeBtn" aria-pressed="false">Trou</button>
         </div>
         <p class="note">Un trou creuse tous les solides qu'il touche. Les trous ne sont pas exportés.</p>
       </div>
@@ -343,6 +360,20 @@ button{cursor:pointer}
       </div>
     </div>
     <div class="actions"><button class="btn primary" id="imgCreate" disabled>Créer l'objet</button><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
+<div class="modal" id="helpDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">Bienvenue dans Atelier 3D</h2>
+    <ol class="steps">
+      <li><b>Ajoutez une forme</b><span>Touchez Cube, Sphère, Cylindre… dans la colonne des formes (en bas sur téléphone).</span></li>
+      <li><b>Choisissez-la</b><span>Touchez l'objet sur le plateau : il s'entoure d'un cadre.</span></li>
+      <li><b>Modifiez-la</b><span>Touchez Déplacer, Tourner ou Taille en haut, puis glissez les flèches de couleur. Le bouton Objet permet aussi de taper les dimensions en millimètres.</span></li>
+      <li><b>Combinez</b><span>Passez une forme en « Trou » pour creuser les autres. Pour en assembler plusieurs, choisissez-les puis touchez Fusionner.</span></li>
+      <li><b>Imprimez</b><span>Exporter crée un fichier 3MF ou STL pour votre imprimante 3D.</span></li>
+    </ol>
+    <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ».</p>
+    <div class="actions"><button class="btn primary" data-close>C'est parti</button></div>
   </div>
 </div>
 <div class="modal" id="exportDlg" hidden>
@@ -704,6 +735,7 @@ canvas.addEventListener('pointerdown',function(e){
   if (e.pointerType==='mouse') touches.clear();
   touches.add(e.pointerId);
   down = {x:e.clientX,y:e.clientY}; gizmoUsed = false; bodyDrag = null;
+  if (boxOn && e.button===0 && touches.size===1 && !tc.axis){ boxDrag = {x:e.clientX,y:e.clientY}; down = null; try { canvas.setPointerCapture(e.pointerId); } catch(err){} showBox(e); return; }
   if (stroking){ if (touches.size>1) abortStroke(); return; }
   if (e.button!==0 || touches.size>1) return;
   if (erase || (draw && draw.free)){
@@ -727,6 +759,7 @@ canvas.addEventListener('pointerdown',function(e){
   }
 },true);
 canvas.addEventListener('pointermove',function(e){
+  if (boxDrag){ showBox(e); return; }
   if (stroking){
     var pt = strokePoint(e), r = stroking==='erase' ? eraseR() : penR();
     if (!pt || pt.distanceTo(cur[cur.length-1])<Math.max(0.6,r/3)) return;
@@ -746,6 +779,7 @@ canvas.addEventListener('pointermove',function(e){
   }
 });
 canvas.addEventListener('pointercancel',function(){
+  if (boxDrag){ boxDrag = null; $('boxRect').hidden = true; }
   if (stroking) abortStroke();
   if (bodyDrag){ bodyDrag.target.position.copy(bodyDrag.start); bodyDrag = null; orbit.enabled = true; }
 });
@@ -923,6 +957,60 @@ function attach(){
   applySnap();
 }
 function setSel(ids){ state.sel = ids; attach(); refreshUI(); }
+/* ---------- Sélection : tout choisir, cadre ---------- */
+var boxOn = false, boxDrag = null;
+function selectAll(){
+  var all = state.objs.map(function(o){ return o.id; });
+  if (!all.length){ toast('Le plateau est vide.'); return; }
+  setSel(state.sel.length===all.length ? [] : all);
+}
+function setBox(on){
+  if (on){ if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); }
+  boxOn = on; boxDrag = null; $('boxRect').hidden = true;
+  $('boxBtn').setAttribute('aria-pressed',String(on)); orbit.enabled = !on; updateGuide();
+}
+function showBox(e){
+  var r = canvas.getBoundingClientRect(), s = $('boxRect').style;
+  s.left = (Math.min(boxDrag.x,e.clientX)-r.left)+'px'; s.top = (Math.min(boxDrag.y,e.clientY)-r.top)+'px';
+  s.width = Math.abs(e.clientX-boxDrag.x)+'px'; s.height = Math.abs(e.clientY-boxDrag.y)+'px';
+  $('boxRect').hidden = false;
+}
+function finishBox(e){
+  var b = boxDrag; boxDrag = null; $('boxRect').hidden = true;
+  if (Math.hypot(e.clientX-b.x,e.clientY-b.y)<8){ toast('Glissez le doigt ou la souris pour tracer un cadre autour des objets.'); return; }
+  var r = canvas.getBoundingClientRect(), x0 = Math.min(b.x,e.clientX), x1 = Math.max(b.x,e.clientX), y0 = Math.min(b.y,e.clientY), y1 = Math.max(b.y,e.clientY);
+  var ids = [], c = new THREE.Vector3();
+  state.objs.forEach(function(o){
+    var m = meshes[o.id]; if (!m) return;
+    primBox(o,m).getCenter(c); c.project(camera);
+    var sx = (c.x+1)/2*r.width+r.left, sy = (1-c.y)/2*r.height+r.top;
+    if (c.z<1 && sx>=x0 && sx<=x1 && sy>=y0 && sy<=y1) groupIds(o.id).forEach(function(id){ if (ids.indexOf(id)<0) ids.push(id); });
+  });
+  if (e.shiftKey || state.multi) state.sel.forEach(function(id){ if (ids.indexOf(id)<0) ids.push(id); });
+  setBox(false); setSel(ids);
+  toast(ids.length ? (ids.length>1 ? ids.length+' objets choisis.' : '1 objet choisi.') : 'Aucun objet dans le cadre.');
+}
+/* ---------- Guide : une phrase qui dit quoi faire maintenant ---------- */
+function updateGuide(){
+  var t, n = state.sel.length;
+  if (boxOn) t = 'Glissez un cadre autour des objets à choisir.';
+  else if (!state.objs.length) t = 'Pour commencer, touchez une forme (Cube, Sphère…) pour l\u2019ajouter au plateau.';
+  else if (!n) t = state.multi ? 'Touchez les objets un par un pour les ajouter à la sélection.' : 'Touchez un objet pour le choisir. Glissez le fond pour tourner la vue.';
+  else if (n>1) t = n+' objets choisis : Fusionner les assemble en un seul, Supprimer les efface. Touchez-en d\u2019autres avec « Choisir plusieurs ».';
+  else if (state.mode==='rotate') t = 'Glissez un des anneaux de couleur pour tourner l\u2019objet.';
+  else if (state.mode==='scale') t = 'Glissez un des petits cubes de couleur pour changer la taille, ou tapez-la dans Objet.';
+  else t = 'Glissez l\u2019objet ou ses flèches pour le déplacer. Tourner et Taille sont en haut.';
+  $('hint').textContent = t;
+}
+/* ---------- Mode simple / expert ---------- */
+var LEVEL_KEY = 'atelier3d.level.v1';
+function setLevel(expert){
+  document.body.classList.toggle('simple',!expert);
+  $('levelBtn').textContent = expert ? 'Mode simple' : 'Mode expert';
+  $('levelBtn').setAttribute('aria-pressed',String(expert));
+  if (!expert){ if (erase) setErase(false); if (measure) setMeasure(false); if (draw && !draw.free) cancelDraw(); }
+  try { localStorage.setItem(LEVEL_KEY,expert?'expert':'simple'); } catch(e){}
+}
 function groupIds(id){
   var o = getObj(id); if (!o) return [];
   if (o.g==null) return [id];
@@ -944,6 +1032,35 @@ function group(){
 function ungroup(){
   var os = selObjs().filter(function(o){ return o.g!=null; }); if (!os.length) return;
   os.forEach(function(o){ delete o.g; }); commit(); toast('Groupe défait.');
+}
+/* Fusion : les solides sélectionnés sont réunis, les négatifs sélectionnés les creusent. Donne un seul objet. */
+function mergeSel(){
+  var os = selObjs(); if (os.length<2) return;
+  if (!MF){ toast('Le moteur de volumes n\u2019est pas disponible ici : la fusion est impossible.'); return; }
+  var solids = os.filter(function(o){ return !o.hole; }), holes = os.filter(function(o){ return !!o.hole; });
+  if (!solids.length){ toast('Sélectionnez au moins une forme pleine à fusionner.'); return; }
+  var mans = [], U = null, R = null;
+  try {
+    solids.forEach(function(o){ mans.push(manFromPositions(worldPositions(meshes[o.id],niOf(o)))); });
+    U = mans.length>1 ? MF.Manifold.union(mans) : mans[0];
+    holes.forEach(function(o){
+      var B = manFromPositions(worldPositions(meshes[o.id],niOf(o))), S = U.subtract(B);
+      B.delete(); if (mans.indexOf(U)<0) U.delete(); U = S;
+    });
+    R = clipToPlate(U);
+    var pos = manToPositions(R);
+    if (!pos.length){ toast('La fusion ne laisse aucune matière.'); return; }
+    var name = solids[0].name.replace(/ \(copie\)$/,''), color = solids[0].color;
+    state.objs = state.objs.filter(function(o){ return state.sel.indexOf(o.id)<0; });
+    var neg = state.neg; state.neg = false;
+    var o = addMeshObject(pos,'Fusion · '+name,color); state.neg = neg;
+    state.sel = [o.id]; rebuild(); commit();
+    toast(os.length+' formes fusionnées en un seul objet. « Annuler » les sépare à nouveau.');
+  } catch(e){
+    toast('Ces formes n\u2019ont pas pu être fusionnées : l\u2019une d\u2019elles a des défauts de surface.');
+  } finally {
+    try { if (R) R.delete(); if (U && mans.indexOf(U)<0) U.delete(); mans.forEach(function(m){ try { m.delete(); } catch(e){} }); } catch(e){}
+  }
 }
 
 /* ---------- Actions ---------- */
@@ -979,7 +1096,7 @@ function dropToPlate(){
   os.forEach(function(o){ syncFromMesh(o); }); commit();
 }
 function setMode(mode){
-  state.mode = mode; tc.setMode(mode); tc.setSpace(mode==='scale'?'local':'world');
+  state.mode = mode; tc.setMode(mode); tc.setSpace(mode==='scale'?'local':'world'); updateGuide();
   document.querySelectorAll('[data-mode]').forEach(function(b){ b.setAttribute('aria-pressed',String(b.dataset.mode===mode)); });
 }
 function applySnap(){
@@ -991,6 +1108,7 @@ function setSnap(on){ state.snap = on; applySnap(); $('snap').setAttribute('aria
 function newProject(){
   if (draw) cancelDraw(); if (measure) setMeasure(false); if (erase) setErase(false);
   if (!state.objs.length){ toast('Le plateau est déjà vide.'); return; }
+  if (!window.confirm('Effacer tout le plateau pour commencer un nouveau projet ?')) return;
   state.objs = []; state.sel = []; rebuild(); commit(); frameView();
   toast('Nouveau projet. Touchez Annuler pour retrouver l\u2019ancien.');
 }
@@ -1024,6 +1142,7 @@ function centerOnPlate(){ if (!state.sel.length) return; var b = selBox(); moveS
 /* ---------- Sélection au clic / au toucher ---------- */
 var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 canvas.addEventListener('pointerup',function(e){
+  if (boxDrag){ finishBox(e); return; }
   if (stroking){
     var kind = stroking, pts = cur; abortStroke(); down = null;
     if (kind==='erase') applyErase(pts); else endPenStroke(pts);
@@ -1426,10 +1545,12 @@ function refreshUI(){
     var b = document.createElement('button'); b.className = isOut ? 'item out' : 'item'; b.type = 'button';
     b.setAttribute('aria-current',String(state.sel.indexOf(o.id)>=0));
     var dot = document.createElement('span'); dot.className = o.hole ? 'dot hole' : 'dot'; if (!o.hole) dot.style.background = o.color;
+    var tick = document.createElement('span'); tick.className = 'tick'; tick.title = 'Ajouter ou retirer de la sélection';
+    tick.addEventListener('click',function(ev){ ev.stopPropagation(); pick(o.id,true); });
     var t = document.createElement('span'); t.textContent = o.name;
     var sm = document.createElement('small'); var bs = baseOf(o);
     sm.textContent = (isOut?'dépasse · ':'')+(o.g!=null?'gr. '+o.g+' · ':'')+fmt(o.s[0]*bs[0])+'×'+fmt(o.s[1]*bs[1])+'×'+fmt(o.s[2]*bs[2]);
-    b.appendChild(dot); b.appendChild(t); b.appendChild(sm);
+    b.appendChild(tick); b.appendChild(dot); b.appendChild(t); b.appendChild(sm);
     b.addEventListener('click',function(ev){ pick(o.id,ev.shiftKey||state.multi); });
     list.appendChild(b);
   });
@@ -1441,7 +1562,11 @@ function refreshUI(){
   $('multiTitle').hidden = n<2; $('multiTitle').textContent = n+' objets sélectionnés';
   $('grp').hidden = n<2 || (os[0].g!=null && os.every(function(x){ return x.g===os[0].g; }));
   $('ungrp').hidden = !os.some(function(x){ return x.g!=null; });
-  $('empty').textContent = state.objs.length ? 'Touchez un objet sur le plateau pour le modifier, ou ajoutez une forme. Pour en grouper plusieurs, activez Sélection multiple.' : 'Le plateau est vide. Ajoutez une forme pour commencer.';
+  $('mergeBtn').hidden = n<2; $('mergeTop').disabled = n<2;
+  $('multi').textContent = 'Choisir plusieurs'+(n>1?' ('+n+')':'');
+  $('selAll').textContent = state.objs.length && n===state.objs.length ? 'Tout enlever' : 'Tout choisir';
+  updateGuide();
+  $('empty').textContent = state.objs.length ? 'Touchez un objet sur le plateau pour le modifier, ou ajoutez une forme. Pour en choisir plusieurs, touchez « Choisir plusieurs » ou « Tout choisir ».' : 'Le plateau est vide. Ajoutez une forme pour commencer.';
   if (o){
     if (document.activeElement!==$('name')) $('name').value = o.name;
     fillFields(o);
@@ -1501,7 +1626,13 @@ $('drawDone').addEventListener('click',finishDraw); $('drawCancel').addEventList
 $('undo').addEventListener('click',undo); $('redo').addEventListener('click',redo);
 $('solidBtn').addEventListener('click',function(){ setHole(false); }); $('holeBtn').addEventListener('click',function(){ setHole(true); });
 $('grp').addEventListener('click',group); $('ungrp').addEventListener('click',ungroup);
-$('multi').addEventListener('click',function(){ state.multi = !state.multi; this.setAttribute('aria-pressed',String(state.multi)); });
+$('mergeBtn').addEventListener('click',mergeSel);
+$('selAll').addEventListener('click',selectAll);
+$('boxBtn').addEventListener('click',function(){ setBox(!boxOn); });
+$('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; });
+$('levelBtn').addEventListener('click',function(){ setLevel(document.body.classList.contains('simple')); }); $('mergeTop').addEventListener('click',mergeSel);
+$('multi').addEventListener('click',function(){ state.multi = !state.multi; this.setAttribute('aria-pressed',String(state.multi)); updateGuide();
+  toast(state.multi ? 'Touchez les objets un par un : chacun s\u2019ajoute à la sélection.' : 'Un objet à la fois.'); });
 $('dup').addEventListener('click',duplicate); $('del').addEventListener('click',remove); $('delTop').addEventListener('click',remove); $('drop').addEventListener('click',dropToPlate);
 $('toggleInspector').addEventListener('click',function(){
   var open = $('inspector').classList.toggle('open'); this.setAttribute('aria-expanded',String(open));
@@ -1513,9 +1644,11 @@ window.addEventListener('keydown',function(e){
   else if (mod && k==='y'){ e.preventDefault(); redo(); }
   else if (mod && k==='d'){ e.preventDefault(); duplicate(); }
   else if (mod && k==='g'){ e.preventDefault(); if (e.shiftKey) ungroup(); else group(); }
+  else if (mod && k==='m'){ e.preventDefault(); mergeSel(); }
+  else if (mod && k==='a'){ e.preventDefault(); selectAll(); }
   else if (k==='delete'||k==='backspace'){ e.preventDefault(); remove(); }
   else if (k==='t') setMode('translate'); else if (k==='r') setMode('rotate'); else if (k==='e') setMode('scale');
-  else if (k==='escape'){ if (!closeModals()){ if (draw) cancelDraw(); else if (erase) setErase(false); else if (paint) setPaint(false); else if (measure) setMeasure(false); else setSel([]); } }
+  else if (k==='escape'){ if (!closeModals()){ if (boxOn) setBox(false); else if (draw) cancelDraw(); else if (erase) setErase(false); else if (paint) setPaint(false); else if (measure) setMeasure(false); else setSel([]); } }
 });
 
 var toastTimer = 0;
@@ -1796,7 +1929,10 @@ $('exp3mf').addEventListener('click',function(){
 });
 
 /* ---------- Démarrage ---------- */
+var lvl = 'simple'; try { lvl = localStorage.getItem(LEVEL_KEY) || 'simple'; } catch(e){}
+setLevel(lvl==='expert');
 setMode('translate'); setSnap(true);
+try { if (!localStorage.getItem('atelier3d.welcome.v1')){ $('helpDlg').hidden = false; localStorage.setItem('atelier3d.welcome.v1','1'); } } catch(e){}
 var started = false;
 function start(){
   if (started) return; started = true;
