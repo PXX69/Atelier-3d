@@ -185,6 +185,7 @@ button{cursor:pointer}
     <button class="shape" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
     <button class="shape" data-free aria-pressed="false" title="Dessinez un contour d'un seul trait : il devient un objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
     <button class="shape" id="imgBtn" title="Transformez la photo ou le fichier d'un dessin en objet"><svg viewBox="0 0 36 36"><path class="f" d="M5 7h26v22H5z"/><path d="M5 7h26v22H5zM5 24l8-8 6 6 4-4 8 8"/><circle cx="24" cy="13" r="2.5"/></svg>Image</button>
+    <button class="shape" id="importBtn" title="Ouvrez un fichier STL ou 3MF pour le modifier ici"><svg viewBox="0 0 36 36"><path class="f" d="M6 22v8h24v-8z"/><path d="M6 22v8h24v-8M18 5v17M11 15l7 7 7-7"/></svg>Importer</button>
     <button class="shape" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
     <button class="shape" data-add="cube"><svg viewBox="0 0 36 36"><path class="f" d="M6 12l12-6 12 6v14l-12 6-12-6z"/><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14"/></svg>Cube</button>
     <button class="shape" data-add="sphere"><svg viewBox="0 0 36 36"><circle class="f" cx="18" cy="18" r="13"/><circle cx="18" cy="18" r="13"/><ellipse cx="18" cy="18" rx="13" ry="5"/></svg>Sphère</button>
@@ -217,6 +218,7 @@ button{cursor:pointer}
       <div id="paintSw" class="group"></div>
       <button class="btn" id="paintDone">Terminer</button>
     </div>
+    <input type="file" id="importFile" hidden>
     <div id="toast" role="status"></div>
   </main>
 
@@ -349,7 +351,7 @@ button{cursor:pointer}
 var $ = function(id){ return document.getElementById(id); };
 var STORE = 'atelier3d.scene.v1';
 var COLORS = ['#e8590c','#f2c14e','#4c9f70','#3a7ca5','#7d5ba6','#d64550','#e9e4d8','#3b4350'];
-var NAMES = {poly:'Tracé',cube:'Cube',sphere:'Sphère',cylinder:'Cylindre',cone:'Cône',pyramid:'Pyramide',ramp:'Rampe',torus:'Anneau'};
+var NAMES = {mesh:'Modèle importé',poly:'Tracé',cube:'Cube',sphere:'Sphère',cylinder:'Cylindre',cone:'Cône',pyramid:'Pyramide',ramp:'Rampe',torus:'Anneau'};
 
 /* ---------- Géométries de base (centrées, 1 unité = 1 mm une fois mises à l'échelle) ---------- */
 var GEO = {}, BASE = {}, NI = {};
@@ -389,9 +391,18 @@ function polyOf(o){
   }
   return c;
 }
-function geoOf(o){ return o.type==='poly' ? polyOf(o).geo : GEO[o.type]; }
-function baseOf(o){ return o.type==='poly' ? polyOf(o).base : BASE[o.type]; }
-function niOf(o){ return o.type==='poly' ? polyOf(o).ni : NI[o.type]; }
+/* Modèles importés (STL) : géométrie gardée en mémoire et dans IndexedDB, l'objet ne porte que sa référence */
+var MESH = {}, meshDb = null;
+function meshFromPositions(pos){
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.computeVertexNormals(); g.center(); g.computeBoundingBox();
+  var s = new THREE.Vector3(); g.boundingBox.getSize(s);
+  return {geo:g,base:[Math.max(s.x,1e-3),Math.max(s.y,1e-3),Math.max(s.z,1e-3)],ni:g};
+}
+function special(o){ return o.type==='poly' ? polyOf(o) : (o.type==='mesh' ? MESH[o.mid] : null); }
+function geoOf(o){ var s = special(o); return s ? s.geo : GEO[o.type]; }
+function baseOf(o){ var s = special(o); return s ? s.base : BASE[o.type]; }
+function niOf(o){ var s = special(o); return s ? s.ni : NI[o.type]; }
 
 /*CSG-BEGIN*/
 /* Soustraction de volumes par arbre BSP. Polygone : {v:[{x,y,z,nx,ny,nz}], pl:{x,y,z,w}} */
@@ -484,7 +495,7 @@ function example(){
   ];
 }
 function validObjs(a){
-  return Array.isArray(a) && a.every(function(o){ return o && (GEO[o.type] || (o.type==='poly' && Array.isArray(o.pts) && o.pts.length>=3)) && Array.isArray(o.p) && Array.isArray(o.r) && Array.isArray(o.s); });
+  return Array.isArray(a) && a.every(function(o){ return o && (GEO[o.type] || (o.type==='poly' && Array.isArray(o.pts) && o.pts.length>=3) || (o.type==='mesh' && typeof o.mid==='string')) && Array.isArray(o.p) && Array.isArray(o.r) && Array.isArray(o.s); });
 }
 function load(){
   var hot = window.claude && window.claude.hot && window.claude.hot.data;
@@ -662,7 +673,9 @@ function recut(){
     var key = hs.length ? JSON.stringify([o.id,o.p,o.r,o.s,hs.map(function(h){ return [h.o.id,h.o.p,h.o.r,h.o.s]; })]) : '';
     if (m.userData.cutKey===key) return;
     var g = geoOf(o);
-    if (hs.length){
+    if (hs.length && (niOf(o).attributes.position.count/3 > 6000 || hs.some(function(x){ return niOf(x.o).attributes.position.count/3 > 6000; }))){
+      if (m.userData.cutKey!==key) toast('« '+o.name+' » est trop détaillé pour être percé dans l\u2019app (plus de 6000 triangles).');
+    } else if (hs.length){
       try { var a = toPolys(o,m); hs.forEach(function(h){ a = CSG.subtract(a,toPolys(h.o,h.m)); }); g = fromPolys(a,m); }
       catch(e){ g = geoOf(o); toast('Ce trou est trop complexe à calculer ici.'); }
     }
@@ -1182,25 +1195,184 @@ function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('o
 /* ---------- Export STL (texte, axe Z vers le haut comme les logiciels d'impression) ---------- */
 function buildSTL(){
   var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count; });
-  if (!solids.length) return '';
-  var out = ['solid atelier3d'], a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
-  function v(p){ return '      vertex '+p.x.toFixed(4)+' '+(-p.z).toFixed(4)+' '+p.y.toFixed(4); }
+  if (!solids.length) return null;
+  var total = 0; solids.forEach(function(m){ total += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count)/3; });
+  var buf = new ArrayBuffer(84+50*Math.ceil(total)), dv = new DataView(buf), off = 84, count = 0;
+  'Atelier 3D'.split('').forEach(function(ch,i){ dv.setUint8(i,ch.charCodeAt(0)); });
+  var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+  function w(x,y,z){ dv.setFloat32(off,x,true); dv.setFloat32(off+4,-z,true); dv.setFloat32(off+8,y,true); off += 12; }
   solids.forEach(function(m){
     m.updateMatrixWorld(true);
     var g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, pos = g.attributes.position;
-    for (var i=0;i<pos.count;i+=3){
+    for (var i=0;i+2<pos.count;i+=3){
       a.fromBufferAttribute(pos,i).applyMatrix4(m.matrixWorld);
       b.fromBufferAttribute(pos,i+1).applyMatrix4(m.matrixWorld);
       c.fromBufferAttribute(pos,i+2).applyMatrix4(m.matrixWorld);
       n.crossVectors(ab.subVectors(b,a),ac.subVectors(c,a));
       if (n.lengthSq()===0) continue;
-      n.normalize();
-      out.push('  facet normal '+n.x.toFixed(5)+' '+(-n.z).toFixed(5)+' '+n.y.toFixed(5),'    outer loop',v(a),v(b),v(c),'    endloop','  endfacet');
+      n.normalize(); w(n.x,n.y,n.z); w(a.x,a.y,a.z); w(b.x,b.y,b.z); w(c.x,c.y,c.z); off += 2; count++;
     }
     if (g!==m.geometry) g.dispose();
   });
-  out.push('endsolid atelier3d'); return out.join('\n')+'\n';
+  dv.setUint32(80,count,true);
+  return new Uint8Array(buf,0,84+50*count);
 }
+
+/* ---------- Import d'un fichier STL ---------- */
+function parseSTL(buf){
+  var dv = new DataView(buf), n = buf.byteLength>=84 ? dv.getUint32(80,true) : 0, pos, i, j, k = 0;
+  if (buf.byteLength>=84 && 84+50*n===buf.byteLength && n>0){
+    pos = new Float32Array(n*9);
+    for (i=0;i<n;i++) for (j=0;j<3;j++){
+      var o = 84+i*50+12+j*12, x = dv.getFloat32(o,true), y = dv.getFloat32(o+4,true), z = dv.getFloat32(o+8,true);
+      pos[k++] = x; pos[k++] = z; pos[k++] = -y;
+    }
+    return pos;
+  }
+  var text = new TextDecoder().decode(buf), re = /vertex\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)/g, m, out = [];
+  while ((m = re.exec(text))){ out.push(parseFloat(m[1]),parseFloat(m[3]),-parseFloat(m[2])); }
+  if (out.length<9 || out.length%9) return null;
+  return new Float32Array(out);
+}
+function addImported(parts,fileName){
+  var tris = 0, i, x0 = Infinity, x1 = -Infinity, y0 = Infinity, z0 = Infinity, z1 = -Infinity;
+  parts = parts.filter(function(pt){ return pt.pos.length>=9; }).slice(0,60);
+  if (!parts.length){ toast('Aucun modèle trouvé dans ce fichier.'); return; }
+  for (var k=0;k<parts.length;k++){
+    var pos = parts[k].pos, b = [Infinity,-Infinity,Infinity,-Infinity,Infinity,-Infinity];
+    for (i=0;i<pos.length;i+=3){
+      if (!isFinite(pos[i]) || !isFinite(pos[i+1]) || !isFinite(pos[i+2])){ toast('Ce fichier contient des valeurs invalides.'); return; }
+      if (pos[i]<b[0]) b[0] = pos[i]; if (pos[i]>b[1]) b[1] = pos[i];
+      if (pos[i+1]<b[2]) b[2] = pos[i+1]; if (pos[i+1]>b[3]) b[3] = pos[i+1];
+      if (pos[i+2]<b[4]) b[4] = pos[i+2]; if (pos[i+2]>b[5]) b[5] = pos[i+2];
+    }
+    parts[k].box = b; tris += pos.length/9;
+    x0 = Math.min(x0,b[0]); x1 = Math.max(x1,b[1]); y0 = Math.min(y0,b[2]); z0 = Math.min(z0,b[4]); z1 = Math.max(z1,b[5]);
+  }
+  if (tris>400000){ toast('Ce modèle compte '+tris+' triangles : au-delà de 400 000, l\u2019app ne peut pas le charger.'); return; }
+  if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false);
+  var cx = (x0+x1)/2, cz = (z0+z1)/2, g = parts.length>1 ? newGroupId() : null, ids = [], base = fileName.replace(/\.[^.]+$/,'').slice(0,40) || 'Modèle importé';
+  parts.forEach(function(pt,n){
+    var mid = 'm'+Date.now().toString(36)+n+Math.random().toString(36).slice(2,7), keep = pt.pos.slice(0), bx = pt.box;
+    MESH[mid] = meshFromPositions(pt.pos);
+    try { if (meshDb) meshDb.transaction('meshes','readwrite').objectStore('meshes').put(keep,mid); } catch(e){}
+    var o = {id:nextId++,type:'mesh',mid:mid,name:(pt.name || (parts.length>1 ? base+' '+(n+1) : base)).slice(0,40),
+      color:pt.color || COLORS[state.objs.length%COLORS.length],p:[(bx[0]+bx[1])/2-cx,(bx[2]+bx[3])/2-y0,(bx[4]+bx[5])/2-cz],r:[0,0,0],s:[1,1,1]};
+    if (g!=null) o.g = g;
+    state.objs.push(o); ids.push(o.id);
+  });
+  state.sel = ids; rebuild(); commit();
+  toast('« '+base+' » importé : '+(parts.length>1?parts.length+' objets, ':'')+tris+' triangles.'+(meshDb?'':' Il ne sera pas gardé après fermeture de cette fenêtre.'));
+}
+
+/* 3MF : zip + XML. Objets, composants, transformations, unités et couleurs de base */
+function unzip(buf){
+  var dv = new DataView(buf), u8 = new Uint8Array(buf), i = buf.byteLength-22, files = {};
+  while (i>=0 && dv.getUint32(i,true)!==0x06054b50) i--;
+  if (i<0) return Promise.reject(new Error('zip'));
+  var count = dv.getUint16(i+10,true), off = dv.getUint32(i+16,true), jobs = [], dec = new TextDecoder();
+  for (var n=0;n<count && off+46<=buf.byteLength;n++){
+    if (dv.getUint32(off,true)!==0x02014b50) break;
+    var method = dv.getUint16(off+10,true), csize = dv.getUint32(off+20,true), nl = dv.getUint16(off+28,true), el = dv.getUint16(off+30,true), cl = dv.getUint16(off+32,true), lo = dv.getUint32(off+42,true);
+    var name = dec.decode(u8.subarray(off+46,off+46+nl));
+    off += 46+nl+el+cl;
+    if (!/\.(model|rels)$/i.test(name)) continue;
+    var start = lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true), data = u8.subarray(start,start+csize);
+    (function(name,method,data){
+      if (method===0) files[name] = data;
+      else if (method===8 && window.DecompressionStream) jobs.push(new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(ab){ files[name] = new Uint8Array(ab); }));
+      else jobs.push(Promise.reject(new Error('deflate')));
+    })(name,method,data);
+  }
+  return Promise.all(jobs).then(function(){ return files; });
+}
+function parse3MF(files){
+  var names = Object.keys(files).filter(function(n){ return /\.model$/i.test(n); }), models = {}, dec = new TextDecoder();
+  if (!names.length) return [];
+  function matrix(str){
+    var m = new THREE.Matrix4(); if (!str) return m;
+    var v = str.trim().split(/\s+/).map(parseFloat); if (v.length!==12 || v.some(isNaN)) return m;
+    return m.set(v[0],v[3],v[6],v[9], v[1],v[4],v[7],v[10], v[2],v[5],v[8],v[11], 0,0,0,1);
+  }
+  function model(path){
+    path = path.replace(/^\//,'');
+    if (models[path]!==undefined) return models[path];
+    var key = names.filter(function(n){ return n.toLowerCase()===path.toLowerCase(); })[0];
+    if (!key) return (models[path] = null);
+    var doc = new DOMParser().parseFromString(dec.decode(files[key]),'application/xml'), root = doc.documentElement;
+    var unit = {micron:0.001,millimeter:1,centimeter:10,inch:25.4,foot:304.8,meter:1000}[root.getAttribute('unit')||'millimeter'] || 1;
+    var mats = {}, objs = {};
+    Array.prototype.forEach.call(doc.getElementsByTagName('basematerials'),function(bm){
+      mats[bm.getAttribute('id')] = Array.prototype.map.call(bm.getElementsByTagName('base'),function(b){ return b.getAttribute('displaycolor'); });
+    });
+    Array.prototype.forEach.call(doc.getElementsByTagName('object'),function(ob){
+      var o = {name:ob.getAttribute('name')||'',color:null,mesh:null,comps:[]}, pid = ob.getAttribute('pid'), c = pid!=null && mats[pid] && mats[pid][+(ob.getAttribute('pindex')||0)];
+      if (c && /^#[0-9a-f]{6}/i.test(c)) o.color = c.slice(0,7).toLowerCase();
+      var mesh = ob.getElementsByTagName('mesh')[0];
+      if (mesh){
+        var vs = mesh.getElementsByTagName('vertex'), ts = mesh.getElementsByTagName('triangle'), v = new Float32Array(vs.length*3), t = new Uint32Array(ts.length*3), i;
+        for (i=0;i<vs.length;i++){ v[i*3] = +vs[i].getAttribute('x'); v[i*3+1] = +vs[i].getAttribute('y'); v[i*3+2] = +vs[i].getAttribute('z'); }
+        for (i=0;i<ts.length;i++){ t[i*3] = +ts[i].getAttribute('v1'); t[i*3+1] = +ts[i].getAttribute('v2'); t[i*3+2] = +ts[i].getAttribute('v3'); }
+        o.mesh = {v:v,t:t};
+      }
+      Array.prototype.forEach.call(ob.getElementsByTagName('component'),function(cp){
+        o.comps.push({id:cp.getAttribute('objectid'),path:cp.getAttribute('p:path'),m:matrix(cp.getAttribute('transform'))});
+      });
+      objs[ob.getAttribute('id')] = o;
+    });
+    var items = Array.prototype.map.call(doc.getElementsByTagName('item'),function(it){ return {id:it.getAttribute('objectid'),path:it.getAttribute('p:path'),m:matrix(it.getAttribute('transform'))}; });
+    return (models[path] = {unit:unit,objs:objs,items:items});
+  }
+  var rootName = names.filter(function(n){ return /^3D\/3dmodel\.model$/i.test(n); })[0] || names[0], root = model(rootName);
+  if (!root) return [];
+  if (!root.items.length) for (var q=0;q<names.length;q++){ var alt = model(names[q]); if (alt && alt.items.length){ root = alt; rootName = names[q]; break; } }
+  function collect(path,id,m,out,depth){
+    var md = model(path), ob = md && md.objs[id]; if (!ob || depth>8) return;
+    if (ob.mesh) out.push({mesh:ob.mesh,m:m,unit:md.unit,color:ob.color});
+    ob.comps.forEach(function(c){ collect(c.path||path,c.id,new THREE.Matrix4().multiplyMatrices(m,c.m),out,depth+1); });
+  }
+  var parts = [], p = new THREE.Vector3();
+  root.items.forEach(function(it){
+    var pieces = [], top = model(it.path||rootName), tob = top && top.objs[it.id];
+    collect(it.path||rootName,it.id,it.m,pieces,0);
+    var total = 0; pieces.forEach(function(pc){ total += pc.mesh.t.length*3; });
+    if (!total) return;
+    var pos = new Float32Array(total), k = 0, color = tob && tob.color;
+    pieces.forEach(function(pc){
+      var v = pc.mesh.v, t = pc.mesh.t, flip = pc.m.determinant()<0, nv = v.length/3;
+      if (!color) color = pc.color;
+      for (var i=0;i<t.length;i+=3){
+        var order = flip ? [t[i],t[i+2],t[i+1]] : [t[i],t[i+1],t[i+2]];
+        for (var j=0;j<3;j++){
+          var a = order[j]; if (a>=nv) a = 0;
+          p.set(v[a*3],v[a*3+1],v[a*3+2]).applyMatrix4(pc.m).multiplyScalar(pc.unit);
+          pos[k++] = p.x; pos[k++] = p.z; pos[k++] = -p.y;
+        }
+      }
+    });
+    parts.push({pos:pos,name:tob ? tob.name : '',color:color||null});
+  });
+  return parts;
+}
+function importFile(file){
+  if (file.size>80*1024*1024){ toast('Ce fichier dépasse 80 Mo : il est trop lourd pour l\u2019app.'); return; }
+  var rd = new FileReader();
+  rd.onerror = function(){ toast('Le fichier n\u2019a pas pu être lu.'); };
+  rd.onload = function(){
+    var buf = rd.result, u8 = new Uint8Array(buf);
+    if (u8.length>4 && u8[0]===0x50 && u8[1]===0x4b){
+      unzip(buf).then(function(files){ addImported(parse3MF(files),file.name); })
+        .catch(function(e){ toast(e && e.message==='deflate' ? 'Ce navigateur ne sait pas ouvrir les fichiers 3MF compressés.' : 'Ce fichier 3MF n\u2019a pas pu être lu.'); });
+      return;
+    }
+    var pos = null; try { pos = parseSTL(buf); } catch(e){}
+    if (!pos){ toast('Ce fichier n\u2019est ni un STL ni un 3MF lisible.'); return; }
+    addImported([{pos:pos}],file.name);
+  };
+  rd.readAsArrayBuffer(file);
+}
+$('importBtn').addEventListener('click',function(){ $('importFile').value = ''; $('importFile').click(); });
+$('importFile').addEventListener('change',function(){ if (this.files && this.files[0]) importFile(this.files[0]); });
 var downloads = null;
 (function(){
   try { var p = window.claude && window.claude.use && window.claude.use('downloads'); if (p && p.then) p.then(function(d){ downloads = d; },function(){}); } catch(e){}
@@ -1286,8 +1458,8 @@ function saveFile(name,bytes){
 }
 $('export').addEventListener('click',function(){ $('exportNote').hidden = !downloads; $('exportDlg').hidden = false; });
 $('expStl').addEventListener('click',function(){
-  var text = buildSTL(); if (!text){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
-  $('exportDlg').hidden = true; saveFile('atelier-3d.stl',new TextEncoder().encode(text));
+  var stl = buildSTL(); if (!stl){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
+  $('exportDlg').hidden = true; saveFile('atelier-3d.stl',stl);
 });
 $('exp3mf').addEventListener('click',function(){
   var bytes = build3MF(); if (!bytes){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
@@ -1295,9 +1467,43 @@ $('exp3mf').addEventListener('click',function(){
 });
 
 /* ---------- Démarrage ---------- */
-state.objs = load();
 setMode('translate'); setSnap(true);
-rebuild(); history = [JSON.stringify(state.objs)]; hIndex = 0; refreshUI();
+var started = false;
+function start(){
+  if (started) return; started = true;
+  var objs = load(), kept = objs.filter(function(o){ return o.type!=='mesh' || MESH[o.mid]; });
+  state.objs = kept;
+  rebuild(); history = [JSON.stringify(state.objs)]; hIndex = 0; refreshUI();
+  if (kept.length<objs.length) toast('Un modèle importé n\u2019a pas pu être retrouvé et a été retiré.');
+  try {
+    if (meshDb){
+      var used = {}; kept.forEach(function(o){ if (o.type==='mesh') used[o.mid] = 1; });
+      var st = meshDb.transaction('meshes','readwrite').objectStore('meshes');
+      Object.keys(MESH).forEach(function(k){ if (!used[k]){ st.delete(k); delete MESH[k]; } });
+    }
+  } catch(e){}
+}
+(function(){
+  setTimeout(start,2500);
+  try {
+    var rq = indexedDB.open('atelier3d',1);
+    rq.onupgradeneeded = function(){ rq.result.createObjectStore('meshes'); };
+    rq.onerror = function(){ start(); };
+    rq.onsuccess = function(){
+      meshDb = rq.result;
+      try {
+        var cur = meshDb.transaction('meshes').objectStore('meshes').openCursor();
+        cur.onerror = function(){ start(); };
+        cur.onsuccess = function(){
+          var c = cur.result;
+          if (!c){ start(); return; }
+          try { if (c.value && c.value.length>=9) MESH[c.key] = meshFromPositions(new Float32Array(c.value)); } catch(e){}
+          c.continue();
+        };
+      } catch(e){ start(); }
+    };
+  } catch(e){ start(); }
+})();
 try { if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function(){ return {objs:state.objs}; }); } catch(e){}
 
 (function loop(){
