@@ -73,6 +73,10 @@ button{cursor:pointer}
 #view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #plate{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:11px;color:var(--muted);pointer-events:none}
 #hint{position:absolute;left:14px;top:12px;font-size:12px;color:var(--muted);pointer-events:none;max-width:60%}
+#drawBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
+#drawBar[hidden]{display:none}
+#drawBar .group{flex-wrap:wrap}
+.shape[aria-pressed="true"]{border-color:var(--accent);background:var(--bg)}
 #toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:86%;text-align:center}
 #toast.on{opacity:1}
 @media (prefers-reduced-motion: reduce){#toast{transition:none}}
@@ -157,6 +161,7 @@ button{cursor:pointer}
 
   <nav id="shapes" aria-label="Ajouter une forme">
     <h2>Formes</h2>
+    <button class="shape" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
     <button class="shape" data-add="cube"><svg viewBox="0 0 36 36"><path class="f" d="M6 12l12-6 12 6v14l-12 6-12-6z"/><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14"/></svg>Cube</button>
     <button class="shape" data-add="sphere"><svg viewBox="0 0 36 36"><circle class="f" cx="18" cy="18" r="13"/><circle cx="18" cy="18" r="13"/><ellipse cx="18" cy="18" rx="13" ry="5"/></svg>Sphère</button>
     <button class="shape" data-add="cylinder"><svg viewBox="0 0 36 36"><path class="f" d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9z"/><ellipse cx="18" cy="9" rx="11" ry="4.5"/><path d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9"/></svg>Cylindre</button>
@@ -170,6 +175,14 @@ button{cursor:pointer}
     <canvas id="view" aria-label="Vue 3D du modèle"></canvas>
     <div id="hint">Glisser : tourner la vue · Molette ou pincement : zoom · Clic droit ou deux doigts : déplacer la vue</div>
     <div id="plate">Plateau 200 × 200 mm · carreau 10 mm</div>
+    <div id="drawBar" hidden>
+      <span id="drawMsg"></span>
+      <div class="group">
+        <button class="btn" id="drawUndo">Retirer le dernier point</button>
+        <button class="btn primary" id="drawDone">Terminer la forme</button>
+        <button class="btn" id="drawCancel">Abandonner</button>
+      </div>
+    </div>
     <div id="toast" role="status"></div>
   </main>
 
@@ -240,7 +253,7 @@ button{cursor:pointer}
 var $ = function(id){ return document.getElementById(id); };
 var STORE = 'atelier3d.scene.v1';
 var COLORS = ['#e8590c','#f2c14e','#4c9f70','#3a7ca5','#7d5ba6','#d64550','#e9e4d8','#3b4350'];
-var NAMES = {cube:'Cube',sphere:'Sphère',cylinder:'Cylindre',cone:'Cône',pyramid:'Pyramide',ramp:'Rampe',torus:'Anneau'};
+var NAMES = {poly:'Tracé',cube:'Cube',sphere:'Sphère',cylinder:'Cylindre',cone:'Cône',pyramid:'Pyramide',ramp:'Rampe',torus:'Anneau'};
 
 /* ---------- Géométries de base (centrées, 1 unité = 1 mm une fois mises à l'échelle) ---------- */
 var GEO = {}, BASE = {}, NI = {};
@@ -259,6 +272,25 @@ var GEO = {}, BASE = {}, NI = {};
     NI[k] = GEO[k].index ? GEO[k].toNonIndexed() : GEO[k];
   });
 })();
+
+/* Formes tracées point par point : contour extrudé, une géométrie par contour */
+var POLY = {};
+function polyOf(o){
+  var k = JSON.stringify(o.pts), c = POLY[k];
+  if (!c){
+    var sh = new THREE.Shape();
+    o.pts.forEach(function(p,i){ if (i) sh.lineTo(p[0],-p[1]); else sh.moveTo(p[0],-p[1]); });
+    sh.closePath();
+    var g = new THREE.ExtrudeGeometry(sh,{depth:1,bevelEnabled:false});
+    g.rotateX(-Math.PI/2); g.center(); g.computeBoundingBox();
+    var s = new THREE.Vector3(); g.boundingBox.getSize(s);
+    c = POLY[k] = {geo:g,base:[s.x,s.y,s.z],ni:g.index?g.toNonIndexed():g};
+  }
+  return c;
+}
+function geoOf(o){ return o.type==='poly' ? polyOf(o).geo : GEO[o.type]; }
+function baseOf(o){ return o.type==='poly' ? polyOf(o).base : BASE[o.type]; }
+function niOf(o){ return o.type==='poly' ? polyOf(o).ni : NI[o.type]; }
 
 /*CSG-BEGIN*/
 /* Soustraction de volumes par arbre BSP. Polygone : {v:[{x,y,z,nx,ny,nz}], pl:{x,y,z,w}} */
@@ -351,7 +383,7 @@ function example(){
   ];
 }
 function validObjs(a){
-  return Array.isArray(a) && a.every(function(o){ return o && GEO[o.type] && Array.isArray(o.p) && Array.isArray(o.r) && Array.isArray(o.s); });
+  return Array.isArray(a) && a.every(function(o){ return o && (GEO[o.type] || (o.type==='poly' && Array.isArray(o.pts) && o.pts.length>=3)) && Array.isArray(o.p) && Array.isArray(o.r) && Array.isArray(o.s); });
 }
 function load(){
   var hot = window.claude && window.claude.hot && window.claude.hot.data;
@@ -445,13 +477,13 @@ function syncFromMesh(o){
 }
 function rebuild(){
   tc.detach();
-  meshList.forEach(function(m){ if (m.parent) m.parent.remove(m); m.material.dispose(); if (m.geometry!==GEO[m.userData.type]) m.geometry.dispose(); });
+  meshList.forEach(function(m){ if (m.parent) m.parent.remove(m); m.material.dispose(); if (m.geometry!==m.userData.base) m.geometry.dispose(); });
   meshes = {}; meshList = [];
   state.objs.forEach(function(o){
     var mat = o.hole ? new THREE.MeshStandardMaterial({color:0x8a96a6,transparent:true,opacity:0.36,depthWrite:false,roughness:0.9})
       : new THREE.MeshStandardMaterial({roughness:0.62,metalness:0.04});
-    var m = new THREE.Mesh(GEO[o.type],mat);
-    m.userData.id = o.id; m.userData.type = o.type; applyToMesh(o,m); scene.add(m); meshes[o.id] = m; meshList.push(m);
+    var m = new THREE.Mesh(geoOf(o),mat);
+    m.userData.id = o.id; m.userData.type = o.type; m.userData.base = geoOf(o); applyToMesh(o,m); scene.add(m); meshes[o.id] = m; meshList.push(m);
     if (o.id >= nextId) nextId = o.id+1;
   });
   state.sel = state.sel.filter(function(id){ return !!getObj(id); });
@@ -459,9 +491,9 @@ function rebuild(){
 }
 
 /* ---------- Trous : chaque trou creuse les solides qu'il touche ---------- */
-function primBox(o,m){ m.updateMatrixWorld(true); return GEO[o.type].boundingBox.clone().applyMatrix4(m.matrixWorld); }
+function primBox(o,m){ m.updateMatrixWorld(true); return geoOf(o).boundingBox.clone().applyMatrix4(m.matrixWorld); }
 function toPolys(o,m){
-  var g = NI[o.type], pos = g.attributes.position, nor = g.attributes.normal, mw = m.matrixWorld;
+  var g = niOf(o), pos = g.attributes.position, nor = g.attributes.normal, mw = m.matrixWorld;
   var nm = new THREE.Matrix3().getNormalMatrix(mw), polys = [], p = new THREE.Vector3(), n = new THREE.Vector3();
   for (var i=0;i<pos.count;i+=3){
     var vs = [];
@@ -488,14 +520,14 @@ function recut(){
   state.objs.forEach(function(o){
     var m = meshes[o.id]; if (o.hole || !m) return;
     var box = primBox(o,m), hs = holes.filter(function(h){ return h.box.intersectsBox(box); });
-    var key = hs.length ? JSON.stringify([o.type,o.p,o.r,o.s,hs.map(function(h){ return [h.o.type,h.o.p,h.o.r,h.o.s]; })]) : '';
+    var key = hs.length ? JSON.stringify([o.id,o.p,o.r,o.s,hs.map(function(h){ return [h.o.id,h.o.p,h.o.r,h.o.s]; })]) : '';
     if (m.userData.cutKey===key) return;
-    var g = GEO[o.type];
+    var g = geoOf(o);
     if (hs.length){
       try { var a = toPolys(o,m); hs.forEach(function(h){ a = CSG.subtract(a,toPolys(h.o,h.m)); }); g = fromPolys(a,m); }
-      catch(e){ g = GEO[o.type]; toast('Ce trou est trop complexe à calculer ici.'); }
+      catch(e){ g = geoOf(o); toast('Ce trou est trop complexe à calculer ici.'); }
     }
-    if (m.geometry!==GEO[o.type]) m.geometry.dispose();
+    if (m.geometry!==geoOf(o)) m.geometry.dispose();
     m.geometry = g; m.userData.cutKey = key;
   });
   if (helper.visible) helper.update();
@@ -547,6 +579,7 @@ function ungroup(){
 
 /* ---------- Actions ---------- */
 function addShape(type){
+  if (draw) cancelDraw();
   var b = BASE[type], k = 20, s = [k,k,k];
   var n = state.objs.filter(function(o){ return o.type===type; }).length+1;
   var o = {id:nextId++,type:type,name:NAMES[type]+' '+n,color:COLORS[state.objs.length%COLORS.length],
@@ -586,6 +619,7 @@ function applySnap(){
 }
 function setSnap(on){ state.snap = on; applySnap(); $('snap').setAttribute('aria-pressed',String(on)); }
 function newProject(){
+  if (draw) cancelDraw();
   if (!state.objs.length){ toast('Le plateau est déjà vide.'); return; }
   state.objs = []; state.sel = []; rebuild(); commit(); frameView();
   toast('Nouveau projet. Touchez Annuler pour retrouver l\u2019ancien.');
@@ -599,6 +633,7 @@ canvas.addEventListener('pointerup',function(e){
   if (!down) return;
   var d = Math.hypot(e.clientX-down.x,e.clientY-down.y); down = null;
   if (d>6 || gizmoUsed || e.button>0) return;
+  if (draw){ addPoint(e); return; }
   var r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
   ray.setFromCamera(ndc,camera);
@@ -606,10 +641,53 @@ canvas.addEventListener('pointerup',function(e){
   pick(hit?hit.object.userData.id:null,e.shiftKey||state.multi);
 });
 
+/* ---------- Tracé par points ---------- */
+var draw = null, drawLine = null, drawDots = null, ground = new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function drawRefresh(){
+  [drawLine,drawDots].forEach(function(x){ if (x){ scene.remove(x); x.geometry.dispose(); x.material.dispose(); } });
+  drawLine = drawDots = null;
+  $('drawBar').hidden = !draw; $('hint').style.visibility = draw ? 'hidden' : '';
+  document.querySelector('[data-draw]').setAttribute('aria-pressed',String(!!draw));
+  if (!draw) return;
+  var n = draw.pts.length;
+  $('drawMsg').textContent = n<3 ? 'Touchez le plateau pour poser les points du contour ('+n+' sur 3 minimum).' : n+' points. Ajoutez-en d\u2019autres ou terminez la forme.';
+  $('drawDone').disabled = n<3; $('drawUndo').disabled = n===0;
+  if (!n) return;
+  var v = draw.pts.map(function(p){ return new THREE.Vector3(p[0],0.2,p[1]); }), col = new THREE.Color(cssVar('--accent')||'#d9520b');
+  var g = new THREE.BufferGeometry().setFromPoints(v);
+  drawLine = new (n>=3?THREE.LineLoop:THREE.Line)(g,new THREE.LineBasicMaterial({color:col,depthTest:false})); drawLine.renderOrder = 10; scene.add(drawLine);
+  drawDots = new THREE.Points(g.clone(),new THREE.PointsMaterial({color:col,size:10,sizeAttenuation:false,depthTest:false})); drawDots.renderOrder = 11; scene.add(drawDots);
+}
+function startDraw(){ if (draw){ cancelDraw(); return; } draw = {pts:[]}; setSel([]); drawRefresh(); }
+function cancelDraw(){ draw = null; drawRefresh(); }
+function addPoint(e){
+  var r = canvas.getBoundingClientRect(), hit = new THREE.Vector3();
+  ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  if (!ray.ray.intersectPlane(ground,hit) || Math.abs(hit.x)>1000 || Math.abs(hit.z)>1000){ toast('Visez le plateau pour poser un point.'); return; }
+  var x = state.snap ? Math.round(hit.x) : Math.round(hit.x*10)/10, z = state.snap ? Math.round(hit.z) : Math.round(hit.z*10)/10;
+  var pts = draw.pts, n = pts.length;
+  if (n>=3 && Math.hypot(x-pts[0][0],z-pts[0][1])<2.5){ finishDraw(); return; }
+  if (n && pts[n-1][0]===x && pts[n-1][1]===z) return;
+  pts.push([x,z]); drawRefresh();
+}
+function finishDraw(){
+  if (!draw || draw.pts.length<3) return;
+  var pts = draw.pts, a = 0, x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  pts.forEach(function(p,i){ var q = pts[(i+1)%pts.length]; a += p[0]*q[1]-q[0]*p[1]; x0 = Math.min(x0,p[0]); x1 = Math.max(x1,p[0]); z0 = Math.min(z0,p[1]); z1 = Math.max(z1,p[1]); });
+  if (Math.abs(a)/2<1){ toast('Forme trop petite ou points alignés : déplacez un point.'); return; }
+  var cx = (x0+x1)/2, cz = (z0+z1)/2;
+  var n = state.objs.filter(function(o){ return o.type==='poly'; }).length+1;
+  var o = {id:nextId++,type:'poly',name:'Tracé '+n,color:COLORS[state.objs.length%COLORS.length],
+    pts:pts.map(function(p){ return [Math.round((p[0]-cx)*10)/10,Math.round((p[1]-cz)*10)/10]; }),p:[cx,5,cz],r:[0,0,0],s:[1,10,1]};
+  state.objs.push(o); state.sel = [o.id]; draw = null; drawRefresh(); rebuild(); commit();
+  toast('Forme créée, haute de 10 mm. Changez sa hauteur dans les dimensions.');
+}
+
 /* ---------- Interface ---------- */
 function fmt(v){ return String(Math.round(v*10)/10); }
 function fillFields(o){
-  var b = BASE[o.type], ids = ['x','y','z'];
+  var b = baseOf(o), ids = ['x','y','z'];
   ids.forEach(function(a,i){
     setVal('d'+a,fmt(o.s[i]*b[i])); setVal('p'+a,fmt(o.p[i])); setVal('r'+a,fmt(THREE.MathUtils.radToDeg(o.r[i])));
   });
@@ -622,7 +700,7 @@ function refreshUI(){
     b.setAttribute('aria-current',String(state.sel.indexOf(o.id)>=0));
     var dot = document.createElement('span'); dot.className = o.hole ? 'dot hole' : 'dot'; if (!o.hole) dot.style.background = o.color;
     var t = document.createElement('span'); t.textContent = o.name;
-    var sm = document.createElement('small'); var bs = BASE[o.type];
+    var sm = document.createElement('small'); var bs = baseOf(o);
     sm.textContent = (o.g!=null?'gr. '+o.g+' · ':'')+fmt(o.s[0]*bs[0])+'×'+fmt(o.s[1]*bs[1])+'×'+fmt(o.s[2]*bs[2]);
     b.appendChild(dot); b.appendChild(t); b.appendChild(sm);
     b.addEventListener('click',function(ev){ pick(o.id,ev.shiftKey||state.multi); });
@@ -654,7 +732,7 @@ function bindNumber(id,apply){
   });
 }
 ['x','y','z'].forEach(function(a,i){
-  bindNumber('d'+a,function(o,v){ o.s[i] = Math.max(0.5,v)/BASE[o.type][i]; });
+  bindNumber('d'+a,function(o,v){ o.s[i] = Math.max(0.5,v)/baseOf(o)[i]; });
   bindNumber('p'+a,function(o,v){ o.p[i] = v; });
   bindNumber('r'+a,function(o,v){ o.r[i] = THREE.MathUtils.degToRad(v); });
 });
@@ -675,6 +753,9 @@ document.querySelectorAll('[data-mode]').forEach(function(b){ b.addEventListener
 $('snap').addEventListener('click',function(){ setSnap(!state.snap); });
 $('frame').addEventListener('click',frameView);
 $('newProject').addEventListener('click',newProject);
+document.querySelector('[data-draw]').addEventListener('click',startDraw);
+$('drawUndo').addEventListener('click',function(){ if (draw){ draw.pts.pop(); drawRefresh(); } });
+$('drawDone').addEventListener('click',finishDraw); $('drawCancel').addEventListener('click',cancelDraw);
 $('undo').addEventListener('click',undo); $('redo').addEventListener('click',redo);
 $('solidBtn').addEventListener('click',function(){ setHole(false); }); $('holeBtn').addEventListener('click',function(){ setHole(true); });
 $('grp').addEventListener('click',group); $('ungrp').addEventListener('click',ungroup);
@@ -692,7 +773,7 @@ window.addEventListener('keydown',function(e){
   else if (mod && k==='g'){ e.preventDefault(); if (e.shiftKey) ungroup(); else group(); }
   else if (k==='delete'||k==='backspace'){ e.preventDefault(); remove(); }
   else if (k==='t') setMode('translate'); else if (k==='r') setMode('rotate'); else if (k==='e') setMode('scale');
-  else if (k==='escape') setSel([]);
+  else if (k==='escape'){ if (draw) cancelDraw(); else setSel([]); }
 });
 
 var toastTimer = 0;
