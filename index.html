@@ -84,6 +84,12 @@ button{cursor:pointer}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;width:100%;max-width:440px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px}
 .sheet h2{margin:0;font-family:var(--display);font-size:20px;letter-spacing:-.01em}
 .sheet select{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+#imgWork{display:flex;flex-direction:column;gap:12px}
+#imgWork[hidden]{display:none}
+#imgCv{width:100%;max-height:240px;object-fit:contain;image-rendering:pixelated;border:1px solid var(--line);border-radius:6px;background:#f0f3f6}
+.check{display:flex;gap:8px;align-items:center}
+#imgFile{max-width:100%}
+#imgThr{width:100%}
 .choice{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:12px 14px}
 .choice:hover{border-color:var(--accent)}
 .choice b{font-size:15px}
@@ -178,6 +184,7 @@ button{cursor:pointer}
     <h2>Formes</h2>
     <button class="shape" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
     <button class="shape" data-free aria-pressed="false" title="Dessinez un contour d'un seul trait : il devient un objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
+    <button class="shape" id="imgBtn" title="Transformez la photo ou le fichier d'un dessin en objet"><svg viewBox="0 0 36 36"><path class="f" d="M5 7h26v22H5z"/><path d="M5 7h26v22H5zM5 24l8-8 6 6 4-4 8 8"/><circle cx="24" cy="13" r="2.5"/></svg>Image</button>
     <button class="shape" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
     <button class="shape" data-add="cube"><svg viewBox="0 0 36 36"><path class="f" d="M6 12l12-6 12 6v14l-12 6-12-6z"/><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14"/></svg>Cube</button>
     <button class="shape" data-add="sphere"><svg viewBox="0 0 36 36"><circle class="f" cx="18" cy="18" r="13"/><circle cx="18" cy="18" r="13"/><ellipse cx="18" cy="18" rx="13" ry="5"/></svg>Sphère</button>
@@ -302,6 +309,27 @@ button{cursor:pointer}
     <div class="actions"><button class="btn primary" id="szCreate">Créer la forme</button><button class="btn" data-close>Fermer</button></div>
   </div>
 </div>
+<div class="modal" id="imgDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="imgTitle">
+    <h2 id="imgTitle">Transformer un dessin en objet</h2>
+    <div class="field"><label for="imgFile">Photo ou fichier du dessin</label><input type="file" id="imgFile" accept="image/*"></div>
+    <div id="imgWork" hidden>
+      <canvas id="imgCv" aria-label="Aperçu : les zones sombres deviennent l'objet"></canvas>
+      <p class="note">Les zones sombres de l'aperçu deviendront l'objet. Réglez le seuil jusqu'à voir votre dessin proprement.</p>
+      <div class="field"><label for="imgThr">Seuil clair / sombre</label><input type="range" id="imgThr" min="5" max="250" value="128"></div>
+      <label class="check"><input type="checkbox" id="imgInv"> Inverser (dessin clair sur fond sombre)</label>
+      <label class="check"><input type="checkbox" id="imgFill" checked> Remplir l'intérieur des contours</label>
+      <div>
+        <span class="rowlabel">Taille de l'objet (mm) : largeur totale, épaisseur</span>
+        <div class="triple">
+          <div class="num"><b>L</b><input type="number" id="imgW" min="5" max="2000" step="1" value="80" aria-label="Largeur totale en mm"></div>
+          <div class="num"><b>É</b><input type="number" id="imgT" min="0.5" max="500" step="0.5" value="5" aria-label="Épaisseur en mm"></div>
+        </div>
+      </div>
+    </div>
+    <div class="actions"><button class="btn primary" id="imgCreate" disabled>Créer l'objet</button><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
 <div class="modal" id="exportDlg" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
     <h2 id="exportTitle">Exporter le modèle</h2>
@@ -344,11 +372,16 @@ var GEO = {}, BASE = {}, NI = {};
 /* Formes tracées point par point : contour extrudé, une géométrie par contour */
 var POLY = {};
 function polyOf(o){
-  var k = JSON.stringify(o.pts), c = POLY[k];
+  var k = JSON.stringify([o.pts,o.holes||0]), c = POLY[k];
   if (!c){
     var sh = new THREE.Shape();
     o.pts.forEach(function(p,i){ if (i) sh.lineTo(p[0],-p[1]); else sh.moveTo(p[0],-p[1]); });
     sh.closePath();
+    (o.holes||[]).forEach(function(hp){
+      var path = new THREE.Path();
+      hp.forEach(function(p,i){ if (i) path.lineTo(p[0],-p[1]); else path.moveTo(p[0],-p[1]); });
+      path.closePath(); sh.holes.push(path);
+    });
     var g = new THREE.ExtrudeGeometry(sh,{depth:1,bevelEnabled:false});
     g.rotateX(-Math.PI/2); g.center(); g.computeBoundingBox();
     var s = new THREE.Vector3(); g.boundingBox.getSize(s);
@@ -919,6 +952,123 @@ document.querySelectorAll('.modal').forEach(function(m){
     buildPlate(); frameView(); refreshUI(); $('printerDlg').hidden = true;
   });
 })();
+
+/* ---------- Image d'un dessin vers objet ---------- */
+var img = null;
+function otsu(lum){
+  var hist = new Array(256).fill(0), i, total = lum.length, sum = 0, sumB = 0, wB = 0, best = 0, thr = 128;
+  for (i=0;i<total;i++) hist[lum[i]]++;
+  for (i=0;i<256;i++) sum += i*hist[i];
+  for (i=0;i<256;i++){
+    wB += hist[i]; if (!wB) continue; var wF = total-wB; if (!wF) break;
+    sumB += i*hist[i]; var mB = sumB/wB, mF = (sum-sumB)/wF, v = wB*wF*(mB-mF)*(mB-mF);
+    if (v>best){ best = v; thr = i; }
+  }
+  return Math.max(5,Math.min(250,thr+1));
+}
+function imgDark(i){ var d = img.lum[i] < +$('imgThr').value; return $('imgInv').checked ? !d : d; }
+function imgPreview(){
+  if (!img) return;
+  var cv = $('imgCv'); cv.width = img.w; cv.height = img.h;
+  var ctx = cv.getContext('2d'), id = ctx.createImageData(img.w,img.h), i, n = img.w*img.h;
+  for (i=0;i<n;i++){ var d = imgDark(i); id.data[i*4] = d?24:240; id.data[i*4+1] = d?33:243; id.data[i*4+2] = d?44:246; id.data[i*4+3] = 255; }
+  ctx.putImageData(id,0,0);
+}
+function loadImage(file){
+  var url = URL.createObjectURL(file), im = new Image();
+  im.onload = function(){
+    var k = Math.min(1,220/Math.max(im.width,im.height)), w = Math.max(1,Math.round(im.width*k)), hh = Math.max(1,Math.round(im.height*k));
+    var c = document.createElement('canvas'); c.width = w; c.height = hh;
+    var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0,0,w,hh); x.drawImage(im,0,0,w,hh);
+    var d = x.getImageData(0,0,w,hh).data, lum = new Uint8Array(w*hh), i, dark = 0;
+    for (i=0;i<w*hh;i++) lum[i] = (d[i*4]*299+d[i*4+1]*587+d[i*4+2]*114)/1000;
+    img = {w:w,h:hh,lum:lum}; URL.revokeObjectURL(url);
+    var t = otsu(lum); $('imgThr').value = t;
+    for (i=0;i<lum.length;i++) if (lum[i]<t) dark++;
+    $('imgInv').checked = dark > lum.length/2;
+    $('imgWork').hidden = false; $('imgCreate').disabled = false; imgPreview();
+  };
+  im.onerror = function(){ URL.revokeObjectURL(url); toast('Cette image ne peut pas être lue. Essayez un fichier PNG ou JPEG.'); };
+  im.src = url;
+}
+function imgLoops(){
+  var W = img.w+2, H = img.h+2, g = new Uint8Array(W*H), x, y, V = W+1, out = new Map();
+  for (y=0;y<img.h;y++) for (x=0;x<img.w;x++) if (imgDark(y*img.w+x)) g[(y+1)*W+x+1] = 1;
+  function add(a,b){ var l = out.get(a); if (l) l.push(b); else out.set(a,[b]); }
+  for (y=1;y<H-1;y++) for (x=1;x<W-1;x++){
+    if (!g[y*W+x]) continue;
+    if (!g[(y-1)*W+x]) add(y*V+x,y*V+x+1);
+    if (!g[y*W+x+1]) add(y*V+x+1,(y+1)*V+x+1);
+    if (!g[(y+1)*W+x]) add((y+1)*V+x+1,(y+1)*V+x);
+    if (!g[y*W+x-1]) add((y+1)*V+x,y*V+x);
+  }
+  var loops = [];
+  out.forEach(function(list,start){
+    while (list.length){
+      var loop = [start], cur = start, nxt = list.pop(), ok = true;
+      while (nxt!==start){
+        loop.push(nxt);
+        var l = out.get(nxt); if (!l || !l.length){ ok = false; break; }
+        var pick = l.length-1;
+        if (l.length>1){
+          var dx = (nxt%V)-(cur%V), dy = Math.floor(nxt/V)-Math.floor(cur/V), i = l.indexOf((Math.floor(nxt/V)+dx)*V+(nxt%V)-dy);
+          if (i>=0) pick = i;
+        }
+        cur = nxt; nxt = l.splice(pick,1)[0];
+      }
+      if (!ok) continue;
+      var p = loop.map(function(v){ return [v%V-1,Math.floor(v/V)-1]; }), a = 0, n = p.length, j, far = 0, fd = 0;
+      for (j=0;j<n;j++){ var q = p[(j+1)%n]; a += p[j][0]*q[1]-q[0]*p[j][1]; var dd = Math.hypot(p[j][0]-p[0][0],p[j][1]-p[0][1]); if (dd>fd){ fd = dd; far = j; } }
+      a /= 2;
+      if (Math.abs(a)<Math.max(12,img.w*img.h*0.0004)) continue;
+      var c = p.concat([p[0]]), s = [c[0]];
+      rdp(c,0,far,0.9,s); s.push(c[far]); rdp(c,far,c.length-1,0.9,s);
+      if (s.length>=3) loops.push({pts:s,area:a});
+    }
+  });
+  return loops;
+}
+function inPoly(pt,poly){
+  var inside = false, i, j = poly.length-1;
+  for (i=0;i<poly.length;j=i++){
+    var a = poly[i], b = poly[j];
+    if ((a[1]>pt[1])!==(b[1]>pt[1]) && pt[0] < (b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0]) inside = !inside;
+  }
+  return inside;
+}
+function createFromImage(){
+  if (!img) return;
+  var Wmm = parseFloat($('imgW').value), T = parseFloat($('imgT').value);
+  if (!(Wmm>=5 && Wmm<=2000) || !(T>=0.5 && T<=500)){ toast('Largeur entre 5 et 2000 mm, épaisseur entre 0,5 et 500 mm.'); return; }
+  var loops = imgLoops(), outers = loops.filter(function(l){ return l.area>0; }).sort(function(a,b){ return b.area-a.area; }).slice(0,30);
+  if (!outers.length){ toast('Aucune forme trouvée : déplacez le curseur de seuil.'); return; }
+  outers.forEach(function(o){ o.holes = []; });
+  if (!$('imgFill').checked) loops.filter(function(l){ return l.area<0; }).forEach(function(hl){
+    var owner = null;
+    outers.forEach(function(o){ if (inPoly(hl.pts[0],o.pts) && (!owner || o.area<owner.area)) owner = o; });
+    if (owner) owner.holes.push(hl.pts);
+  });
+  var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  outers.forEach(function(o){ o.pts.forEach(function(p){ x0 = Math.min(x0,p[0]); x1 = Math.max(x1,p[0]); y0 = Math.min(y0,p[1]); y1 = Math.max(y1,p[1]); }); });
+  var k = Wmm/Math.max(1,x1-x0), cx = (x0+x1)/2, cy = (y0+y1)/2, g = outers.length>1 ? newGroupId() : null, ids = [];
+  var color = COLORS[state.objs.length%COLORS.length], base = state.objs.filter(function(o){ return /^Image /.test(o.name); }).length;
+  function mm(p,c){ return [Math.round(((p[0]-cx)*k-c[0])*100)/100,Math.round(((p[1]-cy)*k-c[1])*100)/100]; }
+  outers.forEach(function(o,i){
+    var a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    o.pts.forEach(function(p){ var X = (p[0]-cx)*k, Z = (p[1]-cy)*k; a0 = Math.min(a0,X); a1 = Math.max(a1,X); b0 = Math.min(b0,Z); b1 = Math.max(b1,Z); });
+    var c = [(a0+a1)/2,(b0+b1)/2];
+    var ob = {id:nextId++,type:'poly',name:'Image '+(base+i+1),color:color,pts:o.pts.map(function(p){ return mm(p,c); }),p:[c[0],T/2,c[1]],r:[0,0,0],s:[1,T,1]};
+    if (o.holes.length) ob.holes = o.holes.map(function(hp){ return hp.map(function(p){ return mm(p,c); }); });
+    if (g!=null) ob.g = g;
+    state.objs.push(ob); ids.push(ob.id);
+  });
+  state.sel = ids; $('imgDlg').hidden = true; rebuild(); commit();
+  toast(ids.length>1 ? ids.length+' formes créées et groupées.' : 'Objet créé à partir de l\u2019image.');
+}
+$('imgBtn').addEventListener('click',function(){ if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); $('imgDlg').hidden = false; });
+$('imgFile').addEventListener('change',function(){ if (this.files && this.files[0]) loadImage(this.files[0]); });
+['imgThr','imgInv'].forEach(function(id){ $(id).addEventListener('input',imgPreview); });
+$('imgCreate').addEventListener('click',createFromImage);
 
 /* ---------- Interface ---------- */
 function fmt(v){ return String(Math.round(v*10)/10); }
