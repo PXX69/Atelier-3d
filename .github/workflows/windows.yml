@@ -1,0 +1,34 @@
+name: Application Windows
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Construire l'application Windows
+        shell: bash
+        run: |
+          mkdir -p build/app build/res
+          cp -r index.html manifest.webmanifest sw.js lib icons build/app/
+          cp desktop/main.js desktop/package.json build/
+          cp desktop/icon.png build/res/icon.png
+          cd build
+          npm install
+          npx electron-builder --win --x64 --publish never
+          ls dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk
+          name: Atelier 3D - téléchargements
+          body: Application Android (.apk) et application Windows (.exe). Versions de test, non signées.
+          files: |
+            build/dist/Atelier-3D-Installation.exe
+            build/dist/Atelier-3D-Portable.exe

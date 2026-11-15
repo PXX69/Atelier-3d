@@ -17,15 +17,25 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: Construire l'APK
+      - name: Préparer le projet Android
         run: |
-          mkdir -p build/www
+          mkdir -p build/www build/assets
           cp -r index.html manifest.webmanifest sw.js lib icons build/www/
+          cp android-assets/logo.png build/assets/logo.png
           cd build
           npm init -y
           npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
           npx cap init "Atelier 3D" io.github.pxx69.atelier3d --web-dir www
           npx cap add android
+      - name: Icône de l'application
+        continue-on-error: true
+        run: |
+          cd build
+          npm i -D @capacitor/assets
+          npx @capacitor/assets generate --android --iconBackgroundColor '#d9520b' --iconBackgroundColorDark '#d9520b' --splashBackgroundColor '#12161b' --splashBackgroundColorDark '#12161b'
+      - name: Construire l'APK
+        run: |
+          cd build
           npx cap sync android
           cd android
           ./gradlew assembleDebug --no-daemon
@@ -33,6 +43,6 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk
-          name: Atelier 3D pour Android
-          body: Fichier d'installation Android (version de test).
+          name: Atelier 3D - téléchargements
+          body: Application Android (.apk) et application Windows (.exe). Versions de test, non signées.
           files: atelier-3d.apk

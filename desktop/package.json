@@ -1,0 +1,21 @@
+{
+  "name": "atelier-3d",
+  "productName": "Atelier 3D",
+  "version": "1.0.0",
+  "description": "Modélisation 3D facile par assemblage de formes",
+  "author": "PXX69",
+  "main": "main.js",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "io.github.pxx69.atelier3d",
+    "productName": "Atelier 3D",
+    "files": ["main.js", "app/**/*"],
+    "directories": { "buildResources": "res" },
+    "win": { "target": ["nsis", "portable"], "icon": "res/icon.png" },
+    "nsis": { "oneClick": true, "artifactName": "Atelier-3D-Installation.exe" },
+    "portable": { "artifactName": "Atelier-3D-Portable.exe" }
+  }
+}
