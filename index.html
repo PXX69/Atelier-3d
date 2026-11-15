@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier 3D</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#d9520b">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout : un établi. Barre d'outils en haut, formes à gauche, plateau au centre, fiche de l'objet à droite.
+   Sur téléphone : formes en bandeau bas, fiche en tiroir. */
+:root{
+  --bg:#e9edf1; --panel:#f8fafb; --ink:#18212c; --muted:#5f6b7a; --line:#cfd6de;
+  --accent:#d9520b; --accent-ink:#ffffff; --stage:#dfe5ea; --grid:#aab5c1; --grid-strong:#74828f;
+  --danger:#b3261e;
+  --display:"Bricolage Grotesque","Trebuchet MS",sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#12161b; --panel:#1a2027; --ink:#e7ecf1; --muted:#8e9aa9; --line:#2b343f;
+    --accent:#ff7a2f; --accent-ink:#1a0d04; --stage:#161b21; --grid:#262f39; --grid-strong:#46525f;
+    --danger:#ff8a80;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#12161b; --panel:#1a2027; --ink:#e7ecf1; --muted:#8e9aa9; --line:#2b343f;
+  --accent:#ff7a2f; --accent-ink:#1a0d04; --stage:#161b21; --grid:#262f39; --grid-strong:#46525f;
+  --danger:#ff8a80;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;overflow:hidden}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#app{height:100%;display:grid;grid-template-columns:92px minmax(0,1fr) 288px;grid-template-rows:auto minmax(0,1fr);
+  grid-template-areas:"bar bar bar" "shapes stage inspector"}
+
+/* Barre d'outils */
+#bar{grid-area:bar;display:flex;align-items:center;gap:14px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+#brand{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.02em;white-space:nowrap}
+#brand span{color:var(--accent)}
+.group{display:flex;gap:4px;align-items:center}
+.sep{width:1px;align-self:stretch;background:var(--line);flex:none}
+.btn{border:1px solid var(--line);background:transparent;border-radius:6px;padding:7px 11px;white-space:nowrap;min-height:36px}
+.btn:hover{border-color:var(--grid-strong)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.danger{color:var(--danger)}
+.spacer{flex:1}
+#toggleInspector{display:none}
+
+/* Formes */
+#shapes{grid-area:shapes;background:var(--panel);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:6px;overflow:auto}
+#shapes h2,#inspector h2{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:2px 4px 4px}
+.shape{border:1px solid transparent;background:transparent;border-radius:8px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;flex:none}
+.shape:hover{border-color:var(--line);background:var(--bg)}
+.shape svg{width:36px;height:36px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.shape svg .f{fill:var(--accent);fill-opacity:.22;stroke:none}
+
+/* Plateau */
+#stage{grid-area:stage;position:relative;background:var(--stage);min-width:0;min-height:0}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#plate{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:11px;color:var(--muted);pointer-events:none}
+#hint{position:absolute;left:14px;top:12px;font-size:12px;color:var(--muted);pointer-events:none;max-width:60%}
+#toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:86%;text-align:center}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion: reduce){#toast{transition:none}}
+
+/* Fiche de l'objet */
+#inspector{grid-area:inspector;background:var(--panel);border-left:1px solid var(--line);padding:12px 14px 20px;overflow:auto;display:flex;flex-direction:column;gap:16px}
+#list{display:flex;flex-direction:column;gap:2px;max-height:180px;overflow:auto}
+.item{display:flex;align-items:center;gap:8px;border:0;background:transparent;text-align:left;padding:6px 8px;border-radius:6px;border-left:3px solid transparent}
+.item:hover{background:var(--bg)}
+.item[aria-current="true"]{background:var(--bg);border-left-color:var(--accent);font-weight:600}
+.dot{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid var(--line)}
+.dot.hole{border:1px dashed var(--muted);background:transparent}
+.note{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
+#colorRow[hidden],#single[hidden],.btn[hidden],#multiTitle[hidden]{display:none}
+#single{display:flex;flex-direction:column;gap:14px}
+#multiTitle{margin:0;font-weight:600}
+.item small{margin-left:auto;color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:400}
+#empty{color:var(--muted);line-height:1.5;margin:0}
+#props{display:flex;flex-direction:column;gap:14px}
+#props[hidden]{display:none}
+.field label,.rowlabel{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.field input[type=text]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.triple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.num{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--bg);overflow:hidden}
+.num b{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--muted);padding:0 0 0 7px}
+.num input{width:100%;min-width:0;border:0;background:transparent;padding:7px 6px 7px 5px;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.num input::-webkit-outer-spin-button,.num input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.num:focus-within{border-color:var(--accent)}
+.num input:focus-visible{outline:none}
+#swatches{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sw{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);padding:0}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
+#custom{width:30px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:transparent}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+
+@media (max-width:760px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"bar" "stage" "shapes"}
+  #bar{gap:6px;padding:8px 16px;flex-wrap:wrap;overflow:visible}
+  #bar .sep,#bar .spacer{display:none}
+  #bar .group{display:contents}
+  #bar .btn{padding:6px 9px;font-size:13px}
+  #brand{width:100%}
+  #brand{font-size:17px}
+  #shapes{flex-direction:row;border-right:0;border-top:1px solid var(--line);padding:6px 16px;overflow-x:auto;overflow-y:hidden}
+  #shapes h2{display:none}
+  .shape{min-width:64px}
+  #toggleInspector{display:inline-block}
+  #inspector{position:absolute;left:0;right:0;bottom:0;z-index:5;max-height:58%;border-left:0;border-top:1px solid var(--line);
+    box-shadow:0 -8px 24px rgba(0,0,0,.18);display:none;padding:12px 16px 20px}
+  #inspector.open{display:flex}
+  #hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="bar">
+    <div id="brand">Atelier<span>3D</span></div>
+    <div class="sep"></div>
+    <div class="group">
+      <button class="btn" id="undo" title="Ctrl+Z">Annuler</button>
+      <button class="btn" id="redo" title="Ctrl+Y">Rétablir</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group" role="group" aria-label="Outil">
+      <button class="btn" data-mode="translate" aria-pressed="true" title="Touche T">Déplacer</button>
+      <button class="btn" data-mode="rotate" aria-pressed="false" title="Touche R">Tourner</button>
+      <button class="btn" data-mode="scale" aria-pressed="false" title="Touche E">Dimensionner</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <button class="btn" id="snap" aria-pressed="true" title="Déplacement par pas de 1 mm, rotation par pas de 15°">Aimant 1 mm</button>
+      <button class="btn" id="multi" aria-pressed="false" title="Ajoute chaque objet touché à la sélection. Au clavier : Maj+clic">Sélection multiple</button>
+      <button class="btn" id="frame">Recentrer la vue</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="toggleInspector" aria-expanded="false">Objet</button>
+    <button class="btn primary" id="export">Exporter en STL</button>
+  </header>
+
+  <nav id="shapes" aria-label="Ajouter une forme">
+    <h2>Formes</h2>
+    <button class="shape" data-add="cube"><svg viewBox="0 0 36 36"><path class="f" d="M6 12l12-6 12 6v14l-12 6-12-6z"/><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14"/></svg>Cube</button>
+    <button class="shape" data-add="sphere"><svg viewBox="0 0 36 36"><circle class="f" cx="18" cy="18" r="13"/><circle cx="18" cy="18" r="13"/><ellipse cx="18" cy="18" rx="13" ry="5"/></svg>Sphère</button>
+    <button class="shape" data-add="cylinder"><svg viewBox="0 0 36 36"><path class="f" d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9z"/><ellipse cx="18" cy="9" rx="11" ry="4.5"/><path d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9"/></svg>Cylindre</button>
+    <button class="shape" data-add="cone"><svg viewBox="0 0 36 36"><path class="f" d="M18 4L7 27c0 3 5 5 11 5s11-2 11-5z"/><path d="M18 4L7 27c0 3 5 5 11 5s11-2 11-5zM7 27c0-3 5-5 11-5s11 2 11 5"/></svg>Cône</button>
+    <button class="shape" data-add="pyramid"><svg viewBox="0 0 36 36"><path class="f" d="M18 4L4 25l14 7 14-7z"/><path d="M18 4L4 25l14 7 14-7zM18 4v28"/></svg>Pyramide</button>
+    <button class="shape" data-add="ramp"><svg viewBox="0 0 36 36"><path class="f" d="M4 28V10l20 18zM4 10l8-4 20 18-8 4"/><path d="M4 28V10l20 18zM4 10l8-4 20 18-8 4"/></svg>Rampe</button>
+    <button class="shape" data-add="torus"><svg viewBox="0 0 36 36"><ellipse class="f" cx="18" cy="18" rx="14" ry="9"/><ellipse cx="18" cy="18" rx="14" ry="9"/><ellipse cx="18" cy="17" rx="6" ry="3"/></svg>Anneau</button>
+  </nav>
+
+  <main id="stage">
+    <canvas id="view" aria-label="Vue 3D du modèle"></canvas>
+    <div id="hint">Glisser : tourner la vue · Molette ou pincement : zoom · Clic droit ou deux doigts : déplacer la vue</div>
+    <div id="plate">Plateau 200 × 200 mm · carreau 10 mm</div>
+    <div id="toast" role="status"></div>
+  </main>
+
+  <aside id="inspector" aria-label="Objets et propriétés">
+    <section>
+      <h2>Objets</h2>
+      <div id="list"></div>
+    </section>
+    <p id="empty">Touchez un objet sur le plateau pour le modifier, ou ajoutez une forme.</p>
+    <section id="props" hidden>
+      <p id="multiTitle" hidden></p>
+      <div id="single">
+      <div class="field"><label for="name">Nom</label><input type="text" id="name" autocomplete="off"></div>
+      <div>
+        <span class="rowlabel">Dimensions (mm) : largeur, hauteur, profondeur</span>
+        <div class="triple">
+          <div class="num"><b>L</b><input type="number" id="dx" step="1" min="0.5" aria-label="Largeur en mm"></div>
+          <div class="num"><b>H</b><input type="number" id="dy" step="1" min="0.5" aria-label="Hauteur en mm"></div>
+          <div class="num"><b>P</b><input type="number" id="dz" step="1" min="0.5" aria-label="Profondeur en mm"></div>
+        </div>
+      </div>
+      <div>
+        <span class="rowlabel">Position du centre (mm)</span>
+        <div class="triple">
+          <div class="num"><b>X</b><input type="number" id="px" step="1" aria-label="Position X"></div>
+          <div class="num"><b>Y</b><input type="number" id="py" step="1" aria-label="Position Y, hauteur"></div>
+          <div class="num"><b>Z</b><input type="number" id="pz" step="1" aria-label="Position Z"></div>
+        </div>
+      </div>
+      <div>
+        <span class="rowlabel">Rotation (degrés)</span>
+        <div class="triple">
+          <div class="num"><b>X</b><input type="number" id="rx" step="15" aria-label="Rotation X"></div>
+          <div class="num"><b>Y</b><input type="number" id="ry" step="15" aria-label="Rotation Y"></div>
+          <div class="num"><b>Z</b><input type="number" id="rz" step="15" aria-label="Rotation Z"></div>
+        </div>
+      </div>
+      <div>
+        <span class="rowlabel">Matière</span>
+        <div class="group" role="group" aria-label="Matière">
+          <button class="btn" id="solidBtn" aria-pressed="true">Solide</button>
+          <button class="btn" id="holeBtn" aria-pressed="false">Trou</button>
+        </div>
+        <p class="note">Un trou creuse tous les solides qu'il touche. Les trous ne sont pas exportés.</p>
+      </div>
+      <div id="colorRow">
+        <span class="rowlabel">Couleur</span>
+        <div id="swatches"></div>
+      </div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="grp" title="Ctrl+G" hidden>Grouper</button>
+        <button class="btn" id="ungrp" title="Ctrl+Maj+G" hidden>Dégrouper</button>
+        <button class="btn" id="dup" title="Ctrl+D">Dupliquer</button>
+        <button class="btn" id="drop">Poser sur le plateau</button>
+        <button class="btn danger" id="del" title="Suppr">Supprimer</button>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/OrbitControls.js"></script>
+<script src="lib/TransformControls.js"></script>
+<script>
+(function(){
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+var STORE = 'atelier3d.scene.v1';
+var COLORS = ['#e8590c','#f2c14e','#4c9f70','#3a7ca5','#7d5ba6','#d64550','#e9e4d8','#3b4350'];
+var NAMES = {cube:'Cube',sphere:'Sphère',cylinder:'Cylindre',cone:'Cône',pyramid:'Pyramide',ramp:'Rampe',torus:'Anneau'};
+
+/* ---------- Géométries de base (centrées, 1 unité = 1 mm une fois mises à l'échelle) ---------- */
+var GEO = {}, BASE = {}, NI = {};
+(function(){
+  GEO.cube = new THREE.BoxGeometry(1,1,1);
+  GEO.sphere = new THREE.SphereGeometry(0.5,32,20);
+  GEO.cylinder = new THREE.CylinderGeometry(0.5,0.5,1,48);
+  GEO.cone = new THREE.ConeGeometry(0.5,1,48);
+  GEO.pyramid = new THREE.ConeGeometry(Math.SQRT1_2,1,4); GEO.pyramid.rotateY(Math.PI/4);
+  var tri = new THREE.Shape(); tri.moveTo(-0.5,-0.5); tri.lineTo(0.5,-0.5); tri.lineTo(-0.5,0.5); tri.closePath();
+  GEO.ramp = new THREE.ExtrudeGeometry(tri,{depth:1,bevelEnabled:false});
+  GEO.torus = new THREE.TorusGeometry(0.375,0.125,16,40); GEO.torus.rotateX(Math.PI/2);
+  Object.keys(GEO).forEach(function(k){
+    GEO[k].center(); GEO[k].computeBoundingBox();
+    var s = new THREE.Vector3(); GEO[k].boundingBox.getSize(s); BASE[k] = [s.x,s.y,s.z];
+    NI[k] = GEO[k].index ? GEO[k].toNonIndexed() : GEO[k];
+  });
+})();
+
+/*CSG-BEGIN*/
+/* Soustraction de volumes par arbre BSP. Polygone : {v:[{x,y,z,nx,ny,nz}], pl:{x,y,z,w}} */
+var CSG = (function(){
+  var EPS = 1e-5;
+  function plane(a,b,c){
+    var ux=b.x-a.x,uy=b.y-a.y,uz=b.z-a.z,vx=c.x-a.x,vy=c.y-a.y,vz=c.z-a.z;
+    var x=uy*vz-uz*vy,y=uz*vx-ux*vz,z=ux*vy-uy*vx,l=Math.sqrt(x*x+y*y+z*z);
+    if (l<1e-10) return null;
+    x/=l;y/=l;z/=l; return {x:x,y:y,z:z,w:x*a.x+y*a.y+z*a.z};
+  }
+  function lerp(a,b,t){
+    return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t,nx:a.nx+(b.nx-a.nx)*t,ny:a.ny+(b.ny-a.ny)*t,nz:a.nz+(b.nz-a.nz)*t};
+  }
+  function flip(p){
+    var v=[],i; for (i=p.v.length-1;i>=0;i--){ var q=p.v[i]; v.push({x:q.x,y:q.y,z:q.z,nx:-q.nx,ny:-q.ny,nz:-q.nz}); }
+    return {v:v,pl:{x:-p.pl.x,y:-p.pl.y,z:-p.pl.z,w:-p.pl.w}};
+  }
+  function split(pl,poly,cf,cb,f,b){
+    var type=0,types=[],i,n=poly.v.length,v,t,ty;
+    for (i=0;i<n;i++){ v=poly.v[i]; t=pl.x*v.x+pl.y*v.y+pl.z*v.z-pl.w; ty=t<-EPS?2:(t>EPS?1:0); type|=ty; types.push(ty); }
+    if (type===0) ((pl.x*poly.pl.x+pl.y*poly.pl.y+pl.z*poly.pl.z)>0?cf:cb).push(poly);
+    else if (type===1) f.push(poly);
+    else if (type===2) b.push(poly);
+    else {
+      var fv=[],bv=[];
+      for (i=0;i<n;i++){
+        var j=(i+1)%n,ti=types[i],tj=types[j],vi=poly.v[i],vj=poly.v[j];
+        if (ti!==2) fv.push(vi);
+        if (ti!==1) bv.push(vi);
+        if ((ti|tj)===3){
+          var d=pl.x*(vj.x-vi.x)+pl.y*(vj.y-vi.y)+pl.z*(vj.z-vi.z);
+          var m=lerp(vi,vj,(pl.w-(pl.x*vi.x+pl.y*vi.y+pl.z*vi.z))/d); fv.push(m); bv.push(m);
+        }
+      }
+      if (fv.length>=3) f.push({v:fv,pl:poly.pl});
+      if (bv.length>=3) b.push({v:bv,pl:poly.pl});
+    }
+  }
+  function Node(polys){ this.pl=null; this.front=null; this.back=null; this.polys=[]; if (polys) this.build(polys); }
+  Node.prototype.invert=function(){
+    for (var i=0;i<this.polys.length;i++) this.polys[i]=flip(this.polys[i]);
+    if (this.pl) this.pl={x:-this.pl.x,y:-this.pl.y,z:-this.pl.z,w:-this.pl.w};
+    if (this.front) this.front.invert(); if (this.back) this.back.invert();
+    var t=this.front; this.front=this.back; this.back=t;
+  };
+  Node.prototype.clip=function(polys){
+    if (!this.pl) return polys.slice();
+    var f=[],b=[],i; for (i=0;i<polys.length;i++) split(this.pl,polys[i],f,b,f,b);
+    if (this.front) f=this.front.clip(f);
+    b=this.back?this.back.clip(b):[];
+    return f.concat(b);
+  };
+  Node.prototype.clipTo=function(o){
+    this.polys=o.clip(this.polys);
+    if (this.front) this.front.clipTo(o); if (this.back) this.back.clipTo(o);
+  };
+  Node.prototype.all=function(out){
+    out=out||[]; for (var i=0;i<this.polys.length;i++) out.push(this.polys[i]);
+    if (this.front) this.front.all(out); if (this.back) this.back.all(out); return out;
+  };
+  Node.prototype.build=function(polys){
+    if (!polys.length) return;
+    if (!this.pl){ var p=polys[0].pl; this.pl={x:p.x,y:p.y,z:p.z,w:p.w}; }
+    var f=[],b=[],i; for (i=0;i<polys.length;i++) split(this.pl,polys[i],this.polys,this.polys,f,b);
+    if (f.length){ if (!this.front) this.front=new Node(); this.front.build(f); }
+    if (b.length){ if (!this.back) this.back=new Node(); this.back.build(b); }
+  };
+  function subtract(A,B){
+    var a=new Node(A.slice()),b=new Node(B.slice());
+    a.invert(); a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert(); a.build(b.all()); a.invert();
+    return a.all();
+  }
+  return {plane:plane,subtract:subtract};
+})();
+/*CSG-END*/
+
+/* ---------- État ---------- */
+var state = { objs: [], sel: [], multi: false, mode: 'translate', snap: true };
+var history = [], hIndex = -1, nextId = 1;
+
+function example(){
+  return [
+    {id:1,type:'cube',name:'Murs',color:'#e9e4d8',p:[0,10,0],r:[0,0,0],s:[30,20,30]},
+    {id:2,type:'pyramid',name:'Toit',color:'#e8590c',p:[0,27,0],r:[0,0,0],s:[36,14,36]},
+    {id:3,type:'cylinder',name:'Cheminée',color:'#3b4350',p:[9,29,-7],r:[0,0,0],s:[5,12,5]},
+    {id:4,type:'sphere',name:'Buisson',color:'#4c9f70',p:[26,5,12],r:[0,0,0],s:[10,10,10]},
+    {id:5,type:'cube',name:'Porte',color:'#3b4350',hole:true,p:[0,6,14],r:[0,0,0],s:[8,12,6]},
+    {id:6,type:'cylinder',name:'Fenêtre',color:'#3b4350',hole:true,p:[14,12,0],r:[0,0,Math.PI/2],s:[8,6,8]}
+  ];
+}
+function validObjs(a){
+  return Array.isArray(a) && a.every(function(o){ return o && GEO[o.type] && Array.isArray(o.p) && Array.isArray(o.r) && Array.isArray(o.s); });
+}
+function load(){
+  var hot = window.claude && window.claude.hot && window.claude.hot.data;
+  if (hot && validObjs(hot.objs)) return hot.objs;
+  try { var raw = localStorage.getItem(STORE); if (raw){ var a = JSON.parse(raw); if (validObjs(a)) return a; } } catch(e){}
+  return example();
+}
+function save(){ try { localStorage.setItem(STORE, JSON.stringify(state.objs)); } catch(e){} }
+function commit(){
+  history = history.slice(0,hIndex+1); history.push(JSON.stringify(state.objs));
+  if (history.length > 100) history.shift();
+  hIndex = history.length-1; save(); recut(); refreshUI();
+}
+function restore(i){
+  hIndex = i; state.objs = JSON.parse(history[i]); rebuild(); save();
+}
+function getObj(id){ for (var i=0;i<state.objs.length;i++) if (state.objs[i].id===id) return state.objs[i]; return null; }
+
+/* ---------- Scène ---------- */
+var canvas = $('view'), stage = $('stage');
+var renderer = new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(45,1,1,5000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f98,0.85));
+var sun = new THREE.DirectionalLight(0xffffff,0.75); sun.position.set(80,160,100); scene.add(sun);
+var fill = new THREE.DirectionalLight(0xffffff,0.25); fill.position.set(-100,60,-80); scene.add(fill);
+var grid = null;
+var meshes = {}; var meshList = [];
+var helper = new THREE.BoxHelper(new THREE.Mesh(GEO.cube),0xff0000); helper.visible = false; scene.add(helper);
+
+var down = null, gizmoUsed = false;
+canvas.addEventListener('pointerdown',function(e){ down = {x:e.clientX,y:e.clientY}; gizmoUsed = false; },true);
+
+var orbit = new THREE.OrbitControls(camera,canvas);
+orbit.enableDamping = true; orbit.dampingFactor = 0.12; orbit.minDistance = 20; orbit.maxDistance = 1200;
+var tc = new THREE.TransformControls(camera,canvas);
+tc.setSize(1.15); scene.add(tc);
+tc.addEventListener('dragging-changed',function(e){
+  orbit.enabled = !e.value;
+  if (e.value) gizmoUsed = true;
+  else if (state.sel.length){
+    if (state.sel.length>1) attach();
+    selObjs().forEach(function(o){ syncFromMesh(o); }); commit();
+  }
+});
+tc.addEventListener('objectChange',function(){
+  if (state.sel.length>1){
+    pivot.scale.set(Math.max(0.05,Math.abs(pivot.scale.x)),Math.max(0.05,Math.abs(pivot.scale.y)),Math.max(0.05,Math.abs(pivot.scale.z)));
+    return;
+  }
+  var o = one(), m = o && meshes[o.id]; if (!m) return;
+  m.scale.set(Math.max(0.5,Math.abs(m.scale.x)),Math.max(0.5,Math.abs(m.scale.y)),Math.max(0.5,Math.abs(m.scale.z)));
+  syncFromMesh(o); fillFields(o);
+});
+
+function frameView(){ camera.position.set(95,80,125); orbit.target.set(0,12,0); orbit.update(); }
+frameView();
+
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function applyTheme(){
+  renderer.setClearColor(new THREE.Color(cssVar('--stage')||'#dfe5ea'));
+  if (grid){ scene.remove(grid); grid.geometry.dispose(); }
+  grid = new THREE.GridHelper(200,20,cssVar('--grid-strong')||'#8f9cab',cssVar('--grid')||'#c3ccd5');
+  scene.add(grid);
+  helper.material.color.set(cssVar('--accent')||'#d9520b');
+}
+applyTheme();
+try {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+} catch(e){}
+
+function resize(){
+  var w = stage.clientWidth, h = stage.clientHeight; if (!w||!h) return;
+  renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize',resize);
+resize();
+
+function applyToMesh(o,m){
+  m.position.set(o.p[0],o.p[1],o.p[2]); m.rotation.set(o.r[0],o.r[1],o.r[2]); m.scale.set(o.s[0],o.s[1],o.s[2]);
+  if (!o.hole) m.material.color.set(o.color).convertSRGBToLinear();
+}
+var _P = new THREE.Vector3(), _Q = new THREE.Quaternion(), _S = new THREE.Vector3(), _E = new THREE.Euler();
+function syncFromMesh(o){
+  var m = meshes[o.id]; if (!m) return;
+  m.updateWorldMatrix(true,false); m.matrixWorld.decompose(_P,_Q,_S); _E.setFromQuaternion(_Q);
+  o.p = [_P.x,_P.y,_P.z]; o.r = [_E.x,_E.y,_E.z]; o.s = [_S.x,_S.y,_S.z];
+}
+function rebuild(){
+  tc.detach();
+  meshList.forEach(function(m){ if (m.parent) m.parent.remove(m); m.material.dispose(); if (m.geometry!==GEO[m.userData.type]) m.geometry.dispose(); });
+  meshes = {}; meshList = [];
+  state.objs.forEach(function(o){
+    var mat = o.hole ? new THREE.MeshStandardMaterial({color:0x8a96a6,transparent:true,opacity:0.36,depthWrite:false,roughness:0.9})
+      : new THREE.MeshStandardMaterial({roughness:0.62,metalness:0.04});
+    var m = new THREE.Mesh(GEO[o.type],mat);
+    m.userData.id = o.id; m.userData.type = o.type; applyToMesh(o,m); scene.add(m); meshes[o.id] = m; meshList.push(m);
+    if (o.id >= nextId) nextId = o.id+1;
+  });
+  state.sel = state.sel.filter(function(id){ return !!getObj(id); });
+  attach(); recut(); refreshUI();
+}
+
+/* ---------- Trous : chaque trou creuse les solides qu'il touche ---------- */
+function primBox(o,m){ m.updateMatrixWorld(true); return GEO[o.type].boundingBox.clone().applyMatrix4(m.matrixWorld); }
+function toPolys(o,m){
+  var g = NI[o.type], pos = g.attributes.position, nor = g.attributes.normal, mw = m.matrixWorld;
+  var nm = new THREE.Matrix3().getNormalMatrix(mw), polys = [], p = new THREE.Vector3(), n = new THREE.Vector3();
+  for (var i=0;i<pos.count;i+=3){
+    var vs = [];
+    for (var j=0;j<3;j++){
+      p.fromBufferAttribute(pos,i+j).applyMatrix4(mw); n.fromBufferAttribute(nor,i+j).applyMatrix3(nm).normalize();
+      vs.push({x:p.x,y:p.y,z:p.z,nx:n.x,ny:n.y,nz:n.z});
+    }
+    var pl = CSG.plane(vs[0],vs[1],vs[2]); if (pl) polys.push({v:vs,pl:pl});
+  }
+  return polys;
+}
+function fromPolys(polys,m){
+  var P = [], N = [];
+  polys.forEach(function(q){
+    for (var i=2;i<q.v.length;i++) [q.v[0],q.v[i-1],q.v[i]].forEach(function(v){ P.push(v.x,v.y,v.z); N.push(v.nx,v.ny,v.nz); });
+  });
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(N,3));
+  g.applyMatrix4(new THREE.Matrix4().copy(m.matrixWorld).invert());
+  return g;
+}
+function recut(){
+  var holes = state.objs.filter(function(o){ return o.hole && meshes[o.id]; }).map(function(o){ return {o:o,m:meshes[o.id],box:primBox(o,meshes[o.id])}; });
+  state.objs.forEach(function(o){
+    var m = meshes[o.id]; if (o.hole || !m) return;
+    var box = primBox(o,m), hs = holes.filter(function(h){ return h.box.intersectsBox(box); });
+    var key = hs.length ? JSON.stringify([o.type,o.p,o.r,o.s,hs.map(function(h){ return [h.o.type,h.o.p,h.o.r,h.o.s]; })]) : '';
+    if (m.userData.cutKey===key) return;
+    var g = GEO[o.type];
+    if (hs.length){
+      try { var a = toPolys(o,m); hs.forEach(function(h){ a = CSG.subtract(a,toPolys(h.o,h.m)); }); g = fromPolys(a,m); }
+      catch(e){ g = GEO[o.type]; toast('Ce trou est trop complexe à calculer ici.'); }
+    }
+    if (m.geometry!==GEO[o.type]) m.geometry.dispose();
+    m.geometry = g; m.userData.cutKey = key;
+  });
+  if (helper.visible) helper.update();
+}
+function setHole(v){
+  var o = one(); if (!o || !!o.hole===v) return;
+  o.hole = v; rebuild(); commit();
+}
+var pivot = new THREE.Object3D(); scene.add(pivot);
+function one(){ return state.sel.length===1 ? getObj(state.sel[0]) : null; }
+function selObjs(){ return state.sel.map(getObj).filter(Boolean); }
+function attach(){
+  while (pivot.children.length) scene.attach(pivot.children[0]);
+  pivot.position.set(0,0,0); pivot.rotation.set(0,0,0); pivot.scale.set(1,1,1);
+  var ms = state.sel.map(function(id){ return meshes[id]; }).filter(Boolean);
+  if (ms.length===1){ tc.attach(ms[0]); helper.setFromObject(ms[0]); helper.visible = true; }
+  else if (ms.length>1){
+    var box = new THREE.Box3();
+    ms.forEach(function(m){ box.union(primBox(getObj(m.userData.id),m)); });
+    box.getCenter(pivot.position); pivot.updateMatrixWorld(true);
+    ms.forEach(function(m){ pivot.attach(m); });
+    tc.attach(pivot); helper.setFromObject(pivot); helper.visible = true;
+  } else { tc.detach(); helper.visible = false; }
+  applySnap();
+}
+function setSel(ids){ state.sel = ids; attach(); refreshUI(); }
+function groupIds(id){
+  var o = getObj(id); if (!o) return [];
+  if (o.g==null) return [id];
+  return state.objs.filter(function(x){ return x.g===o.g; }).map(function(x){ return x.id; });
+}
+function pick(id,additive){
+  if (id==null){ if (!additive) setSel([]); return; }
+  var ids = groupIds(id);
+  if (!additive){ setSel(ids); return; }
+  var all = ids.every(function(i){ return state.sel.indexOf(i)>=0; });
+  setSel(all ? state.sel.filter(function(i){ return ids.indexOf(i)<0; })
+             : state.sel.concat(ids.filter(function(i){ return state.sel.indexOf(i)<0; })));
+}
+function newGroupId(){ var g = 0; state.objs.forEach(function(o){ if (o.g!=null && o.g>g) g = o.g; }); return g+1; }
+function group(){
+  var os = selObjs(); if (os.length<2) return;
+  var g = newGroupId(); os.forEach(function(o){ o.g = g; }); commit(); toast('Objets groupés : ils se sélectionnent ensemble.');
+}
+function ungroup(){
+  var os = selObjs().filter(function(o){ return o.g!=null; }); if (!os.length) return;
+  os.forEach(function(o){ delete o.g; }); commit(); toast('Groupe défait.');
+}
+
+/* ---------- Actions ---------- */
+function addShape(type){
+  var b = BASE[type], k = 20, s = [k,k,k];
+  var n = state.objs.filter(function(o){ return o.type===type; }).length+1;
+  var o = {id:nextId++,type:type,name:NAMES[type]+' '+n,color:COLORS[state.objs.length%COLORS.length],
+    p:[Math.round(orbit.target.x),b[1]*k/2,Math.round(orbit.target.z)],r:[0,0,0],s:s};
+  state.objs.push(o); state.sel = [o.id]; rebuild(); commit();
+}
+function duplicate(){
+  var src = selObjs(); if (!src.length) return;
+  var gmap = {}, ids = [];
+  src.forEach(function(o){
+    var c = JSON.parse(JSON.stringify(o)); c.id = nextId++; c.name = o.name+' (copie)'; c.p[0] += 10; c.p[2] += 10;
+    if (o.g!=null){ if (gmap[o.g]==null) gmap[o.g] = newGroupId(); c.g = gmap[o.g]; }
+    state.objs.push(c); ids.push(c.id);
+  });
+  state.sel = ids; rebuild(); commit();
+}
+function remove(){
+  if (!state.sel.length) return;
+  state.objs = state.objs.filter(function(o){ return state.sel.indexOf(o.id)<0; }); state.sel = []; rebuild(); commit();
+}
+function dropToPlate(){
+  var os = selObjs(); if (!os.length) return;
+  var box = new THREE.Box3();
+  os.forEach(function(o){ box.union(primBox(o,meshes[o.id])); });
+  var target = os.length>1 ? pivot : meshes[os[0].id];
+  target.position.y -= box.min.y; target.updateMatrixWorld(true);
+  os.forEach(function(o){ syncFromMesh(o); }); commit();
+}
+function setMode(mode){
+  state.mode = mode; tc.setMode(mode); tc.setSpace(mode==='scale'?'local':'world');
+  document.querySelectorAll('[data-mode]').forEach(function(b){ b.setAttribute('aria-pressed',String(b.dataset.mode===mode)); });
+}
+function applySnap(){
+  var on = state.snap;
+  tc.setTranslationSnap(on?1:null); tc.setRotationSnap(on?THREE.MathUtils.degToRad(15):null);
+  tc.setScaleSnap(on?(state.sel.length>1?0.1:1):null);
+}
+function setSnap(on){ state.snap = on; applySnap(); $('snap').setAttribute('aria-pressed',String(on)); }
+function undo(){ if (hIndex>0) restore(hIndex-1); }
+function redo(){ if (hIndex<history.length-1) restore(hIndex+1); }
+
+/* ---------- Sélection au clic / au toucher ---------- */
+var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+canvas.addEventListener('pointerup',function(e){
+  if (!down) return;
+  var d = Math.hypot(e.clientX-down.x,e.clientY-down.y); down = null;
+  if (d>6 || gizmoUsed || e.button>0) return;
+  var r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  var hit = ray.intersectObjects(meshList,false)[0];
+  pick(hit?hit.object.userData.id:null,e.shiftKey||state.multi);
+});
+
+/* ---------- Interface ---------- */
+function fmt(v){ return String(Math.round(v*10)/10); }
+function fillFields(o){
+  var b = BASE[o.type], ids = ['x','y','z'];
+  ids.forEach(function(a,i){
+    setVal('d'+a,fmt(o.s[i]*b[i])); setVal('p'+a,fmt(o.p[i])); setVal('r'+a,fmt(THREE.MathUtils.radToDeg(o.r[i])));
+  });
+}
+function setVal(id,v){ var el = $(id); if (document.activeElement!==el) el.value = v; }
+function refreshUI(){
+  var list = $('list'); list.textContent = '';
+  state.objs.forEach(function(o){
+    var b = document.createElement('button'); b.className = 'item'; b.type = 'button';
+    b.setAttribute('aria-current',String(state.sel.indexOf(o.id)>=0));
+    var dot = document.createElement('span'); dot.className = o.hole ? 'dot hole' : 'dot'; if (!o.hole) dot.style.background = o.color;
+    var t = document.createElement('span'); t.textContent = o.name;
+    var sm = document.createElement('small'); var bs = BASE[o.type];
+    sm.textContent = (o.g!=null?'gr. '+o.g+' · ':'')+fmt(o.s[0]*bs[0])+'×'+fmt(o.s[1]*bs[1])+'×'+fmt(o.s[2]*bs[2]);
+    b.appendChild(dot); b.appendChild(t); b.appendChild(sm);
+    b.addEventListener('click',function(ev){ pick(o.id,ev.shiftKey||state.multi); });
+    list.appendChild(b);
+  });
+  var o = one();
+  var n = state.sel.length, os = selObjs();
+  $('props').hidden = n===0; $('single').hidden = !o; $('empty').hidden = n>0;
+  $('multiTitle').hidden = n<2; $('multiTitle').textContent = n+' objets sélectionnés';
+  $('grp').hidden = n<2 || (os[0].g!=null && os.every(function(x){ return x.g===os[0].g; }));
+  $('ungrp').hidden = !os.some(function(x){ return x.g!=null; });
+  $('empty').textContent = state.objs.length ? 'Touchez un objet sur le plateau pour le modifier, ou ajoutez une forme. Pour en grouper plusieurs, activez Sélection multiple.' : 'Le plateau est vide. Ajoutez une forme pour commencer.';
+  if (o){
+    if (document.activeElement!==$('name')) $('name').value = o.name;
+    fillFields(o);
+    document.querySelectorAll('.sw').forEach(function(s){ s.setAttribute('aria-pressed',String(s.dataset.c===o.color)); });
+    $('custom').value = o.color;
+    $('colorRow').hidden = !!o.hole;
+    $('solidBtn').setAttribute('aria-pressed',String(!o.hole)); $('holeBtn').setAttribute('aria-pressed',String(!!o.hole));
+  }
+  $('undo').disabled = hIndex<=0; $('redo').disabled = hIndex>=history.length-1;
+}
+function bindNumber(id,apply){
+  $(id).addEventListener('change',function(){
+    var o = one(), v = parseFloat(this.value);
+    if (!o || !isFinite(v)){ if (o) fillFields(o); return; }
+    apply(o,v); applyToMesh(o,meshes[o.id]); helper.setFromObject(meshes[o.id]); commit();
+  });
+}
+['x','y','z'].forEach(function(a,i){
+  bindNumber('d'+a,function(o,v){ o.s[i] = Math.max(0.5,v)/BASE[o.type][i]; });
+  bindNumber('p'+a,function(o,v){ o.p[i] = v; });
+  bindNumber('r'+a,function(o,v){ o.r[i] = THREE.MathUtils.degToRad(v); });
+});
+$('name').addEventListener('change',function(){ var o = one(); if (!o) return; o.name = this.value.trim()||NAMES[o.type]; commit(); });
+function setColor(c){ var o = one(); if (!o || o.hole) return; o.color = c; meshes[o.id].material.color.set(c).convertSRGBToLinear(); commit(); }
+(function(){
+  var box = $('swatches');
+  COLORS.forEach(function(c){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.dataset.c = c; b.style.background = c;
+    b.setAttribute('aria-label','Couleur '+c); b.setAttribute('aria-pressed','false');
+    b.addEventListener('click',function(){ setColor(c); }); box.appendChild(b);
+  });
+  var custom = document.createElement('input'); custom.type = 'color'; custom.id = 'custom'; custom.setAttribute('aria-label','Autre couleur');
+  custom.addEventListener('change',function(){ setColor(this.value); }); box.appendChild(custom);
+})();
+document.querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener('click',function(){ addShape(b.dataset.add); }); });
+document.querySelectorAll('[data-mode]').forEach(function(b){ b.addEventListener('click',function(){ setMode(b.dataset.mode); }); });
+$('snap').addEventListener('click',function(){ setSnap(!state.snap); });
+$('frame').addEventListener('click',frameView);
+$('undo').addEventListener('click',undo); $('redo').addEventListener('click',redo);
+$('solidBtn').addEventListener('click',function(){ setHole(false); }); $('holeBtn').addEventListener('click',function(){ setHole(true); });
+$('grp').addEventListener('click',group); $('ungrp').addEventListener('click',ungroup);
+$('multi').addEventListener('click',function(){ state.multi = !state.multi; this.setAttribute('aria-pressed',String(state.multi)); });
+$('dup').addEventListener('click',duplicate); $('del').addEventListener('click',remove); $('drop').addEventListener('click',dropToPlate);
+$('toggleInspector').addEventListener('click',function(){
+  var open = $('inspector').classList.toggle('open'); this.setAttribute('aria-expanded',String(open));
+});
+window.addEventListener('keydown',function(e){
+  var t = e.target.tagName; if (t==='INPUT'||t==='TEXTAREA') return;
+  var k = e.key.toLowerCase(), mod = e.ctrlKey||e.metaKey;
+  if (mod && k==='z'){ e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+  else if (mod && k==='y'){ e.preventDefault(); redo(); }
+  else if (mod && k==='d'){ e.preventDefault(); duplicate(); }
+  else if (mod && k==='g'){ e.preventDefault(); if (e.shiftKey) ungroup(); else group(); }
+  else if (k==='delete'||k==='backspace'){ e.preventDefault(); remove(); }
+  else if (k==='t') setMode('translate'); else if (k==='r') setMode('rotate'); else if (k==='e') setMode('scale');
+  else if (k==='escape') setSel([]);
+});
+
+var toastTimer = 0;
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('on'); },3200); }
+
+/* ---------- Export STL (texte, axe Z vers le haut comme les logiciels d'impression) ---------- */
+function buildSTL(){
+  var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count; });
+  if (!solids.length) return '';
+  var out = ['solid atelier3d'], a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+  function v(p){ return '      vertex '+p.x.toFixed(4)+' '+(-p.z).toFixed(4)+' '+p.y.toFixed(4); }
+  solids.forEach(function(m){
+    m.updateMatrixWorld(true);
+    var g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, pos = g.attributes.position;
+    for (var i=0;i<pos.count;i+=3){
+      a.fromBufferAttribute(pos,i).applyMatrix4(m.matrixWorld);
+      b.fromBufferAttribute(pos,i+1).applyMatrix4(m.matrixWorld);
+      c.fromBufferAttribute(pos,i+2).applyMatrix4(m.matrixWorld);
+      n.crossVectors(ab.subVectors(b,a),ac.subVectors(c,a));
+      if (n.lengthSq()===0) continue;
+      n.normalize();
+      out.push('  facet normal '+n.x.toFixed(5)+' '+(-n.z).toFixed(5)+' '+n.y.toFixed(5),'    outer loop',v(a),v(b),v(c),'    endloop','  endfacet');
+    }
+    if (g!==m.geometry) g.dispose();
+  });
+  out.push('endsolid atelier3d'); return out.join('\n')+'\n';
+}
+var downloads = null;
+(function(){
+  try { var p = window.claude && window.claude.use && window.claude.use('downloads'); if (p && p.then) p.then(function(d){ downloads = d; },function(){}); } catch(e){}
+})();
+$('export').addEventListener('click',function(){
+  var text = buildSTL();
+  if (!text){ toast('Ajoutez une forme solide avant d’exporter.'); return; }
+  if (downloads){
+    downloads.save({filename:'atelier-3d.stl',data:text}).then(function(){ toast('Fichier STL enregistré.'); },function(){ toast('Export annulé.'); });
+    return;
+  }
+  try {
+    var url = URL.createObjectURL(new Blob([text],{type:'model/stl'}));
+    var link = document.createElement('a'); link.href = url; link.download = 'atelier-3d.stl'; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); },2000);
+    toast('Export STL lancé.');
+  } catch(e){ toast('L’export n’est pas disponible dans cette fenêtre.'); }
+});
+
+/* ---------- Démarrage ---------- */
+state.objs = load();
+setMode('translate'); setSnap(true);
+rebuild(); history = [JSON.stringify(state.objs)]; hIndex = 0; refreshUI();
+try { if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function(){ return {objs:state.objs}; }); } catch(e){}
+
+(function loop(){
+  requestAnimationFrame(loop);
+  orbit.update();
+  if (helper.visible) helper.update();
+  renderer.render(scene,camera);
+})();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator && location.protocol === "https:") { navigator.serviceWorker.register("sw.js").catch(function(){}); }
+</script>
+</body>
+</html>

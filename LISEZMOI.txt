@@ -1,0 +1,25 @@
+ATELIER 3D
+==========
+
+Utiliser tout de suite sur Windows
+----------------------------------
+1. Décompressez ce dossier où vous voulez.
+2. Double-cliquez sur index.html : l'application s'ouvre dans votre navigateur.
+Elle fonctionne sans connexion Internet. Vos modèles restent enregistrés dans le navigateur.
+
+Installer comme une vraie application (Windows et Android)
+----------------------------------------------------------
+Il faut d'abord mettre ce dossier en ligne sur une adresse en https
+(par exemple GitHub Pages, Netlify ou Cloudflare Pages, gratuits).
+Ensuite, en ouvrant cette adresse :
+- Windows (Edge ou Chrome) : menu "..." > Applications > Installer Atelier 3D.
+- Android (Chrome) : menu "..." > Ajouter à l'écran d'accueil > Installer.
+L'application a alors sa propre icône, sa propre fenêtre, et fonctionne hors connexion.
+
+Contenu
+-------
+index.html             l'application
+lib/                   bibliothèque 3D three.js (licence MIT, voir LICENSE-three.txt)
+manifest.webmanifest   nom, icône et couleurs de l'application installée
+sw.js                  fonctionnement hors connexion
+icons/                 icônes
