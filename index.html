@@ -85,6 +85,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #hint{position:absolute;left:14px;top:12px;font-size:12px;color:var(--muted);pointer-events:none;max-width:60%}
 #drawBar,#paintBar,#measureBar,#eraseBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
 #planeWrap{display:contents}#planeWrap[hidden],#planeOffWrap[hidden]{display:none}#drawPlane{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit;max-width:100%}#planeOff{width:120px}#planeOffVal{font-family:var(--mono);font-weight:500;min-width:52px}
+#fillWrap[hidden]{display:none}
 #drawBar[hidden],#paintBar[hidden],#measureBar[hidden],#eraseBar[hidden],#penWrap[hidden],#drawUndo[hidden],#warn[hidden],.modal[hidden],#exportNote[hidden]{display:none}
 #drawBar .group,#paintBar .group{flex-wrap:wrap}
 #measureMsg{font-variant-numeric:tabular-nums}
@@ -243,8 +244,10 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
       <span id="drawMsg"></span>
       <span id="planeWrap" hidden>
         <select id="drawPlane" aria-label="Plan de dessin"><option value="sol">Plan du sol : largeur × profondeur</option><option value="face">Plan de face : largeur × hauteur</option><option value="cote">Plan de côté : profondeur × hauteur</option><option value="surface">Sur les objets</option></select>
+        <button class="btn" id="drawView" title="Recadre la vue pour voir tout le plan">Voir tout le plan</button>
         <label class="check" id="planeOffWrap">Position <input type="range" id="planeOff" min="0" max="200" step="1" value="2"> <b id="planeOffVal">2 mm</b></label>
       </span>
+      <label class="check" id="fillWrap"><input type="checkbox" id="penFill" checked> Remplir les traits fermés</label>
       <label class="check" id="penWrap" hidden>Épaisseur du trait <span class="num"><input type="number" id="penSize" min="1" max="40" step="0.5" value="4" aria-label="Épaisseur du trait en mm"></span> mm</label>
       <div class="group">
         <button class="btn" id="drawUndo">Retirer le dernier point</button>
@@ -1453,11 +1456,11 @@ function drawRefresh(){
   document.querySelector('[data-free]').setAttribute('aria-pressed',String(!!draw && !!draw.free));
   undoState(); planeUi(); planeUpdate();
   if (!draw) return;
-  $('penWrap').hidden = !draw.free; $('drawUndo').hidden = !!draw.free;
+  $('penWrap').hidden = !draw.free; $('fillWrap').hidden = !draw.free; $('drawUndo').hidden = !!draw.free;
   if (draw.free){
     var k = draw.strokes.length;
     $('drawMsg').textContent = k ? k+(k>1?' traits : ils seront réunis en un seul objet. ':' trait. ')+'Changez de plan pour dessiner dans une autre direction, puis terminez. Annuler retire le dernier trait.'
-      : 'Choisissez un plan (sol, face ou côté) et sa position, puis dessinez : tous les traits seront réunis en un seul objet 3D. Pour tourner la vue, glissez en dehors du plan.';
+      : 'Choisissez un plan (sol, face ou côté) et sa position, puis dessinez : tous les traits seront réunis en un seul objet 3D, et un trait fermé remplit son intérieur. Pour tourner la vue, glissez en dehors du plan.';
     $('drawDone').disabled = !k; $('drawDone').textContent = 'Terminer l’objet'; return;
   }
   $('drawDone').textContent = 'Terminer la forme';
@@ -1493,7 +1496,8 @@ function planeUpdate(){
   planeMesh.renderOrder = 2; scene.add(planeMesh);
 }
 function viewPlane(){
-  var P = draw.plane, D = Math.max(plate.h*1.45,plate.w*1.1), ty = plate.h*0.42;
+  var P = draw.plane, pw = P.kind==='cote' ? plate.d : plate.w, tn = Math.tan(camera.fov*Math.PI/360);
+  var D = Math.max(plate.h*1.3/2/tn,pw*1.12/2/(tn*Math.max(0.5,camera.aspect))), ty = plate.h*0.6;
   if (P.kind==='face'){ orbit.target.set(0,ty,P.off); camera.position.set(0,ty,P.off+D); }
   else if (P.kind==='cote'){ orbit.target.set(P.off,ty,0); camera.position.set(P.off+D,ty,0); }
   else frameView();
@@ -1505,6 +1509,7 @@ $('drawPlane').addEventListener('change',function(){
   if (this.value!=='surface') viewPlane();
   planeUi(); planeUpdate(); drawRefresh();
 });
+$('drawView').addEventListener('click',function(){ if (draw && draw.free && draw.plane.kind!=='surface') viewPlane(); });
 $('planeOff').addEventListener('input',function(){
   if (!draw || !draw.free) return;
   draw.plane.off = +this.value; $('planeOffVal').textContent = Math.round(draw.plane.off*10)/10+' mm'; planeUpdate();
@@ -1525,24 +1530,53 @@ function clipToPlate(man){
   var box = MF.Manifold.cube([4000,2000,4000],false), moved = box.translate([-2000,0,-2000]), r = man.intersect(moved);
   box.delete(); moved.delete(); return r;
 }
+/* Un trait fermé (le bout rejoint le début) remplit son intérieur, sur l'épaisseur du trait */
+function fillShape(P,pts,r){
+  var k = P.kind, uv = [], i, last = null;
+  pts.forEach(function(p){
+    var u = k==='sol' ? p.x : (k==='face' ? p.x : -p.z), v = k==='sol' ? -p.z : p.y;
+    if (!last || Math.hypot(u-last[0],v-last[1])>0.05){ uv.push([u,v]); last = [u,v]; }
+  });
+  if (uv.length<4) return null;
+  var sh = new THREE.Shape(); uv.forEach(function(q,j){ if (j) sh.lineTo(q[0],q[1]); else sh.moveTo(q[0],q[1]); }); sh.closePath();
+  var t = Math.max(2*r,2), g = new THREE.ExtrudeGeometry(sh,{depth:t,bevelEnabled:false});
+  if (k==='sol'){ g.rotateX(-Math.PI/2); g.translate(0,P.off-t/2,0); }
+  else if (k==='face'){ g.translate(0,0,P.off-t/2); }
+  else { g.rotateY(Math.PI/2); g.translate(P.off-t/2,0,0); }
+  var ni = g.index ? g.toNonIndexed() : g, man = manFromPositions(new Float32Array(ni.attributes.position.array));
+  if (ni!==g) ni.dispose(); g.dispose(); return man;
+}
+function isClosedStroke(pts,r){
+  return pts.length>=8 && pts[0].distanceTo(pts[pts.length-1])<=Math.max(2.5*r,3);
+}
+function strokeMan(s){
+  var raw = sweep(s.pts,s.r);
+  if (!s.fill) return raw;
+  try {
+    var f = fillShape(s.fill,s.pts,s.r); if (!f) return raw;
+    var u = MF.Manifold.union([raw,f]); raw.delete(); f.delete(); return u;
+  } catch(e){ return raw; }
+}
 function endPenStroke(pts){
   if (!draw || !draw.free || !pts.length) return;
   try {
-    var r = penR(), raw = sweep(pts,r), man = clipToPlate(raw), pos = manToPositions(man);
+    var r = penR(), fill = null;
+    if ($('penFill').checked && draw.plane.kind!=='surface' && isClosedStroke(pts,r)) fill = {kind:draw.plane.kind,off:draw.plane.off};
+    var st = {pts:pts,r:r,mesh:null,fill:fill}, raw = strokeMan(st), man = clipToPlate(raw), pos = manToPositions(man);
     raw.delete(); man.delete();
     if (!pos.length) return;
     var g = new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); setNormals(g);
     var mat = new THREE.MeshStandardMaterial({roughness:0.6,metalness:0.04}); mat.color.set(cssVar('--accent')||'#d9520b').convertSRGBToLinear();
     var mesh = new THREE.Mesh(g,mat); scene.add(mesh);
     draw.redo.forEach(dropStroke); draw.redo = [];
-    draw.strokes.push({pts:pts,r:r,mesh:mesh});
+    st.mesh = mesh; draw.strokes.push(st);
   } catch(e){ toast('Ce trait n’a pas pu être transformé en volume.'); }
   drawRefresh();
 }
 function finishPen(){
   if (!draw.strokes.length) return;
   try {
-    var mans = draw.strokes.map(function(s){ return sweep(s.pts,s.r); }), U = mans.length>1 ? MF.Manifold.union(mans) : mans[0], R = clipToPlate(U), pos = manToPositions(R);
+    var mans = draw.strokes.map(strokeMan), U = mans.length>1 ? MF.Manifold.union(mans) : mans[0], R = clipToPlate(U), pos = manToPositions(R);
     mans.forEach(function(x){ if (x!==U) x.delete(); }); U.delete(); R.delete();
     if (!pos.length){ toast('Le dessin est vide.'); return; }
     var n = state.objs.filter(function(o){ return /^Dessin /.test(o.name); }).length+1;
