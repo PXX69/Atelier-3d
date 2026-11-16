@@ -417,7 +417,8 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
     <p class="note" id="splitInfo"></p>
     <div class="field"><label>Taille maximale d'une partie (mm) : largeur · profondeur · hauteur</label>
       <div class="trio"><input type="text" inputmode="decimal" id="splitX" aria-label="Largeur max"><input type="text" inputmode="decimal" id="splitZ" aria-label="Profondeur max"><input type="text" inputmode="decimal" id="splitY" aria-label="Hauteur max"></div></div>
-    <label class="check"><input type="checkbox" id="splitLay" checked> Ranger les parties sur les plateaux (en ajoute si besoin)</label>
+    <label class="check"><input type="checkbox" id="splitOne" checked> Une partie par plateau, au point zéro (crée les plateaux)</label>
+    <label class="check"><input type="checkbox" id="splitLay" checked> Sinon : ranger les parties côte à côte sur les plateaux</label>
     <p class="note" id="splitCount"></p>
     <p class="note">Les coupes sont plates et réparties à égalité. La peinture n'est pas conservée sur les parties.</p>
     <div class="actions"><button class="btn primary" id="splitGo">Découper</button><button class="btn" data-close>Fermer</button></div>
@@ -894,10 +895,20 @@ var plate = {w:200,d:200,h:200,name:''};
   } catch(e){}
 })();
 /* Les nouveaux objets arrivent toujours sur le plateau 1 */
-function newX(){ var x = Math.round(orbit.target.x); return Math.abs(x)<=plate.w/2 ? x : 0; }
-function newZ(){ var z = Math.round(orbit.target.z); return Math.abs(z)<=plate.d/2 ? z : 0; }
-var PGAP = 40, PLATES_KEY = 'atelier3d.plates.v1', plateCount = 1;
-try { plateCount = Math.max(1,Math.min(12,parseInt(localStorage.getItem(PLATES_KEY),10)||1)); } catch(e){}
+function freeCorner(sx,sz){
+  var x = -plate.w/2, z = plate.d/2-sz, boxes = [], n;
+  state.objs.forEach(function(o){ var m = meshes[o.id]; if (m && !o.hole && plateOfObj(o)===0) boxes.push(primBox(o,m)); });
+  for (n=0;n<60;n++){
+    var hit = null;
+    boxes.forEach(function(b){ if (!hit && x<b.max.x-0.01 && x+sx>b.min.x+0.01 && z<b.max.z-0.01 && z+sz>b.min.z+0.01) hit = b; });
+    if (!hit) return [x,z];
+    x = hit.max.x+2;
+    if (x+sx>plate.w/2){ x = -plate.w/2; z -= sz+2; if (z<-plate.d/2) break; }
+  }
+  return [-plate.w/2,plate.d/2-sz];
+}
+var MAXP = 50, PGAP = 40, PLATES_KEY = 'atelier3d.plates.v1', plateCount = 1;
+try { plateCount = Math.max(1,Math.min(MAXP,parseInt(localStorage.getItem(PLATES_KEY),10)||1)); } catch(e){}
 function savePlates(){ try { localStorage.setItem(PLATES_KEY,String(plateCount)); } catch(e){} }
 function plateX(k){ return k*(plate.w+PGAP); }
 function plateOfX(x){ return Math.max(0,Math.min(plateCount-1,Math.round(x/(plate.w+PGAP)))); }
@@ -1192,7 +1203,18 @@ function splitRun(){
   if (!made.length){ toast(failed ? 'Ce modèle a des défauts de surface : la découpe est impossible.' : 'Rien à découper.'); return; }
   state.objs = state.objs.filter(function(o){ return gone.indexOf(o.id)<0; });
   var usedPl = 0;
-  if ($('splitLay').checked){ rebuild(); usedPl = packUnits(made.map(function(o){ return [o]; }),true); }
+  if ($('splitOne').checked){
+    var occ = {}, kk = 0, over = false;
+    state.objs.forEach(function(o){ if (made.indexOf(o)<0 && !o.hole && meshes[o.id]) occ[plateOfObj(o)] = 1; });
+    made.forEach(function(o){
+      while (occ[kk]) kk++;
+      if (kk>=MAXP){ over = true; kk = MAXP-1; }
+      var bb = boxOf(MESH[o.mid].geo.attributes.position.array), sx = bb[1]-bb[0], sy = bb[3]-bb[2], sz = bb[5]-bb[4];
+      o.p = [plateX(kk)-plate.w/2+sx/2,sy/2,plate.d/2-sz/2]; occ[kk] = 1; usedPl = Math.max(usedPl,kk+1);
+    });
+    plateCount = Math.min(MAXP,Math.max(plateCount,usedPl)); savePlates(); buildPlate(); frameView();
+    if (over) toast('Plus de '+MAXP+' parties : les dernières partagent le dernier plateau.');
+  } else if ($('splitLay').checked){ rebuild(); usedPl = packUnits(made.map(function(o){ return [o]; }),true); }
   state.sel = made.map(function(o){ return o.id; }); rebuild(); commit();
   $('splitDlg').hidden = true;
   toast(made.length+' parties créées'+(usedPl>1?', rangées sur '+usedPl+' plateaux':'')+(failed?' ('+failed+' objet non découpé)':'')+'. « Annuler » rétablit le modèle entier.');
@@ -1209,7 +1231,7 @@ function packUnits(units,drop){
     u.forEach(function(o){ o.p = [o.p[0]+dx,o.p[1]+dy,o.p[2]+dz]; });
     x += sx+gap; rowD = Math.max(rowD,sz); used = k+1;
   });
-  plateCount = Math.min(12,Math.max(plateCount,used)); savePlates(); buildPlate(); frameView();
+  plateCount = Math.min(MAXP,Math.max(plateCount,used)); savePlates(); buildPlate(); frameView();
   return used;
 }
 function autoPack(){
@@ -1236,7 +1258,7 @@ function platesDlgFill(){
 }
 function setPlateCount(n){ plateCount = n; savePlates(); buildPlate(); frameView(); platesDlgFill(); refreshUI(); }
 $('platesBtn').addEventListener('click',function(){ platesDlgFill(); $('platesDlg').hidden = false; });
-$('platesPlus').addEventListener('click',function(){ if (plateCount>=12){ toast('12 plateaux au maximum.'); return; } setPlateCount(plateCount+1); });
+$('platesPlus').addEventListener('click',function(){ if (plateCount>=MAXP){ toast(MAXP+' plateaux au maximum.'); return; } setPlateCount(plateCount+1); });
 $('platesMinus').addEventListener('click',function(){
   if (plateCount<=1) return;
   if (state.objs.some(function(o){ return !o.hole && plateOfObj(o)===plateCount-1; })){ toast('Le dernier plateau n\u2019est pas vide : déplacez ses objets d\u2019abord.'); return; }
@@ -1293,7 +1315,8 @@ function addShape(type,dims){
   var b = BASE[type], k = 20, s = dims ? [dims[0]/b[0],dims[1]/b[1],dims[2]/b[2]] : [k,k,k];
   var n = state.objs.filter(function(o){ return o.type===type; }).length+1;
   var o = {id:nextId++,type:type,name:NAMES[type]+' '+n,color:COLORS[state.objs.length%COLORS.length],
-    p:[newX(),b[1]*s[1]/2,newZ()],r:[0,0,0],s:s};
+    p:[0,b[1]*s[1]/2,0],r:[0,0,0],s:s};
+  var fc = freeCorner(b[0]*s[0],b[2]*s[2]); o.p[0] = fc[0]+b[0]*s[0]/2; o.p[2] = fc[1]+b[2]*s[2]/2;
   if (state.neg) o.hole = true;
   state.objs.push(o); state.sel = [o.id]; rebuild(); commit();
 }
@@ -2069,10 +2092,12 @@ function createFromSpec(parts,label){
   });
   if (!ok.length) return 0;
   /* Pose le nouvel objet à côté de ce qui est déjà sur le plateau, s'il y a la place */
-  var used = -Infinity, lo = Infinity, hi = -Infinity;
+  var used = -Infinity, lo = Infinity, hi = -Infinity, zmax = -Infinity;
   state.objs.forEach(function(o){ var m = meshes[o.id]; if (m && !o.hole && plateOfObj(o)===0) used = Math.max(used,primBox(o,m).max.x); });
   ok.forEach(function(o){ var b = BASE[o.type], half = Math.max(o.s[0]*b[0],o.s[2]*b[2])/2; lo = Math.min(lo,o.p[0]-half); hi = Math.max(hi,o.p[0]+half); });
-  if (isFinite(used) && used>lo-10){ var dx = used+10-lo; if (hi+dx<=plate.w/2) ok.forEach(function(o){ o.p[0] += dx; }); }
+  ok.forEach(function(o){ zmax = Math.max(zmax,o.p[2]+o.s[2]*BASE[o.type][2]/2); });
+  if (!isFinite(used)){ var dx0 = -plate.w/2-lo, dz0 = plate.d/2-zmax; ok.forEach(function(o){ o.p[0] += dx0; o.p[2] += dz0; }); }
+  else if (isFinite(used) && used>lo-10){ var dx = used+10-lo; if (hi+dx<=plate.w/2) ok.forEach(function(o){ o.p[0] += dx; }); }
   var g = ok.length>1 ? newGroupId() : null, base = COLORS[state.objs.length%COLORS.length];
   ok.forEach(function(o){ if (!o.color) o.color = base; if (!o.hole) delete o.hole; if (g!=null) o.g = g; state.objs.push(o); });
   state.sel = ok.map(function(o){ return o.id; }); rebuild(); commit();
@@ -2465,7 +2490,7 @@ function addImported(parts,fileName){
     MESH[mid] = meshFromPositions(pt.pos);
     try { if (meshDb) meshDb.transaction('meshes','readwrite').objectStore('meshes').put(keep,mid); } catch(e){}
     var o = {id:nextId++,type:'mesh',mid:mid,name:(pt.name || (parts.length>1 ? base+' '+(n+1) : base)).slice(0,40),
-      color:pt.color || COLORS[state.objs.length%COLORS.length],p:[(bx[0]+bx[1])/2-cx,(bx[2]+bx[3])/2-y0,(bx[4]+bx[5])/2-cz],r:[0,0,0],s:[1,1,1]};
+      color:pt.color || COLORS[state.objs.length%COLORS.length],p:[(bx[0]+bx[1])/2-x0-plate.w/2,(bx[2]+bx[3])/2-y0,(bx[4]+bx[5])/2-z1+plate.d/2],r:[0,0,0],s:[1,1,1]};
     if (g!=null) o.g = g;
     state.objs.push(o); ids.push(o.id);
   });
@@ -2699,7 +2724,7 @@ function start(){
   var objs = load(), kept = objs.filter(function(o){ return o.type!=='mesh' || MESH[o.mid]; });
   state.objs = kept;
   var need = 1; kept.forEach(function(o){ if (!o.hole) need = Math.max(need,Math.round(o.p[0]/(plate.w+PGAP))+1); });
-  if (need>plateCount){ plateCount = Math.min(12,need); savePlates(); buildPlate(); frameView(); }
+  if (need>plateCount){ plateCount = Math.min(MAXP,need); savePlates(); buildPlate(); frameView(); }
   rebuild(); history = [JSON.stringify(state.objs)]; hIndex = 0; refreshUI();
   if (kept.length<objs.length) toast('Un modèle importé n\u2019a pas pu être retrouvé et a été retiré.');
   try {
