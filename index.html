@@ -1555,32 +1555,37 @@ function csUnion(CS,list){
   var acc = list[0], i; for (i=1;i<list.length;i++){ var n = acc.add ? acc.add(list[i]) : acc.union(list[i]); acc = n; } return acc;
 }
 function fillGroupMan(kind,off,strokes){
-  var CS = MF.CrossSection, tmp = [], maxR = 0, pieces = [];
+  var CS = MF.CrossSection, tmp = [], maxR = 0, result = null, regions = [];
   strokes.forEach(function(s){ maxR = Math.max(maxR,s.r); });
-  var tol = Math.max(1,maxR*0.75), result = null;
+  /* Plusieurs tolérances : un petit trou se ferme tout de suite, un trait mal refermé (écart jusqu'à ~2 cm) se ferme avec la plus large */
+  var tols = [Math.max(1,maxR*0.75),Math.max(3,maxR*2.5),Math.max(6,maxR*5)];
   try {
-    strokes.forEach(function(s){
-      var circ = CS.circle(s.r+tol,16), prev = null, last = null;
-      tmp.push(circ);
-      s.pts.forEach(function(p){
-        var q = planeUV(kind,p);
-        if (last && Math.hypot(q[0]-last[0],q[1]-last[1])<0.4) return;
-        last = q; var c = circ.translate(q); tmp.push(c);
-        if (prev){ var h = CS.hull([prev,c]); tmp.push(h); pieces.push(h); } else pieces.push(c);
-        prev = c;
+    tols.forEach(function(tol){
+      var pieces = [];
+      strokes.forEach(function(s){
+        var circ = CS.circle(s.r+tol,16), prev = null, last = null;
+        tmp.push(circ);
+        s.pts.forEach(function(p){
+          var q = planeUV(kind,p);
+          if (last && Math.hypot(q[0]-last[0],q[1]-last[1])<0.4) return;
+          last = q; var c = circ.translate(q); tmp.push(c);
+          if (prev){ var h = CS.hull([prev,c]); tmp.push(h); pieces.push(h); } else pieces.push(c);
+          prev = c;
+        });
       });
+      if (!pieces.length) return;
+      var U = csUnion(CS,pieces); tmp.push(U);
+      var holes = U.toPolygons().filter(function(poly){
+        var a = 0, i; for (i=0;i<poly.length;i++){ var p = poly[i], q = poly[(i+1)%poly.length]; a += p[0]*q[1]-q[0]*p[1]; }
+        return a<0;
+      }).map(function(poly){ return poly.slice().reverse(); });
+      if (!holes.length) return;
+      var H = new CS(holes,'NonZero'); tmp.push(H);
+      var G = H.offset(tol+0.05,'Round',2,16); tmp.push(G); regions.push(G);
     });
-    if (!pieces.length) return null;
-    var U = csUnion(CS,pieces); tmp.push(U);
-    var holes = U.toPolygons().filter(function(poly){
-      var a = 0, i; for (i=0;i<poly.length;i++){ var p = poly[i], q = poly[(i+1)%poly.length]; a += p[0]*q[1]-q[0]*p[1]; }
-      return a<0;
-    }).map(function(poly){ return poly.slice().reverse(); });
-    if (!holes.length) return null;
-    var H = new CS(holes,'NonZero'); tmp.push(H);
-    var G = H.offset(tol+0.05,'Round',2,16); tmp.push(G);
-    var t = Math.max(2*maxR,2), M = G.extrude(t);
-    var R;
+    if (!regions.length) return null;
+    var Gu = regions.length>1 ? csUnion(CS,regions) : regions[0]; tmp.push(Gu);
+    var t = Math.max(2*maxR,2), M = Gu.extrude(t), R;
     if (kind==='sol'){ R = M.rotate([-90,0,0]).translate([0,off-t/2,0]); }
     else if (kind==='face'){ R = M.translate([0,0,off-t/2]); }
     else { R = M.rotate([0,90,0]).translate([off-t/2,0,0]); }
