@@ -109,6 +109,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #imgThr{width:100%}
 #aiText{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
 .trio{display:flex;gap:6px}.trio input{width:100%}
+#platesTo{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit}
 #aiCfg{margin:8px 0;font-size:13px}#aiCfg summary{cursor:pointer;font-weight:600;margin-bottom:6px}#aiCfg select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit}
 #aiCfg input[type=password]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -202,6 +203,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
       <button class="btn" id="boxBtn" aria-pressed="false" title="Glissez un cadre sur le plateau pour choisir les objets qu'il contient">Cadre</button>
       <button class="btn" id="frame" title="Remet la vue face au plateau">Recentrer</button>
       <button class="btn adv" id="printerBtn" title="Imprimante et taille du plateau">Imprimante</button>
+      <button class="btn adv" id="platesBtn" title="Plusieurs plateaux séparés : un fichier par plateau">Plateaux : 1</button>
       <button class="btn" id="mergeTop" title="Réunit les formes sélectionnées en un seul objet (Ctrl+M). Sélectionnez-en au moins deux." disabled>Fusionner</button>
       <button class="btn danger" id="delTop" title="Supprime les objets sélectionnés (touche Suppr)" disabled>Supprimer</button>
     </div>
@@ -400,13 +402,22 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
     <div class="actions"><button class="btn primary" data-close>C'est parti</button></div>
   </div>
 </div>
+<div class="modal" id="platesDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="platesTitle">
+    <h2 id="platesTitle">Plateaux séparés</h2>
+    <p class="note">Chaque plateau a la taille de votre imprimante. À l'export, un fichier est créé par plateau (rangés dans un .zip s'il y en a plusieurs).</p>
+    <div class="field"><label>Nombre de plateaux</label><div class="actions"><button class="btn" id="platesMinus" aria-label="Retirer un plateau">−</button><b id="platesN">1</b><button class="btn" id="platesPlus" aria-label="Ajouter un plateau">+</button></div></div>
+    <div class="field"><label for="platesTo">Déplacer la sélection sur</label><div class="actions"><select id="platesTo"></select><button class="btn" id="platesMove">Déplacer</button></div></div>
+    <div class="actions"><button class="btn primary" id="platesPack" title="Répartit tous les objets sur les plateaux, en gardant les groupes ensemble">Ranger tout automatiquement</button><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
 <div class="modal" id="splitDlg" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="splitTitle">
     <h2 id="splitTitle">Découper en parties</h2>
     <p class="note" id="splitInfo"></p>
     <div class="field"><label>Taille maximale d'une partie (mm) : largeur · profondeur · hauteur</label>
       <div class="trio"><input type="text" inputmode="decimal" id="splitX" aria-label="Largeur max"><input type="text" inputmode="decimal" id="splitZ" aria-label="Profondeur max"><input type="text" inputmode="decimal" id="splitY" aria-label="Hauteur max"></div></div>
-    <label class="check"><input type="checkbox" id="splitLay" checked> Ranger les parties côte à côte sur le plateau</label>
+    <label class="check"><input type="checkbox" id="splitLay" checked> Ranger les parties sur les plateaux (en ajoute si besoin)</label>
     <p class="note" id="splitCount"></p>
     <p class="note">Les coupes sont plates et réparties à égalité. La peinture n'est pas conservée sur les parties.</p>
     <div class="actions"><button class="btn primary" id="splitGo">Découper</button><button class="btn" data-close>Fermer</button></div>
@@ -785,7 +796,7 @@ function penPoint(e){
     return h.point.clone().addScaledVector(n,r*0.6);
   }
   var g = new THREE.Vector3();
-  if (!ray.ray.intersectPlane(ground,g) || Math.abs(g.x)>plate.w/2 || Math.abs(g.z)>plate.d/2) return null;
+  if (!ray.ray.intersectPlane(ground,g) || Math.abs(g.x-plateX(plateOfX(g.x)))>plate.w/2 || Math.abs(g.z)>plate.d/2) return null;
   g.y = r*0.7; return g;
 }
 function strokePoint(e){
@@ -882,18 +893,39 @@ var plate = {w:200,d:200,h:200,name:''};
     if (s && [s.w,s.d,s.h].every(function(v){ return typeof v==='number' && v>=20 && v<=2000; })) plate = {w:s.w,d:s.d,h:s.h,name:String(s.name||'')};
   } catch(e){}
 })();
+var PGAP = 40, PLATES_KEY = 'atelier3d.plates.v1', plateCount = 1;
+try { plateCount = Math.max(1,Math.min(12,parseInt(localStorage.getItem(PLATES_KEY),10)||1)); } catch(e){}
+function savePlates(){ try { localStorage.setItem(PLATES_KEY,String(plateCount)); } catch(e){} }
+function plateX(k){ return k*(plate.w+PGAP); }
+function plateOfX(x){ return Math.max(0,Math.min(plateCount-1,Math.round(x/(plate.w+PGAP)))); }
+function plateOfObj(o){ var m = meshes[o.id]; if (!m) return 0; var b = primBox(o,m); return plateOfX((b.min.x+b.max.x)/2); }
 function frameView(){
-  var k = Math.max(plate.w,plate.d)/200;
+  var span = plateCount*(plate.w+PGAP)-PGAP, k = Math.max(plate.w,plate.d,span*0.62)/200, cx = (plateCount-1)*(plate.w+PGAP)/2;
   orbit.maxDistance = 1200*Math.max(1,k);
-  camera.position.set(95*k,80*k,125*k); orbit.target.set(0,12*k,0); orbit.update();
+  camera.position.set(cx+95*k,80*k,125*k); orbit.target.set(cx,12*k,0); orbit.update();
 }
 function seg(points,color,opacity){
   var m = new THREE.LineBasicMaterial({color:new THREE.Color(color),transparent:opacity<1,opacity:opacity});
   return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),m);
 }
+function plateLabel(n){
+  var c = document.createElement('canvas'); c.width = 256; c.height = 64; var x = c.getContext('2d');
+  x.font = 'bold 34px sans-serif'; x.fillStyle = cssVar('--muted')||'#74828f'; x.textAlign = 'center'; x.fillText('Plateau '+n,128,44);
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));
+  sp.scale.set(40,10,1); sp.position.set(0,1,plate.d/2+9); sp.renderOrder = 3; return sp;
+}
 function buildPlate(){
-  if (grid){ scene.remove(grid); grid.children.forEach(function(c){ c.geometry.dispose(); c.material.dispose(); }); }
+  if (grid){ scene.remove(grid); grid.traverse(function(c){ if (c.geometry) c.geometry.dispose(); if (c.material){ if (c.material.map) c.material.map.dispose(); c.material.dispose(); } }); }
   grid = new THREE.Group();
+  for (var pk=0;pk<plateCount;pk++){
+    var one = onePlate(); one.position.x = plateX(pk); if (plateCount>1) one.add(plateLabel(pk+1)); grid.add(one);
+  }
+  scene.add(grid);
+  $('plate').textContent = (plate.name?plate.name+' · ':'')+(plateCount>1?plateCount+' plateaux de ':'Plateau ')+plate.w+' × '+plate.d+' mm · hauteur '+plate.h+' mm · carreau 10 mm · zéro au coin avant gauche';
+  $('platesBtn').textContent = 'Plateaux : '+plateCount;
+}
+function onePlate(){
+  var grid = new THREE.Group();
   var w = plate.w/2, d = plate.d/2, h = plate.h, fine = [], strong = [], vol = [], i, V = function(x,y,z){ return new THREE.Vector3(x,y,z); };
   for (i=10;i<w;i+=10){ fine.push(V(i,0,-d),V(i,0,d),V(-i,0,-d),V(-i,0,d)); }
   for (i=10;i<d;i+=10){ fine.push(V(-w,0,i),V(w,0,i),V(-w,0,-i),V(w,0,-i)); }
@@ -901,13 +933,12 @@ function buildPlate(){
   [[-w,-d],[w,-d],[w,d],[-w,d]].forEach(function(c,j,a){ var n = a[(j+1)%4]; vol.push(V(c[0],0,c[1]),V(c[0],h,c[1]),V(c[0],h,c[1]),V(n[0],h,n[1])); });
   grid.add(seg(fine,cssVar('--grid')||'#aab5c1',1),seg(strong,cssVar('--grid-strong')||'#74828f',1),seg(vol,cssVar('--grid-strong')||'#74828f',0.45));
   grid.add(seg([V(-w,0.05,d),V(-w+18,0.05,d)],'#d64545',1),seg([V(-w,0.05,d),V(-w,0.05,d-18)],'#2e9e5b',1),seg([V(-w,0,d),V(-w,18,d)],'#3a7ca5',1));
-  scene.add(grid);
-  $('plate').textContent = (plate.name?plate.name+' · ':'')+'Plateau '+plate.w+' × '+plate.d+' mm · hauteur '+plate.h+' mm · carreau 10 mm · zéro au coin avant gauche';
+  return grid;
 }
 function outside(o){
   var m = meshes[o.id]; if (!m || o.hole) return false;
-  var b = primBox(o,m), e = 0.01;
-  return b.min.x<-plate.w/2-e || b.max.x>plate.w/2+e || b.min.z<-plate.d/2-e || b.max.z>plate.d/2+e || b.min.y<-e || b.max.y>plate.h+e;
+  var b = primBox(o,m), e = 0.01, ox = plateX(plateOfX((b.min.x+b.max.x)/2));
+  return b.min.x<ox-plate.w/2-e || b.max.x>ox+plate.w/2+e || b.min.z<-plate.d/2-e || b.max.z>plate.d/2+e || b.min.y<-e || b.max.y>plate.h+e;
 }
 frameView();
 
@@ -1157,18 +1188,63 @@ function splitRun(){
   state.neg = neg;
   if (!made.length){ toast(failed ? 'Ce modèle a des défauts de surface : la découpe est impossible.' : 'Rien à découper.'); return; }
   state.objs = state.objs.filter(function(o){ return gone.indexOf(o.id)<0; });
-  if ($('splitLay').checked){
-    var gap = 6, x = -plate.w/2+gap, z = -plate.d/2+gap, rowD = 0, bx;
-    made.forEach(function(o){
-      var b = boxOf(MESH[o.mid].geo.attributes.position.array), sx = b[1]-b[0], sy = b[3]-b[2], sz = b[5]-b[4];
-      if (x+sx>plate.w/2-gap+0.01 && x>-plate.w/2+gap+0.01){ x = -plate.w/2+gap; z += rowD+gap; rowD = 0; }
-      o.p = [x+sx/2,sy/2,z+sz/2]; x += sx+gap; rowD = Math.max(rowD,sz);
-    });
-  }
+  var usedPl = 0;
+  if ($('splitLay').checked){ rebuild(); usedPl = packUnits(made.map(function(o){ return [o]; }),true); }
   state.sel = made.map(function(o){ return o.id; }); rebuild(); commit();
   $('splitDlg').hidden = true;
-  toast(made.length+' parties créées'+(failed?' ('+failed+' objet non découpé)':'')+'. « Annuler » rétablit le modèle entier.');
+  toast(made.length+' parties créées'+(usedPl>1?', rangées sur '+usedPl+' plateaux':'')+(failed?' ('+failed+' objet non découpé)':'')+'. « Annuler » rétablit le modèle entier.');
 }
+/* ---------- Plateaux séparés : rangement automatique ---------- */
+function unitBox(objs){ var b = new THREE.Box3(); objs.forEach(function(o){ var m = meshes[o.id]; if (m) b.union(primBox(o,m)); }); return b; }
+function packUnits(units,drop){
+  var gap = 6, k = 0, x = gap, z = gap, rowD = 0, W = plate.w, D = plate.d, used = 1;
+  units.forEach(function(u){
+    var b = unitBox(u), sx = b.max.x-b.min.x, sz = b.max.z-b.min.z;
+    if (x+sx>W-gap+0.01 && x>gap+0.01){ x = gap; z += rowD+gap; rowD = 0; }
+    if (z+sz>D-gap+0.01 && z>gap+0.01){ k++; x = gap; z = gap; rowD = 0; }
+    var dx = plateX(k)-W/2+x-b.min.x, dz = -D/2+z-b.min.z, dy = drop ? -b.min.y : 0;
+    u.forEach(function(o){ o.p = [o.p[0]+dx,o.p[1]+dy,o.p[2]+dz]; });
+    x += sx+gap; rowD = Math.max(rowD,sz); used = k+1;
+  });
+  plateCount = Math.min(12,Math.max(plateCount,used)); savePlates(); buildPlate(); frameView();
+  return used;
+}
+function autoPack(){
+  var map = {}, units = [];
+  state.objs.forEach(function(o){ if (o.g!=null) (map[o.g] = map[o.g]||[]).push(o); else if (!o.hole) units.push([o]); });
+  Object.keys(map).forEach(function(g){ units.push(map[g]); });
+  var ubox = units.map(unitBox);
+  state.objs.forEach(function(o){
+    if (!o.hole || o.g!=null || !meshes[o.id]) return;
+    var hb = primBox(o,meshes[o.id]);
+    for (var q=0;q<units.length;q++) if (ubox[q].intersectsBox(hb)){ units[q].push(o); break; }
+  });
+  if (!units.length){ toast('Il n\u2019y a rien à ranger.'); return; }
+  var area = new Map(); units.forEach(function(u){ var b = unitBox(u); area.set(u,(b.max.x-b.min.x)*(b.max.z-b.min.z)); });
+  units.sort(function(a,b){ return area.get(b)-area.get(a); });
+  var n = packUnits(units,false); rebuild(); commit(); closePlates();
+  toast('Objets rangés sur '+n+' plateau'+(n>1?'x':'')+'.');
+}
+function closePlates(){ $('platesDlg').hidden = true; }
+function platesDlgFill(){
+  var sel = $('platesTo'); sel.innerHTML = '';
+  for (var i=0;i<plateCount;i++){ var op = document.createElement('option'); op.value = i; op.textContent = 'Plateau '+(i+1); sel.appendChild(op); }
+  $('platesN').textContent = plateCount; $('platesMove').disabled = !state.sel.length;
+}
+function setPlateCount(n){ plateCount = n; savePlates(); buildPlate(); frameView(); platesDlgFill(); refreshUI(); }
+$('platesBtn').addEventListener('click',function(){ platesDlgFill(); $('platesDlg').hidden = false; });
+$('platesPlus').addEventListener('click',function(){ if (plateCount>=12){ toast('12 plateaux au maximum.'); return; } setPlateCount(plateCount+1); });
+$('platesMinus').addEventListener('click',function(){
+  if (plateCount<=1) return;
+  if (state.objs.some(function(o){ return !o.hole && plateOfObj(o)===plateCount-1; })){ toast('Le dernier plateau n\u2019est pas vide : déplacez ses objets d\u2019abord.'); return; }
+  setPlateCount(plateCount-1);
+});
+$('platesMove').addEventListener('click',function(){
+  if (!state.sel.length) return; var b = selBox(), k = plateOfX((b.min.x+b.max.x)/2), n = +$('platesTo').value;
+  if (n===k){ toast('La sélection est déjà sur ce plateau.'); return; }
+  moveSel(plateX(n)-plateX(k),0,0); closePlates(); toast('Sélection déplacée sur le plateau '+(n+1)+'.');
+});
+$('platesPack').addEventListener('click',autoPack);
 function newGroupId(){ var g = 0; state.objs.forEach(function(o){ if (o.g!=null && o.g>g) g = o.g; }); return g+1; }
 function group(){
   var os = selObjs(); if (os.length<2) return;
@@ -1254,7 +1330,7 @@ function newProject(){
   if (draw) cancelDraw(); if (measure) setMeasure(false); if (erase) setErase(false);
   if (!state.objs.length){ toast('Le plateau est déjà vide.'); return; }
   if (!window.confirm('Effacer tout le plateau pour commencer un nouveau projet ?')) return;
-  state.objs = []; state.sel = []; rebuild(); commit(); frameView();
+  state.objs = []; state.sel = []; plateCount = 1; savePlates(); buildPlate(); rebuild(); commit(); frameView();
   toast('Nouveau projet. Touchez Annuler pour retrouver l\u2019ancien.');
 }
 function undo(){
@@ -1281,8 +1357,8 @@ function moveSel(dx,dy,dz){
   os.forEach(function(o){ syncFromMesh(o); }); commit();
 }
 function selBox(){ var box = new THREE.Box3(); selObjs().forEach(function(o){ box.union(primBox(o,meshes[o.id])); }); return box; }
-function alignZero(){ if (!state.sel.length) return; var b = selBox(); moveSel(-plate.w/2-b.min.x,-b.min.y,plate.d/2-b.max.z); toast('Aligné sur le zéro du plateau (coin avant gauche).'); }
-function centerOnPlate(){ if (!state.sel.length) return; var b = selBox(); moveSel(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2); }
+function alignZero(){ if (!state.sel.length) return; var b = selBox(), ox = plateX(plateOfX((b.min.x+b.max.x)/2)); moveSel(ox-plate.w/2-b.min.x,-b.min.y,plate.d/2-b.max.z); toast('Aligné sur le zéro du plateau (coin avant gauche).'); }
+function centerOnPlate(){ if (!state.sel.length) return; var b = selBox(), ox = plateX(plateOfX((b.min.x+b.max.x)/2)); moveSel(ox-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2); }
 
 /* ---------- Sélection au clic / au toucher ---------- */
 var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -2317,8 +2393,13 @@ var toastTimer = 0;
 function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('on'); },3200); }
 
 /* ---------- Export STL (texte, axe Z vers le haut comme les logiciels d'impression) ---------- */
-function buildSTL(){
-  var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count; });
+function platesUsed(){
+  var u = {}; state.objs.forEach(function(o){ if (!o.hole && meshes[o.id] && meshes[o.id].geometry.attributes.position.count) u[plateOfObj(o)] = 1; });
+  return Object.keys(u).map(Number).sort(function(a,b){ return a-b; });
+}
+function buildSTL(pk){
+  var ox = pk ? plateX(pk) : 0;
+  var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count && (pk==null || plateOfObj(o)===pk); });
   if (!solids.length) return null;
   var total = 0; solids.forEach(function(m){ total += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count)/3; });
   var buf = new ArrayBuffer(84+50*Math.ceil(total)), dv = new DataView(buf), off = 84, count = 0;
@@ -2334,7 +2415,7 @@ function buildSTL(){
       c.fromBufferAttribute(pos,i+2).applyMatrix4(m.matrixWorld);
       n.crossVectors(ab.subVectors(b,a),ac.subVectors(c,a));
       if (n.lengthSq()===0) continue;
-      n.normalize(); w(n.x,n.y,n.z); w(a.x,a.y,a.z); w(b.x,b.y,b.z); w(c.x,c.y,c.z); off += 2; count++;
+      n.normalize(); w(n.x,n.y,n.z); w(a.x-ox,a.y,a.z); w(b.x-ox,b.y,b.z); w(c.x-ox,c.y,c.z); off += 2; count++;
     }
     if (g!==m.geometry) g.dispose();
   });
@@ -2525,8 +2606,9 @@ function zip(files){
   return out;
 }
 function xmlEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function build3MF(){
-  var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count; });
+function build3MF(pk){
+  var ox = pk ? plateX(pk) : 0;
+  var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count && (pk==null || plateOfObj(o)===pk); });
   if (!solids.length) return null;
   var mats = [], objs = [], items = [], v = new THREE.Vector3(), extra = {};
   solids.forEach(function(m,k){
@@ -2535,7 +2617,7 @@ function build3MF(){
     var g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, wp = worldPositions(m,g), w = weld(wp,1e-4), ids = w.ids, done = new Uint8Array(w.count), verts = new Array(w.count), tris = [], i;
     for (i=0;i<ids.length;i++){
       var id = ids[i]; if (done[id]) continue; done[id] = 1;
-      verts[id] = '<vertex x="'+(wp[i*3]+plate.w/2).toFixed(4)+'" y="'+(-wp[i*3+2]+plate.d/2).toFixed(4)+'" z="'+wp[i*3+1].toFixed(4)+'"/>';
+      verts[id] = '<vertex x="'+(wp[i*3]-ox+plate.w/2).toFixed(4)+'" y="'+(-wp[i*3+2]+plate.d/2).toFixed(4)+'" z="'+wp[i*3+1].toFixed(4)+'"/>';
     }
     for (i=0;i+2<ids.length;i+=3) if (ids[i]!==ids[i+1] && ids[i+1]!==ids[i+2] && ids[i]!==ids[i+2]) tris.push('<triangle v1="'+ids[i]+'" v2="'+ids[i+1]+'" v3="'+ids[i+2]+'"/>');
     if (g!==m.geometry) g.dispose();
@@ -2589,14 +2671,19 @@ function saveFile(name,bytes){
   } catch(e){ toast('L\u2019export n\u2019est pas disponible dans cette fenêtre.'); }
 }
 $('export').addEventListener('click',function(){ $('exportNote').hidden = !downloads; $('exportDlg').hidden = false; });
-$('expStl').addEventListener('click',function(){
-  var stl = buildSTL(); if (!stl){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
-  $('exportDlg').hidden = true; saveFile('atelier-3d.stl',stl);
-});
-$('exp3mf').addEventListener('click',function(){
-  var bytes = build3MF(); if (!bytes){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
-  $('exportDlg').hidden = true; saveFile('atelier-3d.3mf',bytes);
-});
+function exportPlates(ext,build){
+  var ks = platesUsed(); if (!ks.length){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
+  if (ks.length===1){
+    var one = build(ks[0]); if (!one){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
+    $('exportDlg').hidden = true; saveFile('atelier-3d.'+ext,one); return;
+  }
+  var files = []; ks.forEach(function(k){ var d = build(k); if (d) files.push({name:'plateau-'+(k+1)+'.'+ext,data:d}); });
+  if (!files.length){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
+  $('exportDlg').hidden = true; saveFile('atelier-3d-plateaux.zip',zip(files));
+  toast(files.length+' plateaux exportés : un fichier '+ext.toUpperCase()+' par plateau, dans un .zip.');
+}
+$('expStl').addEventListener('click',function(){ exportPlates('stl',buildSTL); });
+$('exp3mf').addEventListener('click',function(){ exportPlates('3mf',build3MF); });
 
 /* ---------- Démarrage ---------- */
 var lvl = 'simple'; try { lvl = localStorage.getItem(LEVEL_KEY) || 'simple'; } catch(e){}
@@ -2608,6 +2695,8 @@ function start(){
   if (started) return; started = true;
   var objs = load(), kept = objs.filter(function(o){ return o.type!=='mesh' || MESH[o.mid]; });
   state.objs = kept;
+  var need = 1; kept.forEach(function(o){ if (!o.hole) need = Math.max(need,Math.round(o.p[0]/(plate.w+PGAP))+1); });
+  if (need>plateCount){ plateCount = Math.min(12,need); savePlates(); buildPlate(); frameView(); }
   rebuild(); history = [JSON.stringify(state.objs)]; hIndex = 0; refreshUI();
   if (kept.length<objs.length) toast('Un modèle importé n\u2019a pas pu être retrouvé et a été retiré.');
   try {
