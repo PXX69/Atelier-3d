@@ -89,6 +89,10 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #measureMsg{font-variant-numeric:tabular-nums}
 .check .num{width:72px}
 #eraseSize{width:140px}
+#paintSize,#paintTol{width:130px}
+#paintSizeVal,#paintTolVal{font-family:var(--mono);font-weight:500;min-width:48px}
+#paintSizeWrap[hidden],#paintTolWrap[hidden],#paintSw[hidden]{display:none}
+#paintMsg{font-size:.85em;opacity:.8}
 #eraseVal{font-family:var(--mono);font-weight:500;min-width:52px}
 .shape svg .t{fill:var(--ink);stroke:none}
 #warn{position:absolute;right:14px;bottom:12px;max-width:60%;background:var(--panel);border:1px solid var(--danger);color:var(--danger);border-radius:6px;padding:5px 9px;font-size:12px}
@@ -185,7 +189,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
       <button class="btn" data-mode="scale" aria-pressed="false" title="Changer la taille (touche E)">Taille</button>
       <button class="btn adv" id="measureBtn" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
       <button class="btn adv" id="eraseBtn" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
-      <button class="btn" id="paintBtn" aria-pressed="false" title="Choisissez une couleur puis touchez les objets à colorer">Peindre</button>
+      <button class="btn" id="paintBtn" aria-pressed="false" title="Pinceau, remplissage de zone, pipette et gomme de couleur">Peindre</button>
     </div>
     <div class="sep"></div>
     <div class="group">
@@ -248,8 +252,17 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
       <button class="btn" id="measureDone">Terminer</button>
     </div>
     <div id="paintBar" hidden>
-      <span>Touchez un objet pour le colorer.</span>
+      <div id="paintTools" class="group">
+        <button class="btn" data-pt="brush" aria-pressed="true" title="Glissez sur le modèle pour peindre">Pinceau</button>
+        <button class="btn" data-pt="zone" aria-pressed="false" title="Colore d\u2019un coup toute une face ou une zone lisse">Remplir une zone</button>
+        <button class="btn" data-pt="all" aria-pressed="false" title="Colore l\u2019objet en entier">Objet entier</button>
+        <button class="btn" data-pt="pick" aria-pressed="false" title="Reprend la couleur d\u2019un endroit du modèle">Pipette</button>
+        <button class="btn" data-pt="unpaint" aria-pressed="false" title="Retire la peinture et retrouve la couleur de l\u2019objet">Gomme de couleur</button>
+      </div>
+      <label class="check" id="paintSizeWrap" for="paintSize">Taille <input type="range" id="paintSize" min="1" max="60" step="1" value="8"> <b id="paintSizeVal">8 mm</b></label>
+      <label class="check" id="paintTolWrap" for="paintTol" hidden>Tolérance <input type="range" id="paintTol" min="3" max="180" step="1" value="30"> <b id="paintTolVal">30°</b></label>
       <div id="paintSw" class="group"></div>
+      <span id="paintMsg"></span>
       <button class="btn" id="paintDone">Terminer</button>
     </div>
     <input type="file" id="importFile" hidden>
@@ -550,6 +563,7 @@ function replaceWithMesh(o,m,pos){
   for (i=0;i<pos.length;i+=3){ v.set(pos[i],pos[i+1],pos[i+2]).applyMatrix4(inv); pos[i] = v.x; pos[i+1] = v.y; pos[i+2] = v.z; }
   var b = boxOf(pos), mid = newMid(), keep = pos.slice(0);
   MESH[mid] = meshFromPositions(pos); saveMesh(mid,keep);
+  shiftPaint(o,[(b[0]+b[1])/2,(b[2]+b[3])/2,(b[4]+b[5])/2]);
   v.set((b[0]+b[1])/2,(b[2]+b[3])/2,(b[4]+b[5])/2).applyMatrix4(m.matrixWorld);
   o.type = 'mesh'; o.mid = mid; delete o.pts; delete o.holes; o.p = [v.x,v.y,v.z];
 }
@@ -726,7 +740,7 @@ function liveShow(r,color){
   liveBall = new THREE.Mesh(new THREE.SphereGeometry(r,20,14),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.35,depthWrite:false}));
   liveBall.position.copy(cur[cur.length-1]); liveBall.renderOrder = 15; scene.add(liveBall);
 }
-function abortStroke(){ stroking = null; cur = []; orbit.enabled = true; liveClear(); }
+function abortStroke(){ stroking = null; cur = []; orbit.enabled = true; liveClear(); if (pst){ pst = null; clearPaintPreview(); } }
 function setRay(e){
   var r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
@@ -761,6 +775,10 @@ canvas.addEventListener('pointerdown',function(e){
   if (boxOn && e.button===0 && touches.size===1 && !tc.axis){ boxDrag = {x:e.clientX,y:e.clientY}; down = null; try { canvas.setPointerCapture(e.pointerId); } catch(err){} showBox(e); return; }
   if (stroking){ if (touches.size>1) abortStroke(); return; }
   if (e.button!==0 || touches.size>1) return;
+  if (paint && (ptool==='brush' || ptool==='unpaint')){
+    var ph = pickSolid(e); if (ph) startPaintStroke(ph,e);
+    return;
+  }
   if (erase || (draw && draw.free)){
     stroking = erase ? 'erase' : 'pen';
     var pt = strokePoint(e);
@@ -783,6 +801,8 @@ canvas.addEventListener('pointerdown',function(e){
 },true);
 canvas.addEventListener('pointermove',function(e){
   if (boxDrag){ showBox(e); return; }
+  if (paint && !stroking) updateRing(e);
+  if (stroking==='paint'){ if (pst) paintMove(e); return; }
   if (stroking){
     var pt = strokePoint(e), r = stroking==='erase' ? eraseR() : penR();
     if (!pt || pt.distanceTo(cur[cur.length-1])<Math.max(0.6,r/3)) return;
@@ -888,7 +908,7 @@ resize();
 
 function applyToMesh(o,m){
   m.position.set(o.p[0],o.p[1],o.p[2]); m.rotation.set(o.r[0],o.r[1],o.r[2]); m.scale.set(o.s[0],o.s[1],o.s[2]);
-  if (!o.hole) m.material.color.set(o.color).convertSRGBToLinear();
+  if (!o.hole) tint(o);
 }
 var _P = new THREE.Vector3(), _Q = new THREE.Quaternion(), _S = new THREE.Vector3(), _E = new THREE.Euler();
 function syncFromMesh(o){
@@ -941,7 +961,8 @@ function recut(){
   state.objs.forEach(function(o){
     var m = meshes[o.id]; if (o.hole || !m) return;
     var box = primBox(o,m), hs = holes.filter(function(h){ return h.box.intersectsBox(box); });
-    var key = hs.length ? JSON.stringify([o.id,o.p,o.r,o.s,hs.map(function(h){ return [h.o.id,h.o.p,h.o.r,h.o.s]; })]) : '';
+    var pk = (o.paint && o.paint.length) ? 'P'+(o.pv||0)+'|'+o.color+'|'+o.s.join(',') : '';
+    var key = (hs.length ? JSON.stringify([o.id,o.p,o.r,o.s,hs.map(function(h){ return [h.o.id,h.o.p,h.o.r,h.o.s]; })]) : '')+pk;
     if (m.userData.cutKey===key) return;
     var g = geoOf(o);
     if (hs.length && MF){
@@ -953,8 +974,15 @@ function recut(){
       try { var a = toPolys(o,m); hs.forEach(function(h){ a = CSG.subtract(a,toPolys(h.o,h.m)); }); g = fromPolys(a,m); }
       catch(e){ g = geoOf(o); toast('Ce trou est trop complexe à calculer ici.'); }
     }
+    if (pk){
+      var cutG = g!==geoOf(o) ? g : null;
+      try { g = paintGeo(o,m,g===geoOf(o) ? niOf(o) : g); if (cutG) cutG.dispose(); }
+      catch(e){ pk = ''; toast('La peinture de « '+o.name+' » est trop lourde à calculer ici.'); }
+    }
     if (m.geometry!==geoOf(o)) m.geometry.dispose();
     m.geometry = g; m.userData.cutKey = key;
+    if (m.material.vertexColors!==!!pk){ m.material.vertexColors = !!pk; m.material.needsUpdate = true; }
+    tint(o);
   });
   if (helper.visible) helper.update();
 }
@@ -1166,6 +1194,7 @@ function centerOnPlate(){ if (!state.sel.length) return; var b = selBox(); moveS
 var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 canvas.addEventListener('pointerup',function(e){
   if (boxDrag){ finishBox(e); return; }
+  if (stroking==='paint'){ down = null; if (pst) endPaintStroke(); else stroking = null; return; }
   if (stroking){
     var kind = stroking, pts = cur; abortStroke(); down = null;
     if (kind==='erase') applyErase(pts); else endPenStroke(pts);
@@ -1190,7 +1219,7 @@ canvas.addEventListener('pointerup',function(e){
   ray.setFromCamera(ndc,camera);
   var hit = ray.intersectObjects(meshList,false)[0];
   if (measure){ measureAt(hit); return; }
-  if (paint){ if (hit) paintAt(hit.object.userData.id); return; }
+  if (paint){ if (ptool==='zone' || ptool==='all' || ptool==='pick') paintClick(e); return; }
   pick(hit?hit.object.userData.id:null,e.shiftKey||state.multi);
 });
 
@@ -1372,26 +1401,321 @@ function finishDraw(){
   toast('Forme créée, haute de 10 mm. Changez sa hauteur dans les dimensions.');
 }
 
-/* ---------- Peinture : une couleur, puis toucher les objets ---------- */
-var paint = false, paintColor = COLORS[0];
+/* ---------- Peinture : pinceau, remplissage de zone, pipette, gomme de couleur ---------- */
+var paint = false, paintColor = COLORS[0], ptool = 'brush';
+var PAINT_MSG = {
+  brush:'Glissez sur le modèle pour peindre.',
+  zone:'Touchez une face : toute la zone de même orientation se colore.',
+  all:'Touchez un objet pour le colorer en entier.',
+  pick:'Touchez le modèle pour reprendre sa couleur.',
+  unpaint:'Glissez pour retirer la peinture et retrouver la couleur de l’objet.'
+};
+function paintR(){ return Math.max(0.4,(+$('paintSize').value||8)/2); }
+function paintTol(){ return +$('paintTol').value||30; }
+function tint(o){
+  var m = meshes[o.id]; if (!m || o.hole) return;
+  if (m.material.vertexColors) m.material.color.set('#ffffff'); else m.material.color.set(o.color).convertSRGBToLinear();
+}
+function addPaintOp(o,op){ o.paint = (o.paint||[]).concat([op]); o.pv = (o.pv||0)+1; }
+function shiftPaint(o,c){
+  if (!o.paint) return;
+  o.paint = o.paint.map(function(op){
+    var q = JSON.parse(JSON.stringify(op)), i;
+    if (q.t==='b') for (i=0;i<q.p.length;i+=6){ q.p[i] -= c[0]; q.p[i+1] -= c[1]; q.p[i+2] -= c[2]; }
+    else if (q.t==='f'){ q.p[0] -= c[0]; q.p[1] -= c[1]; q.p[2] -= c[2]; }
+    return q;
+  });
+  o.pv = (o.pv||0)+1;
+}
+
+/* Géométrie peinte : on découpe finement les triangles près des bords des coups de pinceau (sans fissures),
+   puis chaque triangle reçoit sa couleur. Les coups sont gardés dans l'objet, donc tout reste modifiable. */
+var PAINT_CAP = 600000;
+function cellKey(ix,iy,iz){
+  ix = Math.max(-2047,Math.min(2047,ix))+2048; iy = Math.max(-2047,Math.min(2047,iy))+2048; iz = Math.max(-2047,Math.min(2047,iz))+2048;
+  return (ix*4096+iy)*4096+iz;
+}
+function buildGrid(X,Y,Z,C){
+  var g = new Map(), i, k, a;
+  for (i=0;i<X.length;i++){
+    k = cellKey(Math.floor(X[i]/C),Math.floor(Y[i]/C),Math.floor(Z[i]/C)); a = g.get(k);
+    if (a) a.push(i); else g.set(k,[i]);
+  }
+  return g;
+}
+function ptTri2(px,py,pz,P,b){
+  var ax=P[b],ay=P[b+1],az=P[b+2],bx=P[b+3],by=P[b+4],bz=P[b+5],cx=P[b+6],cy=P[b+7],cz=P[b+8];
+  var abx=bx-ax,aby=by-ay,abz=bz-az,acx=cx-ax,acy=cy-ay,acz=cz-az,apx=px-ax,apy=py-ay,apz=pz-az;
+  function D(x,y,z){ x-=px; y-=py; z-=pz; return x*x+y*y+z*z; }
+  var d1=abx*apx+aby*apy+abz*apz, d2=acx*apx+acy*apy+acz*apz;
+  if (d1<=0 && d2<=0) return D(ax,ay,az);
+  var bpx=px-bx,bpy=py-by,bpz=pz-bz, d3=abx*bpx+aby*bpy+abz*bpz, d4=acx*bpx+acy*bpy+acz*bpz;
+  if (d3>=0 && d4<=d3) return D(bx,by,bz);
+  var vc=d1*d4-d3*d2, v, w;
+  if (vc<=0 && d1>=0 && d3<=0){ v = d1/(d1-d3); return D(ax+v*abx,ay+v*aby,az+v*abz); }
+  var cpx=px-cx,cpy=py-cy,cpz=pz-cz, d5=abx*cpx+aby*cpy+abz*cpz, d6=acx*cpx+acy*cpy+acz*cpz;
+  if (d6>=0 && d5<=d6) return D(cx,cy,cz);
+  var vb=d5*d2-d1*d6;
+  if (vb<=0 && d2>=0 && d6<=0){ w = d2/(d2-d6); return D(ax+w*acx,ay+w*acy,az+w*acz); }
+  var va=d3*d6-d5*d4;
+  if (va<=0 && (d4-d3)>=0 && (d5-d6)>=0){ w = (d4-d3)/((d4-d3)+(d5-d6)); return D(bx+w*(cx-bx),by+w*(cy-by),bz+w*(cz-bz)); }
+  var dn = 1/(va+vb+vc); v = vb*dn; w = vc*dn;
+  return D(ax+abx*v+acx*w,ay+aby*v+acy*w,az+abz*v+acz*w);
+}
+function paintGeo(o,m,g0){
+  var src = g0.index ? g0.toNonIndexed() : g0, s = {x:o.s[0],y:o.s[1],z:o.s[2]}, ops = o.paint, T, t, i;
+  var P = Array.prototype.slice.call(src.attributes.position.array), N;
+  if (src.attributes.normal) N = Array.prototype.slice.call(src.attributes.normal.array);
+  else { N = new Array(P.length); }
+  if (src!==g0) src.dispose();
+  T = P.length/9;
+  if (T>600000) throw new Error('trop lourd');
+  function flatN(arr,ps,n){
+    for (var q=0;q<n;q++){
+      var b = q*9, ux=ps[b+3]-ps[b],uy=ps[b+4]-ps[b+1],uz=ps[b+5]-ps[b+2],vx=ps[b+6]-ps[b],vy=ps[b+7]-ps[b+1],vz=ps[b+8]-ps[b+2];
+      var x=uy*vz-uz*vy,y=uz*vx-ux*vz,z=ux*vy-uy*vx,l=Math.sqrt(x*x+y*y+z*z)||1; x/=l; y/=l; z/=l;
+      for (var k=0;k<3;k++){ arr[b+k*3] = x; arr[b+k*3+1] = y; arr[b+k*3+2] = z; }
+    }
+  }
+  if (!g0.attributes.normal) flatN(N,P,T);
+  /* 1. Points d'appui de tous les coups de pinceau, en millimètres réels */
+  var SX = [], SY = [], SZ = [], SR = [], rmax = 0, rmin = 1e9;
+  ops.forEach(function(op){
+    if (op.t!=='b') return;
+    rmax = Math.max(rmax,op.r); rmin = Math.min(rmin,op.r);
+    for (var k=0;k<op.p.length;k+=6){ SX.push(op.p[k]*s.x); SY.push(op.p[k+1]*s.y); SZ.push(op.p[k+2]*s.z); SR.push(op.r); }
+  });
+  var ns = SX.length, grid = null, C = 1;
+  if (ns){ C = Math.max(rmax,0.5); grid = buildGrid(SX,SY,SZ,C); }
+  var Lmin = Math.max(0.2,rmin*0.15);
+  function near(mx,my,mz,half){
+    var k = Math.ceil((rmax+half)/C), cx = Math.floor(mx/C), cy = Math.floor(my/C), cz = Math.floor(mz/C), a, j, d, x, y, z, dx, dy, dz;
+    if (k>5){
+      for (j=0;j<ns;j++){ dx=mx-SX[j]; dy=my-SY[j]; dz=mz-SZ[j]; d=Math.sqrt(dx*dx+dy*dy+dz*dz); if (d-half<SR[j] && d+half>SR[j]) return true; }
+      return false;
+    }
+    for (x=-k;x<=k;x++) for (y=-k;y<=k;y++) for (z=-k;z<=k;z++){
+      a = grid.get(cellKey(cx+x,cy+y,cz+z)); if (!a) continue;
+      for (j=0;j<a.length;j++){ var q = a[j]; dx=mx-SX[q]; dy=my-SY[q]; dz=mz-SZ[q]; d=Math.sqrt(dx*dx+dy*dy+dz*dz); if (d-half<SR[q] && d+half>SR[q]) return true; }
+    }
+    return false;
+  }
+  /* 2. Découpe sans fissure : une arête est coupée en deux pour tous les triangles qui la partagent */
+  function emit(out,outN,a,b,c){
+    out.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]); outN.push(a[3],a[4],a[5],b[3],b[4],b[5],c[3],c[4],c[5]);
+  }
+  function mid(a,b){
+    var nx=a[3]+b[3],ny=a[4]+b[4],nz=a[5]+b[5],l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+    return [(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2,nx/l,ny/l,nz/l];
+  }
+  var big = false;
+  if (ns){
+    for (var it=0; it<12; it++){
+      var out = [], outN = [], changed = 0, abort = false;
+      for (t=0;t<T;t++){
+        var b = t*9, f = [0,0,0], cnt = 0, e;
+        for (e=0;e<3;e++){
+          var ia = b+e*3, ib = b+((e+1)%3)*3;
+          var dx=(P[ia]-P[ib])*s.x, dy=(P[ia+1]-P[ib+1])*s.y, dz=(P[ia+2]-P[ib+2])*s.z, len=Math.sqrt(dx*dx+dy*dy+dz*dz);
+          if (len>Lmin && near((P[ia]+P[ib])*0.5*s.x,(P[ia+1]+P[ib+1])*0.5*s.y,(P[ia+2]+P[ib+2])*0.5*s.z,len/2)){ f[e] = 1; cnt++; }
+        }
+        if (!cnt){ for (e=0;e<9;e++){ out.push(P[b+e]); outN.push(N[b+e]); } continue; }
+        changed++;
+        var V = [], k;
+        for (k=0;k<3;k++) V.push([P[b+k*3],P[b+k*3+1],P[b+k*3+2],N[b+k*3],N[b+k*3+1],N[b+k*3+2]]);
+        if (cnt===1){
+          var i1 = f.indexOf(1), V0 = V[i1], V1 = V[(i1+1)%3], V2 = V[(i1+2)%3], m1 = mid(V0,V1);
+          emit(out,outN,V0,m1,V2); emit(out,outN,m1,V1,V2);
+        } else if (cnt===2){
+          var u = f.indexOf(0), A = V[u], B = V[(u+1)%3], S = V[(u+2)%3], mSA = mid(S,A), mBS = mid(B,S);
+          emit(out,outN,mBS,S,mSA);
+          var d1 = Math.pow((A[0]-mBS[0])*s.x,2)+Math.pow((A[1]-mBS[1])*s.y,2)+Math.pow((A[2]-mBS[2])*s.z,2),
+              d2 = Math.pow((B[0]-mSA[0])*s.x,2)+Math.pow((B[1]-mSA[1])*s.y,2)+Math.pow((B[2]-mSA[2])*s.z,2);
+          if (d1<=d2){ emit(out,outN,A,B,mBS); emit(out,outN,A,mBS,mSA); }
+          else { emit(out,outN,A,B,mSA); emit(out,outN,B,mBS,mSA); }
+        } else {
+          var mAB = mid(V[0],V[1]), mBC = mid(V[1],V[2]), mCA = mid(V[2],V[0]);
+          emit(out,outN,V[0],mAB,mCA); emit(out,outN,mAB,V[1],mBC); emit(out,outN,mCA,mBC,V[2]); emit(out,outN,mAB,mBC,mCA);
+        }
+        if ((t&1023)===0 && out.length/9>PAINT_CAP){ abort = true; break; }
+      }
+      if (abort){ big = true; break; }
+      P = out; N = outN; T = P.length/9;
+      if (!changed) break;
+    }
+  }
+  if (big) toast('Le modèle est très détaillé : la peinture est un peu moins fine.');
+  /* 3. Couleur de chaque triangle, coup après coup */
+  var pal = [o.color], palMap = {}, tc = new Uint16Array(T), TN = new Float32Array(T*3), CXs = new Float32Array(T), CYs = new Float32Array(T), CZs = new Float32Array(T);
+  palMap[o.color.toLowerCase()] = 0;
+  function palIdx(c){ c = String(c).toLowerCase(); if (palMap[c]===undefined){ palMap[c] = pal.length; pal.push(c); } return palMap[c]; }
+  for (t=0;t<T;t++){
+    var bb = t*9, ux=P[bb+3]-P[bb],uy=P[bb+4]-P[bb+1],uz=P[bb+5]-P[bb+2],vx=P[bb+6]-P[bb],vy=P[bb+7]-P[bb+1],vz=P[bb+8]-P[bb+2];
+    var nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx,nl=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+    TN[t*3] = nx/nl; TN[t*3+1] = ny/nl; TN[t*3+2] = nz/nl;
+    CXs[t] = (P[bb]+P[bb+3]+P[bb+6])/3*s.x; CYs[t] = (P[bb+1]+P[bb+4]+P[bb+7])/3*s.y; CZs[t] = (P[bb+2]+P[bb+5]+P[bb+8])/3*s.z;
+  }
+  var adj = null;
+  function buildAdj(){
+    var vid = new Map(), ids = new Int32Array(T*3), q, k, key, n = 0, em = new Map(), a = new Int32Array(T*3).fill(-1);
+    for (q=0;q<T*3;q++){
+      key = Math.round(P[q*3]*4000)+','+Math.round(P[q*3+1]*4000)+','+Math.round(P[q*3+2]*4000);
+      var id = vid.get(key); if (id===undefined){ id = n++; vid.set(key,id); } ids[q] = id;
+    }
+    for (t=0;t<T;t++) for (k=0;k<3;k++){
+      var v0 = ids[t*3+k], v1 = ids[t*3+(k+1)%3], lo = Math.min(v0,v1), hi = Math.max(v0,v1), ek = lo*2097152+hi, prev = em.get(ek);
+      if (prev===undefined) em.set(ek,t*3+k);
+      else { a[t*3+k] = (prev/3)|0; a[prev] = t; }
+    }
+    return a;
+  }
+  ops.forEach(function(op){
+    var ci = op.c ? palIdx(op.c) : 0;
+    if (op.t==='b'){
+      var n = op.p.length/6; if (!n) return;
+      var r = op.r, r2 = r*r, X = [], Y = [], Z = [], k, x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;
+      for (k=0;k<n;k++){
+        X.push(op.p[k*6]*s.x); Y.push(op.p[k*6+1]*s.y); Z.push(op.p[k*6+2]*s.z);
+        x0 = Math.min(x0,X[k]); x1 = Math.max(x1,X[k]); y0 = Math.min(y0,Y[k]); y1 = Math.max(y1,Y[k]); z0 = Math.min(z0,Z[k]); z1 = Math.max(z1,Z[k]);
+      }
+      var Cg = Math.max(r,0.5), gr = buildGrid(X,Y,Z,Cg);
+      x0 -= r; x1 += r; y0 -= r; y1 += r; z0 -= r; z1 += r;
+      for (var q=0;q<T;q++){
+        var cx = CXs[q], cy = CYs[q], cz = CZs[q];
+        if (cx<x0||cx>x1||cy<y0||cy>y1||cz<z0||cz>z1) continue;
+        var gx = Math.floor(cx/Cg), gy = Math.floor(cy/Cg), gz = Math.floor(cz/Cg), hit = false, a, j, dx, dy, dz, ax, ay, az;
+        for (ax=-1;ax<=1&&!hit;ax++) for (ay=-1;ay<=1&&!hit;ay++) for (az=-1;az<=1&&!hit;az++){
+          a = gr.get(cellKey(gx+ax,gy+ay,gz+az)); if (!a) continue;
+          for (j=0;j<a.length;j++){
+            var w = a[j]; dx = cx-X[w]; dy = cy-Y[w]; dz = cz-Z[w];
+            if (dx*dx+dy*dy+dz*dz<r2 && TN[q*3]*op.p[w*6+3]+TN[q*3+1]*op.p[w*6+4]+TN[q*3+2]*op.p[w*6+5]>0.2){ hit = true; break; }
+          }
+        }
+        if (hit) tc[q] = ci;
+      }
+    } else if (op.t==='f'){
+      if (!adj) adj = buildAdj();
+      var seed = -1, best = 1e30, d2;
+      for (var q2=0;q2<T;q2++){
+        if (TN[q2*3]*op.n[0]+TN[q2*3+1]*op.n[1]+TN[q2*3+2]*op.n[2]<0.5) continue;
+        d2 = ptTri2(op.p[0],op.p[1],op.p[2],P,q2*9); if (d2<best){ best = d2; seed = q2; }
+      }
+      if (seed<0) return;
+      var cs = Math.cos(Math.min(op.a,180)*Math.PI/180), sx = TN[seed*3], sy = TN[seed*3+1], sz = TN[seed*3+2];
+      var seen = new Uint8Array(T), queue = new Int32Array(T), qh = 0, qt = 0, cur2, kk, nb;
+      queue[qt++] = seed; seen[seed] = 1;
+      while (qh<qt){
+        cur2 = queue[qh++]; tc[cur2] = ci;
+        for (kk=0;kk<3;kk++){
+          nb = adj[cur2*3+kk]; if (nb<0 || seen[nb]) continue;
+          if (TN[nb*3]*sx+TN[nb*3+1]*sy+TN[nb*3+2]*sz>=cs){ seen[nb] = 1; queue[qt++] = nb; }
+        }
+      }
+    }
+  });
+  /* 4. Géométrie finale : une couleur par triangle */
+  var lin = pal.map(function(h){ var c = new THREE.Color(h).convertSRGBToLinear(); return [c.r,c.g,c.b]; });
+  var col = new Float32Array(T*9), pos = new Float32Array(P), nor = new Float32Array(N);
+  for (t=0;t<T;t++){ var L = lin[tc[t]]; for (i=0;i<3;i++){ col[t*9+i*3] = L[0]; col[t*9+i*3+1] = L[1]; col[t*9+i*3+2] = L[2]; } }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.BufferAttribute(nor,3)); g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  g.userData = {tc:tc,pal:pal};
+  return g;
+}
+function colorAt(o,m,faceIndex){
+  var ud = m.geometry.userData;
+  if (ud && ud.tc && faceIndex!=null && ud.pal[ud.tc[faceIndex]]) return ud.pal[ud.tc[faceIndex]];
+  return o.color;
+}
+
+/* Interaction */
+var pst = null, pRing = null, pPrev = [], pDisc = null;
 function paintSwatches(){
   document.querySelectorAll('#paintSw .sw').forEach(function(s){ s.setAttribute('aria-pressed',String(s.dataset.pc===paintColor)); });
-  $('paintCustom').value = paintColor;
+  $('paintCustom').value = /^#[0-9a-f]{6}$/i.test(paintColor) ? paintColor : '#888888';
+}
+function hideRing(){ if (pRing) pRing.visible = false; }
+function setPtool(t){
+  ptool = t; if (pst) abortStroke(); hideRing();
+  document.querySelectorAll('#paintTools .btn').forEach(function(b){ b.setAttribute('aria-pressed',String(b.dataset.pt===t)); });
+  $('paintSizeWrap').hidden = !(t==='brush' || t==='unpaint');
+  $('paintTolWrap').hidden = t!=='zone';
+  $('paintSw').hidden = (t==='unpaint' || t==='pick');
+  $('paintMsg').textContent = PAINT_MSG[t];
 }
 function setPaint(on){
   if (on && draw) cancelDraw();
   if (on && measure) setMeasure(false);
   if (on && erase) setErase(false);
-  paint = on; if (on) setSel([]);
+  if (!on && pst) abortStroke();
+  paint = on; if (on) setSel([]); else hideRing();
   $('paintBar').hidden = !on; $('paintBtn').setAttribute('aria-pressed',String(on));
   hintVis();
-  paintSwatches();
+  paintSwatches(); setPtool(ptool);
 }
-function paintAt(id){
-  var o = getObj(id); if (!o) return;
-  if (o.hole){ toast('Un trou n\u2019a pas de couleur.'); return; }
-  if (o.color===paintColor) return;
-  o.color = paintColor; meshes[id].material.color.set(paintColor).convertSRGBToLinear(); commit();
+function rnd(v,d){ return +v.toFixed(d); }
+function clearPaintPreview(){
+  pPrev.forEach(function(d){ scene.remove(d); });
+  pPrev = [];
+  if (pDisc){ pDisc.geo.dispose(); pDisc.mat.dispose(); pDisc = null; }
+}
+function addStampAt(wp,fn){
+  var m = pst.m, lp = m.worldToLocal(wp.clone());
+  pst.p.push(rnd(lp.x,3),rnd(lp.y,3),rnd(lp.z,3),rnd(fn.x,2),rnd(fn.y,2),rnd(fn.z,2));
+  pst.last = wp.clone();
+  if (!pDisc){
+    var o = getObj(pst.id), col = pst.erase ? o.color : paintColor;
+    pDisc = {geo:new THREE.CircleGeometry(1,28),mat:new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.9,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2})};
+  }
+  var d = new THREE.Mesh(pDisc.geo,pDisc.mat), wn = fn.clone().transformDirection(m.matrixWorld);
+  d.scale.setScalar(pst.r); d.position.copy(wp).addScaledVector(wn,0.06); d.lookAt(d.position.clone().add(wn)); d.renderOrder = 5;
+  scene.add(d); pPrev.push(d);
+}
+function startPaintStroke(h,e){
+  var o = getObj(h.object.userData.id); if (!o) return;
+  if (h.object.geometry.attributes.position.count/3>600000){ toast('Ce modèle est trop détaillé pour être peint ici.'); return; }
+  pst = {id:o.id,m:h.object,p:[],last:null,erase:ptool==='unpaint',r:paintR()};
+  stroking = 'paint'; orbit.enabled = false; hideRing();
+  try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+  addStampAt(h.point,h.face.normal);
+}
+function paintMove(e){
+  var h = pickSolid(e); if (!h || h.object!==pst.m) return;
+  var d = pst.last.distanceTo(h.point), step = Math.max(0.4,pst.r*0.3);
+  if (d<step || pst.p.length>=6*3000) return;
+  if (d<pst.r*6){ var k = Math.floor(d/step), i; for (i=1;i<k;i++) addStampAt(pst.last.clone().lerp(h.point,1/(k-i+1)),h.face.normal); }
+  addStampAt(h.point,h.face.normal);
+}
+function endPaintStroke(){
+  var s = pst; pst = null; clearPaintPreview(); stroking = null; orbit.enabled = true;
+  var o = getObj(s.id); if (!o || !s.p.length) return;
+  addPaintOp(o,{t:'b',c:s.erase?0:paintColor,r:rnd(s.r,2),p:s.p});
+  commit();
+}
+function updateRing(e){
+  if (!paint || stroking || (ptool!=='brush' && ptool!=='unpaint')){ hideRing(); return; }
+  var h = pickSolid(e);
+  if (!h){ hideRing(); return; }
+  if (!pRing){
+    pRing = new THREE.Mesh(new THREE.RingGeometry(0.93,1,48),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.95,side:THREE.DoubleSide,depthTest:false}));
+    pRing.renderOrder = 16; scene.add(pRing);
+  }
+  var wn = h.face.normal.clone().transformDirection(h.object.matrixWorld);
+  pRing.visible = true; pRing.scale.setScalar(paintR()); pRing.position.copy(h.point).addScaledVector(wn,0.1); pRing.lookAt(pRing.position.clone().add(wn));
+}
+function paintClick(e){
+  var h = pickSolid(e); if (!h) return;
+  var o = getObj(h.object.userData.id); if (!o) return;
+  if (ptool==='pick'){ paintColor = colorAt(o,h.object,h.faceIndex); paintSwatches(); toast('Couleur prélevée : '+paintColor+'.'); return; }
+  if (ptool==='all'){
+    if (o.color===paintColor && !(o.paint && o.paint.length)) return;
+    o.color = paintColor; delete o.paint; delete o.pv; commit(); return;
+  }
+  if (ptool==='zone'){
+    var lp = h.object.worldToLocal(h.point.clone()), n = h.face.normal;
+    addPaintOp(o,{t:'f',c:paintColor,p:[rnd(lp.x,3),rnd(lp.y,3),rnd(lp.z,3)],n:[rnd(n.x,3),rnd(n.y,3),rnd(n.z,3)],a:paintTol()});
+    commit();
+  }
 }
 (function(){
   var box = $('paintSw');
@@ -1402,8 +1726,12 @@ function paintAt(id){
   });
   var custom = document.createElement('input'); custom.type = 'color'; custom.id = 'paintCustom'; custom.setAttribute('aria-label','Autre couleur');
   custom.addEventListener('input',function(){ paintColor = this.value; paintSwatches(); }); box.appendChild(custom);
+  document.querySelectorAll('#paintTools .btn').forEach(function(b){ b.addEventListener('click',function(){ setPtool(b.dataset.pt); }); });
+  $('paintSize').addEventListener('input',function(){ $('paintSizeVal').textContent = this.value+' mm'; });
+  $('paintTol').addEventListener('input',function(){ $('paintTolVal').textContent = this.value+'°'; });
   $('paintBtn').addEventListener('click',function(){ setPaint(!paint); });
   $('paintDone').addEventListener('click',function(){ setPaint(false); });
+  canvas.addEventListener('pointerleave',hideRing);
 })();
 
 /* ---------- Fenêtres : imprimante et export ---------- */
@@ -1748,7 +2076,7 @@ function bindNumber(id,apply){
   bindNumber('r'+a,function(o,v){ o.r[i] = THREE.MathUtils.degToRad(v); });
 });
 $('name').addEventListener('change',function(){ var o = one(); if (!o) return; o.name = this.value.trim()||NAMES[o.type]; commit(); });
-function setColor(c){ var o = one(); if (!o || o.hole) return; o.color = c; meshes[o.id].material.color.set(c).convertSRGBToLinear(); commit(); }
+function setColor(c){ var o = one(); if (!o || o.hole) return; o.color = c; tint(o); commit(); }
 (function(){
   var box = $('swatches');
   COLORS.forEach(function(c){
@@ -2024,9 +2352,10 @@ function xmlEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function build3MF(){
   var solids = meshList.filter(function(m){ var o = getObj(m.userData.id); return o && !o.hole && m.geometry.attributes.position.count; });
   if (!solids.length) return null;
-  var mats = [], objs = [], items = [], v = new THREE.Vector3();
+  var mats = [], objs = [], items = [], v = new THREE.Vector3(), extra = {};
   solids.forEach(function(m,k){
     var o = getObj(m.userData.id); m.updateMatrixWorld(true);
+    var tcol = (m.geometry.userData && m.geometry.userData.tc && !m.geometry.index) ? m.geometry.userData : null;
     var g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, wp = worldPositions(m,g), w = weld(wp,1e-4), ids = w.ids, done = new Uint8Array(w.count), verts = new Array(w.count), tris = [], i;
     for (i=0;i<ids.length;i++){
       var id = ids[i]; if (done[id]) continue; done[id] = 1;
@@ -2036,8 +2365,19 @@ function build3MF(){
     if (g!==m.geometry) g.dispose();
     if (!tris.length) return;
     mats.push('<base name="'+xmlEsc(o.name)+'" displaycolor="'+o.color.toUpperCase()+'"/>');
+    var baseIdx = mats.length-1;
+    if (tcol){
+      var tix = [], ti = 0, pmap = {};
+      for (i=0;i+2<ids.length;i+=3,ti++) if (ids[i]!==ids[i+1] && ids[i+1]!==ids[i+2] && ids[i]!==ids[i+2]){
+        var hx = tcol.pal[tcol.tc[ti]].toUpperCase(), pi;
+        if (tcol.tc[ti]===0) pi = baseIdx;
+        else { if (extra[hx]===undefined){ extra[hx] = mats.length; mats.push('<base name="Couleur '+hx+'" displaycolor="'+hx+'"/>'); } pi = extra[hx]; }
+        tix.push(pi);
+      }
+      tris = tris.map(function(x,q){ return x.replace('/>',' pid="1" p1="'+tix[q]+'"/>'); });
+    }
     var id = objs.length+2;
-    objs.push('<object id="'+id+'" type="model" name="'+xmlEsc(o.name)+'" pid="1" pindex="'+(mats.length-1)+'"><mesh><vertices>'+verts.join('')+'</vertices><triangles>'+tris.join('')+'</triangles></mesh></object>');
+    objs.push('<object id="'+id+'" type="model" name="'+xmlEsc(o.name)+'" pid="1" pindex="'+baseIdx+'"><mesh><vertices>'+verts.join('')+'</vertices><triangles>'+tris.join('')+'</triangles></mesh></object>');
     items.push('<item objectid="'+id+'"/>');
   });
   if (!objs.length) return null;
