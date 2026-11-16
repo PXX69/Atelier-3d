@@ -108,6 +108,9 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #imgFile{max-width:100%}
 #imgThr{width:100%}
 #aiText{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+.trio{display:flex;gap:6px}.trio input{width:100%}
+#aiCfg{margin:8px 0;font-size:13px}#aiCfg summary{cursor:pointer;font-weight:600;margin-bottom:6px}#aiCfg select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit}
+#aiCfg input[type=password]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips .btn{white-space:normal;text-align:left;font-size:12px;min-height:0;padding:5px 8px}
 #aiStatus{margin:0;min-height:1.2em;font-size:13px}
@@ -281,6 +284,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
         <button class="btn" id="grp" title="Ctrl+G" hidden>Grouper</button>
         <button class="btn" id="ungrp" title="Ctrl+Maj+G" hidden>Dégrouper</button>
         <button class="btn" id="mergeBtn" title="Réunit les formes sélectionnées en un seul objet (les négatifs sélectionnés sont creusés)" hidden>Fusionner</button>
+        <button class="btn" id="splitBtn" title="Coupe le modèle en parties qui tiennent sur le plateau de votre imprimante">Découper en parties</button>
         <button class="btn" id="dup" title="Ctrl+D">Dupliquer</button>
         <button class="btn" id="drop">Poser sur le plateau</button>
         <button class="btn adv" id="alignZero" title="Place la sélection dans le coin avant gauche du plateau, le zéro de l'imprimante">Aligner au zéro</button>
@@ -396,12 +400,32 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
     <div class="actions"><button class="btn primary" data-close>C'est parti</button></div>
   </div>
 </div>
+<div class="modal" id="splitDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="splitTitle">
+    <h2 id="splitTitle">Découper en parties</h2>
+    <p class="note" id="splitInfo"></p>
+    <div class="field"><label>Taille maximale d'une partie (mm) : largeur · profondeur · hauteur</label>
+      <div class="trio"><input type="text" inputmode="decimal" id="splitX" aria-label="Largeur max"><input type="text" inputmode="decimal" id="splitZ" aria-label="Profondeur max"><input type="text" inputmode="decimal" id="splitY" aria-label="Hauteur max"></div></div>
+    <label class="check"><input type="checkbox" id="splitLay" checked> Ranger les parties côte à côte sur le plateau</label>
+    <p class="note" id="splitCount"></p>
+    <p class="note">Les coupes sont plates et réparties à égalité. La peinture n'est pas conservée sur les parties.</p>
+    <div class="actions"><button class="btn primary" id="splitGo">Découper</button><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
 <div class="modal" id="aiDlg" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
     <h2 id="aiTitle">Assistant de création</h2>
     <div class="field"><label for="aiText">Décrivez l'objet à créer</label><textarea id="aiText" rows="4" placeholder="Exemple : une boîte de 60 x 40 x 30 mm avec couvercle"></textarea></div>
     <div class="chips"><button class="btn" data-ex>une plaque de 80 x 50 mm épaisseur 3 avec 4 trous de 5 mm</button><button class="btn" data-ex>un gobelet bleu de 70 mm de diamètre</button><button class="btn" data-ex>une table de 80 x 50 mm, hauteur 40</button></div>
     <p class="note" id="aiNote"></p>
+    <details id="aiCfg"><summary>Connecter ma propre IA</summary>
+      <div class="field"><label for="aiProv">Service</label><select id="aiProv"></select></div>
+      <div class="field"><label for="aiUrl">Adresse</label><input type="text" id="aiUrl" autocomplete="off"></div>
+      <div class="field"><label for="aiModel">Modèle</label><input type="text" id="aiModel" autocomplete="off"></div>
+      <div class="field"><label for="aiKey">Clé d'API (laissez vide pour un service local)</label><input type="password" id="aiKey" autocomplete="off"></div>
+      <p class="note">La clé est gardée uniquement sur cet appareil. Quand une IA est connectée, vos descriptions sont envoyées à ce service, et à lui seul. Aucune IA n'est fournie avec l'application.</p>
+      <div class="actions"><button class="btn primary" id="aiSave">Enregistrer</button><button class="btn" id="aiTest">Tester</button><button class="btn" id="aiOff">Déconnecter</button></div>
+    </details>
     <p id="aiStatus" role="status"></p>
     <div class="actions"><button class="btn primary" id="aiGo">Créer l'objet</button><button class="btn" id="aiStop" hidden>Arrêter</button><button class="btn" data-close>Fermer</button></div>
   </div>
@@ -1074,6 +1098,76 @@ function pick(id,additive){
   var all = ids.every(function(i){ return state.sel.indexOf(i)>=0; });
   setSel(all ? state.sel.filter(function(i){ return ids.indexOf(i)<0; })
              : state.sel.concat(ids.filter(function(i){ return state.sel.indexOf(i)<0; })));
+}
+/* ---------- Découpe en parties pour les petits plateaux ---------- */
+function splitTargets(){ return selObjs().filter(function(o){ return !o.hole && meshes[o.id]; }); }
+function worldBox(o){
+  var m = meshes[o.id], g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, p = worldPositions(m,g), b = boxOf(p);
+  if (g!==m.geometry) g.dispose(); return b;
+}
+function splitCounts(){
+  var mx = [+$('splitX').value.replace(',','.'),+$('splitY').value.replace(',','.'),+$('splitZ').value.replace(',','.')], tot = 0, ok = mx.every(function(v){ return isFinite(v) && v>=5; });
+  var res = [];
+  if (ok) splitTargets().forEach(function(o){
+    var b = worldBox(o), sz = [b[1]-b[0],b[3]-b[2],b[5]-b[4]], n = [Math.ceil(sz[0]/mx[0]-1e-6),Math.ceil(sz[1]/mx[1]-1e-6),Math.ceil(sz[2]/mx[2]-1e-6)].map(function(v){ return Math.max(1,v); });
+    res.push({o:o,b:b,n:n}); tot += n[0]*n[1]*n[2];
+  });
+  return {ok:ok,list:res,total:tot,max:mx};
+}
+function splitRefresh(){
+  var c = splitCounts();
+  if (!c.ok){ $('splitCount').textContent = 'Indiquez des tailles d’au moins 5 mm.'; $('splitGo').disabled = true; return; }
+  $('splitGo').disabled = c.total<=c.list.length;
+  $('splitCount').textContent = c.total<=c.list.length ? 'Ce modèle tient déjà dans cette taille : rien à découper.'
+    : c.list.map(function(r){ return r.o.name+' : '+r.n.join(' × ')+' = '+(r.n[0]*r.n[1]*r.n[2])+' parties'; }).join(' · ');
+}
+function openSplit(){
+  var os = splitTargets(); if (!os.length){ toast('Sélectionnez un objet plein à découper.'); return; }
+  if (!MF){ toast('Le moteur de volumes n’est pas disponible ici : la découpe est impossible.'); return; }
+  $('splitX').value = plate.w; $('splitZ').value = plate.d; $('splitY').value = plate.h;
+  var b = os.map(worldBox), sz = [0,0,0];
+  b.forEach(function(x){ sz[0] = Math.max(sz[0],x[1]-x[0]); sz[1] = Math.max(sz[1],x[3]-x[2]); sz[2] = Math.max(sz[2],x[5]-x[4]); });
+  $('splitInfo').textContent = (os.length>1 ? os.length+' objets, le plus grand mesure ' : 'L’objet mesure ')+sz.map(function(v){ return Math.round(v*10)/10; }).join(' × ')+' mm (largeur × hauteur × profondeur). Plateau actuel : '+plate.w+' × '+plate.d+' × '+plate.h+' mm.';
+  splitRefresh(); $('splitDlg').hidden = false;
+}
+function splitRun(){
+  var c = splitCounts(); if (!c.ok || c.total<=c.list.length) return;
+  var made = [], gone = [], failed = 0, neg = state.neg; state.neg = false;
+  c.list.forEach(function(r){
+    var o = r.o, m = meshes[o.id], A = null, g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, total = r.n[0]*r.n[1]*r.n[2];
+    if (total<=1){ if (g!==m.geometry) g.dispose(); return; }
+    try {
+      A = manFromPositions(worldPositions(m,g));
+      var st = [(r.b[1]-r.b[0])/r.n[0],(r.b[3]-r.b[2])/r.n[1],(r.b[5]-r.b[4])/r.n[2]], i, j, k, idx = 0, parts = [];
+      for (i=0;i<r.n[0];i++) for (j=0;j<r.n[1];j++) for (k=0;k<r.n[2];k++){
+        var x0 = r.b[0]+i*st[0]-(i? 0:1), y0 = r.b[2]+j*st[1]-(j? 0:1), z0 = r.b[4]+k*st[2]-(k? 0:1);
+        var w = st[0]+(i? 0:1)+(i===r.n[0]-1?1:0), h = st[1]+(j? 0:1)+(j===r.n[1]-1?1:0), d = st[2]+(k? 0:1)+(k===r.n[2]-1?1:0);
+        var cube = MF.Manifold.cube([w,h,d],false), box = cube.translate([x0,y0,z0]), R = A.intersect(box);
+        cube.delete(); box.delete();
+        if (!R.isEmpty()) parts.push(manToPositions(R));
+        R.delete();
+      }
+      parts.forEach(function(pos,q){
+        var n = addMeshObject(pos,o.name.replace(/ \(copie\)$/,'')+' · partie '+(q+1)+'/'+parts.length,o.color); made.push(n);
+      });
+      gone.push(o.id);
+    } catch(e){ failed++; }
+    if (A) A.delete(); if (g!==m.geometry) g.dispose();
+  });
+  state.neg = neg;
+  if (!made.length){ toast(failed ? 'Ce modèle a des défauts de surface : la découpe est impossible.' : 'Rien à découper.'); return; }
+  state.objs = state.objs.filter(function(o){ return gone.indexOf(o.id)<0; });
+  if ($('splitLay').checked){
+    var gap = 6, x = -plate.w/2+gap, z = -plate.d/2+gap, rowD = 0, bx;
+    made.forEach(function(o){
+      var b = boxOf(MESH[o.mid].geo.attributes.position.array), sx = b[1]-b[0], sy = b[3]-b[2], sz = b[5]-b[4];
+      if (x+sx>plate.w/2-gap+0.01 && x>-plate.w/2+gap+0.01){ x = -plate.w/2+gap; z += rowD+gap; rowD = 0; }
+      o.p = [x+sx/2,sy/2,z+sz/2]; x += sx+gap; rowD = Math.max(rowD,sz);
+    });
+  }
+  state.sel = made.map(function(o){ return o.id; }); rebuild(); commit();
+  $('splitDlg').hidden = true;
+  toast(made.length+' parties créées'+(failed?' ('+failed+' objet non découpé)':'')+'. « Annuler » rétablit le modèle entier.');
 }
 function newGroupId(){ var g = 0; state.objs.forEach(function(o){ if (o.g!=null && o.g>g) g = o.g; }); return g+1; }
 function group(){
@@ -1972,8 +2066,76 @@ function localAssistant(text){
   return {parts:parts,what:what};
 }
 var askClaude = null, aiCtl = null;
+var AI_PRESETS = {
+  openai:{n:'OpenAI',k:'openai',u:'https://api.openai.com/v1',m:'gpt-4o-mini'},
+  anthropic:{n:'Anthropic (Claude)',k:'anthropic',u:'https://api.anthropic.com',m:'claude-sonnet-5-5'},
+  gemini:{n:'Google Gemini',k:'gemini',u:'https://generativelanguage.googleapis.com/v1beta',m:'gemini-2.5-flash'},
+  mistral:{n:'Mistral',k:'openai',u:'https://api.mistral.ai/v1',m:'mistral-small-latest'},
+  openrouter:{n:'OpenRouter',k:'openai',u:'https://openrouter.ai/api/v1',m:'openai/gpt-4o-mini'},
+  ollama:{n:'Ollama (sur votre ordinateur)',k:'openai',u:'http://localhost:11434/v1',m:'llama3.1'},
+  lmstudio:{n:'LM Studio (sur votre ordinateur)',k:'openai',u:'http://localhost:1234/v1',m:''},
+  custom:{n:'Autre service compatible OpenAI',k:'openai',u:'',m:''}
+};
+var AI_STORE = 'atelier3d.ai.v1', userAI = null;
+try { var rawAI = JSON.parse(localStorage.getItem(AI_STORE)||'null'); if (rawAI && AI_PRESETS[rawAI.prov] && rawAI.url && rawAI.model) userAI = rawAI; } catch(e){}
+function aiExtractJSON(txt){
+  txt = String(txt||'').replace(/```[a-z]*\n?/gi,'').trim();
+  var a = txt.indexOf('['), b = txt.lastIndexOf(']');
+  if (a>=0 && b>a){ try { return JSON.parse(txt.slice(a,b+1)); } catch(e){} }
+  a = txt.indexOf('{'); b = txt.lastIndexOf('}');
+  if (a>=0 && b>a){ try { var d = JSON.parse(txt.slice(a,b+1)); return d.objects || d.parts || d; } catch(e){} }
+  throw new Error('réponse illisible');
+}
+function aiAsk(cfg,prompt,signal){
+  var P = AI_PRESETS[cfg.prov], base = cfg.url.replace(/\/+$/,''), url, headers = {'Content-Type':'application/json'}, body, pick;
+  if (P.k==='anthropic'){
+    url = base+'/v1/messages'; headers['x-api-key'] = cfg.key; headers['anthropic-version'] = '2023-06-01'; headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    body = {model:cfg.model,max_tokens:4096,messages:[{role:'user',content:prompt}]};
+    pick = function(d){ return d.content && d.content[0] && d.content[0].text; };
+  } else if (P.k==='gemini'){
+    url = base+'/models/'+encodeURIComponent(cfg.model)+':generateContent'; headers['x-goog-api-key'] = cfg.key;
+    body = {contents:[{role:'user',parts:[{text:prompt}]}]};
+    pick = function(d){ var c = d.candidates && d.candidates[0]; return c && c.content && c.content.parts && c.content.parts.map(function(p){ return p.text||''; }).join(''); };
+  } else {
+    url = base+'/chat/completions'; if (cfg.key) headers['Authorization'] = 'Bearer '+cfg.key;
+    body = {model:cfg.model,messages:[{role:'user',content:prompt}],temperature:0.2};
+    pick = function(d){ return d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content; };
+  }
+  var tm = new AbortController(), t = setTimeout(function(){ tm.abort(); },120000);
+  if (signal) signal.addEventListener('abort',function(){ tm.abort(); });
+  return fetch(url,{method:'POST',headers:headers,body:JSON.stringify(body),signal:tm.signal}).then(function(r){
+    return r.text().then(function(tx){
+      clearTimeout(t);
+      var d = null; try { d = JSON.parse(tx); } catch(e){}
+      if (!r.ok){ var msg = d && (d.error && (d.error.message||d.error) || d.message) || ('erreur '+r.status); throw new Error(typeof msg==='string'?msg:JSON.stringify(msg)); }
+      var out = d && pick(d); if (!out) throw new Error('réponse vide'); return out;
+    });
+  },function(e){ clearTimeout(t); throw e; });
+}
+function aiFillCfg(){
+  var sel = $('aiProv'); if (!sel.options.length) Object.keys(AI_PRESETS).forEach(function(k){ var op = document.createElement('option'); op.value = k; op.textContent = AI_PRESETS[k].n; sel.appendChild(op); });
+  var c = userAI || {prov:'openai',url:AI_PRESETS.openai.u,model:AI_PRESETS.openai.m,key:''};
+  sel.value = c.prov; $('aiUrl').value = c.url; $('aiModel').value = c.model; $('aiKey').value = c.key||'';
+}
+function aiReadCfg(){ return {prov:$('aiProv').value,url:$('aiUrl').value.trim(),model:$('aiModel').value.trim(),key:$('aiKey').value.trim()}; }
+$('aiProv').addEventListener('change',function(){ var P = AI_PRESETS[this.value]; $('aiUrl').value = P.u; $('aiModel').value = P.m; });
+$('aiSave').addEventListener('click',function(){
+  var c = aiReadCfg();
+  if (!/^https?:\/\//i.test(c.url) || !c.model){ aiBusy(false,'Indiquez l’adresse du service et le nom du modèle.'); return; }
+  var local = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(c.url);
+  if (!c.key && !local){ aiBusy(false,'Une clé d’API est nécessaire pour ce service.'); return; }
+  userAI = c; try { localStorage.setItem(AI_STORE,JSON.stringify(c)); } catch(e){}
+  aiMode(); aiBusy(false,'IA enregistrée. Elle sera utilisée pour créer vos objets.');
+});
+$('aiOff').addEventListener('click',function(){ userAI = null; try { localStorage.removeItem(AI_STORE); } catch(e){} aiFillCfg(); aiMode(); aiBusy(false,'IA déconnectée.'); });
+$('aiTest').addEventListener('click',function(){
+  var c = aiReadCfg(); aiBusy(true,'Test en cours…'); $('aiGo').disabled = false;
+  aiCtl = new AbortController();
+  aiAsk(c,'Réponds uniquement par le mot : ok',aiCtl.signal).then(function(){ aiBusy(false,'Connexion réussie.'); },function(e){ aiBusy(false,'Échec : '+(e && e.message || e)+(/Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message))?' (adresse injoignable, ou service qui refuse les appels depuis une page web)':'')); });
+});
 (function(){ try { var p = window.claude && window.claude.use && window.claude.use('sample'); if (p && p.then) p.then(function(s){ askClaude = s; aiMode(); },function(){}); } catch(e){} })();
 function aiMode(){
+  if (userAI){ $('aiNote').textContent = 'IA connectée : '+AI_PRESETS[userAI.prov].n+' · '+userAI.model+'. Elle construit l’objet à partir de votre description, en assemblant des formes simples.'; return; }
   $('aiNote').textContent = askClaude ? 'Ici, Claude construit l’objet à partir de votre description, en assemblant des formes simples. La création peut prendre jusqu’à une minute.'
     : 'Ici, l’assistant comprend les descriptions simples : boîte, tube, plaque, table, gobelet, escalier, roue, anneau, cube, sphère, cylindre… avec des dimensions, une couleur et des trous.';
 }
@@ -1987,7 +2149,7 @@ function aiRun(){
   var text = $('aiText').value.trim();
   if (text.length<3){ aiBusy(false,'Décrivez l’objet en quelques mots.'); return; }
   if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false);
-  if (!askClaude){ aiLocal(text); return; }
+  if (!askClaude && !userAI){ aiLocal(text); return; }
   var prompt = 'Tu es l’assistant de l’application de modélisation 3D « Atelier 3D », destinée à l’impression 3D. Transforme la description de l’utilisateur en une liste de formes simples à assembler.\n\n'
     +'Repère : millimètres. Le plateau est le plan y = 0, centré en x = 0 et z = 0. x va vers la droite, y vers le haut, z vers l’avant. Plateau de '+plate.w+' × '+plate.d+' mm, hauteur maximale '+plate.h+' mm.\n\n'
     +'Formes disponibles (champ type). size = [largeur en x, hauteur en y, profondeur en z] de la boîte englobante avant rotation :\n'
@@ -1998,7 +2160,18 @@ function aiRun(){
     +'Une forme "negative": true creuse toutes les formes pleines qu’elle traverse : sers-t’en pour les trous, creux, fentes et évidements, et fais-la dépasser d’au moins 1 mm de chaque côté ouvert.\n'
     +'Règles : l’objet repose sur le plateau (point le plus bas à y = 0) et est centré ; les pièces pleines se chevauchent d’au moins 0,2 mm pour former un seul bloc ; parois d’au moins 1,2 mm ; dimensions réalistes si l’utilisateur n’en donne pas ; 40 formes au maximum.\n\n'
     +'Réponds uniquement par un tableau JSON de ces objets, sans aucun autre texte.\n\nDescription de l’utilisateur : « '+text.slice(0,1500)+' »';
-  aiCtl = new AbortController(); aiBusy(true,'Claude réfléchit à votre objet…');
+  aiCtl = new AbortController(); aiBusy(true,userAI ? 'Votre IA réfléchit à votre objet…' : 'Claude réfléchit à votre objet…');
+  if (userAI){
+    aiAsk(userAI,prompt,aiCtl.signal).then(function(txt){
+      var n = createFromSpec(aiExtractJSON(txt));
+      if (!n){ aiBusy(false,'La réponse ne contenait aucune forme utilisable. Reformulez la description, ou réessayez.'); return; }
+      aiBusy(false,''); $('aiDlg').hidden = true; toast('Objet créé par votre IA : '+n+' forme'+(n>1?'s':'')+', groupées.');
+    },function(e){
+      if (e && e.name==='AbortError'){ aiBusy(false,'Création arrêtée.'); return; }
+      aiBusy(false,'Votre IA n’a pas pu répondre : '+(e && e.message || e)+'. Vérifiez la connexion dans « Connecter ma propre IA ».');
+    });
+    return;
+  }
   askClaude.json(prompt,{signal:aiCtl.signal,cache:false}).then(function(data){
     var n = createFromSpec(Array.isArray(data) ? data : (data && data.objects));
     if (!n){ aiBusy(false,'La réponse ne contenait aucune forme utilisable. Reformulez la description, ou réessayez.'); return; }
@@ -2010,7 +2183,7 @@ function aiRun(){
     aiBusy(false,c==='rate_limited' ? 'Trop de demandes pour l’instant : réessayez dans un moment.' : (c==='refused' ? 'Claude a refusé cette demande : décrivez l’objet autrement.' : 'La création n’a pas abouti. Réessayez.'));
   });
 }
-$('aiBtn').addEventListener('click',function(){ aiMode(); aiBusy(false,''); $('aiDlg').hidden = false; $('aiText').focus(); });
+$('aiBtn').addEventListener('click',function(){ aiFillCfg(); aiMode(); aiBusy(false,''); $('aiDlg').hidden = false; $('aiText').focus(); });
 $('aiGo').addEventListener('click',aiRun);
 $('aiStop').addEventListener('click',function(){ if (aiCtl) aiCtl.abort(); });
 document.querySelectorAll('[data-ex]').forEach(function(b){ b.addEventListener('click',function(){ $('aiText').value = b.textContent; }); });
@@ -2113,6 +2286,9 @@ $('undo').addEventListener('click',undo); $('redo').addEventListener('click',red
 $('solidBtn').addEventListener('click',function(){ setHole(false); }); $('holeBtn').addEventListener('click',function(){ setHole(true); });
 $('grp').addEventListener('click',group); $('ungrp').addEventListener('click',ungroup);
 $('mergeBtn').addEventListener('click',mergeSel);
+$('splitBtn').addEventListener('click',openSplit);
+$('splitGo').addEventListener('click',splitRun);
+['splitX','splitY','splitZ'].forEach(function(id){ $(id).addEventListener('input',splitRefresh); });
 $('selAll').addEventListener('click',selectAll);
 $('boxBtn').addEventListener('click',function(){ setBox(!boxOn); });
 $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; });
