@@ -84,6 +84,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #plate{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:11px;color:var(--muted);pointer-events:none}
 #hint{position:absolute;left:14px;top:12px;font-size:12px;color:var(--muted);pointer-events:none;max-width:60%}
 #drawBar,#paintBar,#measureBar,#eraseBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
+#planeWrap{display:contents}#planeWrap[hidden],#planeOffWrap[hidden]{display:none}#drawPlane{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit;max-width:100%}#planeOff{width:120px}#planeOffVal{font-family:var(--mono);font-weight:500;min-width:52px}
 #drawBar[hidden],#paintBar[hidden],#measureBar[hidden],#eraseBar[hidden],#penWrap[hidden],#drawUndo[hidden],#warn[hidden],.modal[hidden],#exportNote[hidden]{display:none}
 #drawBar .group,#paintBar .group{flex-wrap:wrap}
 #measureMsg{font-variant-numeric:tabular-nums}
@@ -219,7 +220,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
     <button class="shape" id="aiBtn" title="Décrivez un objet avec vos mots : l'assistant le construit"><svg viewBox="0 0 36 36"><path class="f" d="M5 8h26v16H16l-7 6v-6H5z"/><path d="M5 8h26v16H16l-7 6v-6H5zM12 16h.1M18 16h.1M24 16h.1" stroke-width="2"/></svg>Assistant</button>
     <button class="shape" id="negBtn" aria-pressed="false" title="Activé : les formes que vous ajoutez deviennent des trous qui creusent les autres"><svg viewBox="0 0 36 36"><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14" stroke-dasharray="3 3"/><path d="M13 22h10" stroke-width="2.4"/></svg>Trou</button>
     <button class="shape adv" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
-    <button class="shape" data-free aria-pressed="false" title="Dessinez un contour d'un seul trait : il devient un objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
+    <button class="shape" data-free aria-pressed="false" title="Dessinez en 3D (sol, face, côté) : tous les traits sont réunis en un seul objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
     <button class="shape" id="imgBtn" title="Transformez la photo ou le fichier d'un dessin en objet"><svg viewBox="0 0 36 36"><path class="f" d="M5 7h26v22H5z"/><path d="M5 7h26v22H5zM5 24l8-8 6 6 4-4 8 8"/><circle cx="24" cy="13" r="2.5"/></svg>Image</button>
     <button class="shape" id="importBtn" title="Ouvrez un fichier STL ou 3MF pour le modifier ici"><svg viewBox="0 0 36 36"><path class="f" d="M6 22v8h24v-8z"/><path d="M6 22v8h24v-8M18 5v17M11 15l7 7 7-7"/></svg>Importer</button>
     <button class="shape adv" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
@@ -240,6 +241,10 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
     <div id="warn" hidden></div>
     <div id="drawBar" hidden>
       <span id="drawMsg"></span>
+      <span id="planeWrap" hidden>
+        <select id="drawPlane" aria-label="Plan de dessin"><option value="sol">Plan du sol : largeur × profondeur</option><option value="face">Plan de face : largeur × hauteur</option><option value="cote">Plan de côté : profondeur × hauteur</option><option value="surface">Sur les objets</option></select>
+        <label class="check" id="planeOffWrap">Position <input type="range" id="planeOff" min="0" max="200" step="1" value="2"> <b id="planeOffVal">2 mm</b></label>
+      </span>
       <label class="check" id="penWrap" hidden>Épaisseur du trait <span class="num"><input type="number" id="penSize" min="1" max="40" step="0.5" value="4" aria-label="Épaisseur du trait en mm"></span> mm</label>
       <div class="group">
         <button class="btn" id="drawUndo">Retirer le dernier point</button>
@@ -790,7 +795,20 @@ function pickSolid(e){
 }
 function penR(){ var v = parseFloat($('penSize').value); return Math.min(20,Math.max(0.5,(isFinite(v)?v:4)/2)); }
 function eraseR(){ return Math.max(0.5,(+$('eraseSize').value||10)/2); }
+function drawPlaneObj(P){
+  return new THREE.Plane(P.kind==='sol' ? new THREE.Vector3(0,1,0) : (P.kind==='face' ? new THREE.Vector3(0,0,1) : new THREE.Vector3(1,0,0)),-P.off);
+}
 function penPoint(e){
+  var P = draw && draw.free && draw.plane;
+  if (P && P.kind!=='surface'){
+    setRay(e); var gp = new THREE.Vector3();
+    if (!ray.ray.intersectPlane(drawPlaneObj(P),gp)) return null;
+    var okp;
+    if (P.kind==='sol') okp = Math.abs(gp.x-plateX(plateOfX(gp.x)))<=plate.w/2 && Math.abs(gp.z)<=plate.d/2;
+    else if (P.kind==='face') okp = Math.abs(gp.x)<=plate.w/2 && gp.y>=-1 && gp.y<=plate.h;
+    else okp = Math.abs(gp.z)<=plate.d/2 && gp.y>=-1 && gp.y<=plate.h;
+    return okp ? gp : null;
+  }
   var r = penR(), h = pickSolid(e);
   if (h && h.face){
     var n = h.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(h.object.matrixWorld)).normalize();
@@ -1433,15 +1451,16 @@ function drawRefresh(){
   $('drawBar').hidden = !draw; hintVis();
   document.querySelector('[data-draw]').setAttribute('aria-pressed',String(!!draw && !draw.free));
   document.querySelector('[data-free]').setAttribute('aria-pressed',String(!!draw && !!draw.free));
-  undoState();
+  undoState(); planeUi(); planeUpdate();
   if (!draw) return;
   $('penWrap').hidden = !draw.free; $('drawUndo').hidden = !!draw.free;
   if (draw.free){
     var k = draw.strokes.length;
-    $('drawMsg').textContent = k ? k+(k>1?' traits. ':' trait. ')+'Continuez à dessiner, ou terminez pour créer l’objet. Annuler retire le dernier trait.'
-      : 'Dessinez sur le plateau ou sur un objet : chaque trait devient un cordon en 3D. Pour tourner la vue, glissez en dehors du plateau.';
-    $('drawDone').disabled = !k; return;
+    $('drawMsg').textContent = k ? k+(k>1?' traits : ils seront réunis en un seul objet. ':' trait. ')+'Changez de plan pour dessiner dans une autre direction, puis terminez. Annuler retire le dernier trait.'
+      : 'Choisissez un plan (sol, face ou côté) et sa position, puis dessinez : tous les traits seront réunis en un seul objet 3D. Pour tourner la vue, glissez en dehors du plan.';
+    $('drawDone').disabled = !k; $('drawDone').textContent = 'Terminer l’objet'; return;
   }
+  $('drawDone').textContent = 'Terminer la forme';
   var n = draw.pts.length;
   $('drawMsg').textContent = n<3 ? 'Touchez le plateau pour poser les points du contour ('+n+' sur 3 minimum).' : n+' points. Ajoutez-en d’autres ou terminez la forme.';
   $('drawDone').disabled = n<3; $('drawUndo').disabled = n===0;
@@ -1451,13 +1470,52 @@ function drawRefresh(){
   drawLine = new (n>=3?THREE.LineLoop:THREE.Line)(g,new THREE.LineBasicMaterial({color:col,depthTest:false})); drawLine.renderOrder = 10; scene.add(drawLine);
   drawDots = new THREE.Points(g.clone(),new THREE.PointsMaterial({color:col,size:10,sizeAttenuation:false,depthTest:false})); drawDots.renderOrder = 11; scene.add(drawDots);
 }
+var planeMesh = null;
+function planeRange(kind){
+  return kind==='sol' ? [0,plate.h,2] : (kind==='face' ? [-plate.d/2,plate.d/2,0] : [-plate.w/2,plate.w/2,0]);
+}
+function planeUi(){
+  if (!draw || !draw.free){ $('planeWrap').hidden = true; return; }
+  var P = draw.plane; $('planeWrap').hidden = false; $('drawPlane').value = P.kind; $('planeOffWrap').hidden = P.kind==='surface';
+  var rg = planeRange(P.kind); $('planeOff').min = rg[0]; $('planeOff').max = rg[1]; $('planeOff').value = P.off;
+  $('planeOffVal').textContent = Math.round(P.off*10)/10+' mm';
+}
+function planeUpdate(){
+  if (planeMesh){ scene.remove(planeMesh); planeMesh.traverse(function(c){ if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }); planeMesh = null; }
+  if (!draw || !draw.free || draw.plane.kind==='surface') return;
+  var P = draw.plane, col = new THREE.Color(cssVar('--accent')||'#d9520b'), w = plate.w, h = P.kind==='sol' ? plate.d : plate.h, wd = P.kind==='cote' ? plate.d : plate.w;
+  var g = new THREE.PlaneGeometry(wd,h);
+  planeMesh = new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.1,side:THREE.DoubleSide,depthWrite:false}));
+  planeMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(g),new THREE.LineBasicMaterial({color:col})));
+  if (P.kind==='sol'){ planeMesh.rotation.x = -Math.PI/2; planeMesh.position.set(0,P.off,0); }
+  else if (P.kind==='face'){ planeMesh.position.set(0,plate.h/2,P.off); }
+  else { planeMesh.rotation.y = Math.PI/2; planeMesh.position.set(P.off,plate.h/2,0); }
+  planeMesh.renderOrder = 2; scene.add(planeMesh);
+}
+function viewPlane(){
+  var P = draw.plane, D = Math.max(plate.h*1.45,plate.w*1.1), ty = plate.h*0.42;
+  if (P.kind==='face'){ orbit.target.set(0,ty,P.off); camera.position.set(0,ty,P.off+D); }
+  else if (P.kind==='cote'){ orbit.target.set(P.off,ty,0); camera.position.set(P.off+D,ty,0); }
+  else frameView();
+  orbit.update();
+}
+$('drawPlane').addEventListener('change',function(){
+  if (!draw || !draw.free) return;
+  draw.plane.kind = this.value; draw.plane.off = planeRange(this.value)[2];
+  if (this.value!=='surface') viewPlane();
+  planeUi(); planeUpdate(); drawRefresh();
+});
+$('planeOff').addEventListener('input',function(){
+  if (!draw || !draw.free) return;
+  draw.plane.off = +this.value; $('planeOffVal').textContent = Math.round(draw.plane.off*10)/10+' mm'; planeUpdate();
+});
 function hintVis(){ $('hint').style.visibility = (draw || paint || measure || erase) ? 'hidden' : ''; }
 function startDraw(free){
   free = free===true;
   if (draw){ var same = !!draw.free===free; cancelDraw(); if (same) return; }
   if (free && !MF){ toast('Le dessin en 3D n’est pas encore prêt ou pas disponible dans cette fenêtre.'); return; }
   if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false);
-  draw = {pts:[],redo:[],strokes:[],free:free}; setSel([]); drawRefresh();
+  draw = {pts:[],redo:[],strokes:[],free:free,plane:{kind:'sol',off:2}}; setSel([]); drawRefresh();
 }
 function cancelDraw(){
   if (draw){ draw.strokes.concat(draw.free?draw.redo:[]).forEach(dropStroke); }
