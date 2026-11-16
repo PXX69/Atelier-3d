@@ -1590,13 +1590,18 @@ function fillGroupMan(kind,off,strokes,span){
       });
       if (!pieces.length) return;
       var U = csUnion(CS,pieces); tmp.push(U);
-      var holes = U.toPolygons().filter(function(poly){
-        var a = 0, i; for (i=0;i<poly.length;i++){ var p = poly[i], q = poly[(i+1)%poly.length]; a += p[0]*q[1]-q[0]*p[1]; }
-        return a<0;
-      }).map(function(poly){ return poly.slice().reverse(); });
-      if (!holes.length) return;
-      var H = new CS(holes,'NonZero'); tmp.push(H);
-      var G = H.offset(tol+0.05,'Round',2,16); tmp.push(G); regions.push(G);
+      var area = function(poly){ var a = 0, i; for (i=0;i<poly.length;i++){ var p = poly[i], q = poly[(i+1)%poly.length]; a += p[0]*q[1]-q[0]*p[1]; } return a; };
+      var comps = U.decompose ? U.decompose() : [U], outers = [], holes = [];
+      comps.forEach(function(c){
+        if (c!==U) tmp.push(c);
+        var polys = c.toPolygons(), hs = polys.filter(function(p){ return area(p)<0; });
+        if (!hs.length) return;
+        /* composante qui enferme au moins une zone : tout son intérieur est rempli, même si d'autres traits la recoupent */
+        polys.forEach(function(p){ if (area(p)>0) outers.push(p); });
+      });
+      if (!outers.length) return;
+      var H = new CS(outers,'NonZero'); tmp.push(H);
+      var G = H.offset(-tol+0.05,'Round',2,16); tmp.push(G); regions.push(G);
     });
     if (!regions.length) return null;
     var Gu = regions.length>1 ? csUnion(CS,regions) : regions[0]; tmp.push(Gu);

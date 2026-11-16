@@ -1,5 +1,5 @@
 // Atelier 3D : garde l'application disponible hors connexion.
-var CACHE = "atelier3d-v13";
+var CACHE = "atelier3d-v14";
 var FILES = ["./", "index.html", "manifest.webmanifest", "lib/three.min.js", "lib/OrbitControls.js", "lib/TransformControls.js", "icons/icon-192.png", "icons/icon-512.png"];
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
