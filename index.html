@@ -83,10 +83,10 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #plate{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:11px;color:var(--muted);pointer-events:none}
 #hint{position:absolute;left:14px;top:12px;font-size:12px;color:var(--muted);pointer-events:none;max-width:60%}
-#drawBar,#paintBar,#measureBar,#eraseBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
+#drawBar,#paintBar,#measureBar,#eraseBar,#sculptBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
 #planeWrap{display:contents}#planeWrap[hidden],#planeOffWrap[hidden]{display:none}#drawPlane{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit;max-width:100%}#planeOff{width:120px}#planeOffVal{font-family:var(--mono);font-weight:500;min-width:52px}
 #fillWrap[hidden]{display:none}
-#drawBar[hidden],#paintBar[hidden],#measureBar[hidden],#eraseBar[hidden],#penWrap[hidden],#drawUndo[hidden],#warn[hidden],.modal[hidden],#exportNote[hidden]{display:none}
+#drawBar[hidden],#paintBar[hidden],#measureBar[hidden],#eraseBar[hidden],#sculptBar[hidden],#penWrap[hidden],#drawUndo[hidden],#warn[hidden],.modal[hidden],#exportNote[hidden]{display:none}
 #drawBar .group,#paintBar .group{flex-wrap:wrap}
 #measureMsg{font-variant-numeric:tabular-nums}
 .check .num{width:72px}
@@ -195,6 +195,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
       <button class="btn" data-mode="scale" aria-pressed="false" title="Changer la taille (touche E)">Taille</button>
       <button class="btn adv" id="measureBtn" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
       <button class="btn adv" id="eraseBtn" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
+      <button class="btn" id="sculptBtn" aria-pressed="false" title="Lisser, enfoncer, gonfler ou aplatir la surface d\u2019un objet">Sculpter</button>
       <button class="btn" id="paintBtn" aria-pressed="false" title="Pinceau, remplissage de zone, pipette et gomme de couleur">Peindre</button>
     </div>
     <div class="sep"></div>
@@ -259,6 +260,18 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
       <span>Glissez sur un modèle pour effacer de la matière. Glissez à côté pour tourner la vue.</span>
       <label class="check" for="eraseSize">Taille de la gomme <input type="range" id="eraseSize" min="1" max="80" step="1" value="10"> <b id="eraseVal">10 mm</b></label>
       <button class="btn" id="eraseDone">Terminer</button>
+    </div>
+    <div id="sculptBar" hidden>
+      <span>Glissez sur un objet pour le modeler. Glissez à côté pour tourner la vue.</span>
+      <span class="group" id="sculptModes">
+        <button class="btn" data-sm="push" aria-pressed="true" title="Creuse la surface">Enfoncer</button>
+        <button class="btn" data-sm="pull" aria-pressed="false" title="Fait ressortir la surface">Gonfler</button>
+        <button class="btn" data-sm="smooth" aria-pressed="false" title="Adoucit les angles et les bosses">Lisser</button>
+        <button class="btn" data-sm="flat" aria-pressed="false" title="Rend la surface plane">Aplatir</button>
+      </span>
+      <label class="check" for="sculptSize">Taille <input type="range" id="sculptSize" min="4" max="100" step="1" value="24"> <b id="sculptVal">24 mm</b></label>
+      <label class="check" for="sculptForce">Force <input type="range" id="sculptForce" min="1" max="10" step="1" value="4"> <b id="sculptFVal">4</b></label>
+      <button class="btn" id="sculptDone">Terminer</button>
     </div>
     <div id="measureBar" hidden>
       <span id="measureMsg"></span>
@@ -784,7 +797,7 @@ function liveShow(r,color){
   liveBall = new THREE.Mesh(new THREE.SphereGeometry(r,20,14),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.35,depthWrite:false}));
   liveBall.position.copy(cur[cur.length-1]); liveBall.renderOrder = 15; scene.add(liveBall);
 }
-function abortStroke(){ stroking = null; cur = []; orbit.enabled = true; liveClear(); if (pst){ pst = null; clearPaintPreview(); } }
+function abortStroke(){ stroking = null; cur = []; orbit.enabled = true; liveClear(); if (pst){ pst = null; clearPaintPreview(); } if (sst) sculptEnd(true); }
 function setRay(e){
   var r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
@@ -832,6 +845,7 @@ canvas.addEventListener('pointerdown',function(e){
   if (boxOn && e.button===0 && touches.size===1 && !tc.axis){ boxDrag = {x:e.clientX,y:e.clientY}; down = null; try { canvas.setPointerCapture(e.pointerId); } catch(err){} showBox(e); return; }
   if (stroking){ if (touches.size>1) abortStroke(); return; }
   if (e.button!==0 || touches.size>1) return;
+  if (sculpt){ var sh = pickSolid(e); if (sh) sculptBegin(sh,e); return; }
   if (paint && (ptool==='brush' || ptool==='unpaint')){
     var ph = pickSolid(e); if (ph) startPaintStroke(ph,e);
     return;
@@ -858,6 +872,8 @@ canvas.addEventListener('pointerdown',function(e){
 },true);
 canvas.addEventListener('pointermove',function(e){
   if (boxDrag){ showBox(e); return; }
+  if (sculpt && !stroking) sculptRing(e);
+  if (stroking==='sculpt'){ if (sst) sculptMove(e); return; }
   if (paint && !stroking) updateRing(e);
   if (stroking==='paint'){ if (pst) paintMove(e); return; }
   if (stroking){
@@ -1382,7 +1398,7 @@ function newProject(){
 }
 function undo(){
   if (draw){
-    if (draw.free){ var s = draw.strokes.pop(); if (s){ scene.remove(s.mesh); draw.redo.push(s); } }
+    if (draw.free){ var s = draw.strokes.pop(); if (s){ scene.remove(s.mesh); draw.redo.push(s); } refreshFills(); }
     else { var p = draw.pts.pop(); if (p) draw.redo.push(p); }
     drawRefresh(); return;
   }
@@ -1391,7 +1407,7 @@ function undo(){
 function redo(){
   if (draw){
     var x = draw.redo.pop();
-    if (x){ if (draw.free){ scene.add(x.mesh); draw.strokes.push(x); } else draw.pts.push(x); }
+    if (x){ if (draw.free){ scene.add(x.mesh); draw.strokes.push(x); refreshFills(); } else draw.pts.push(x); }
     drawRefresh(); return;
   }
   if (hIndex<history.length-1) restore(hIndex+1);
@@ -1411,6 +1427,7 @@ function centerOnPlate(){ if (!state.sel.length) return; var b = selBox(), ox = 
 var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 canvas.addEventListener('pointerup',function(e){
   if (boxDrag){ finishBox(e); return; }
+  if (stroking==='sculpt'){ down = null; if (sst) sculptEnd(false); else stroking = null; return; }
   if (stroking==='paint'){ down = null; if (pst) endPaintStroke(); else stroking = null; return; }
   if (stroking){
     var kind = stroking, pts = cur; abortStroke(); down = null;
@@ -1436,6 +1453,7 @@ canvas.addEventListener('pointerup',function(e){
   ray.setFromCamera(ndc,camera);
   var hit = ray.intersectObjects(meshList,false)[0];
   if (measure){ measureAt(hit); return; }
+  if (sculpt) return;
   if (paint){ if (ptool==='zone' || ptool==='all' || ptool==='pick') paintClick(e); return; }
   pick(hit?hit.object.userData.id:null,e.shiftKey||state.multi);
 });
@@ -1514,73 +1532,112 @@ $('planeOff').addEventListener('input',function(){
   if (!draw || !draw.free) return;
   draw.plane.off = +this.value; $('planeOffVal').textContent = Math.round(draw.plane.off*10)/10+' mm'; planeUpdate();
 });
-function hintVis(){ $('hint').style.visibility = (draw || paint || measure || erase) ? 'hidden' : ''; }
+function hintVis(){ $('hint').style.visibility = (draw || paint || measure || erase || sculpt) ? 'hidden' : ''; }
 function startDraw(free){
   free = free===true;
   if (draw){ var same = !!draw.free===free; cancelDraw(); if (same) return; }
   if (free && !MF){ toast('Le dessin en 3D n’est pas encore prêt ou pas disponible dans cette fenêtre.'); return; }
-  if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false);
+  if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); if (sculpt) setSculpt(false);
   draw = {pts:[],redo:[],strokes:[],free:free,plane:{kind:'sol',off:2}}; setSel([]); drawRefresh();
 }
 function cancelDraw(){
-  if (draw){ draw.strokes.concat(draw.free?draw.redo:[]).forEach(dropStroke); }
+  if (draw){ draw.strokes.concat(draw.free?draw.redo:[]).forEach(dropStroke); (draw.fills||[]).forEach(function(m){ scene.remove(m); }); }
   draw = null; if (stroking) abortStroke(); drawRefresh();
 }
 function clipToPlate(man){
   var box = MF.Manifold.cube([4000,2000,4000],false), moved = box.translate([-2000,0,-2000]), r = man.intersect(moved);
   box.delete(); moved.delete(); return r;
 }
-/* Un trait fermé (le bout rejoint le début) remplit son intérieur, sur l'épaisseur du trait */
-function fillShape(P,pts,r){
-  var k = P.kind, uv = [], i, last = null;
-  pts.forEach(function(p){
-    var u = k==='sol' ? p.x : (k==='face' ? p.x : -p.z), v = k==='sol' ? -p.z : p.y;
-    if (!last || Math.hypot(u-last[0],v-last[1])>0.05){ uv.push([u,v]); last = [u,v]; }
-  });
-  if (uv.length<4) return null;
-  var sh = new THREE.Shape(); uv.forEach(function(q,j){ if (j) sh.lineTo(q[0],q[1]); else sh.moveTo(q[0],q[1]); }); sh.closePath();
-  var t = Math.max(2*r,2), g = new THREE.ExtrudeGeometry(sh,{depth:t,bevelEnabled:false});
-  if (k==='sol'){ g.rotateX(-Math.PI/2); g.translate(0,P.off-t/2,0); }
-  else if (k==='face'){ g.translate(0,0,P.off-t/2); }
-  else { g.rotateY(Math.PI/2); g.translate(P.off-t/2,0,0); }
-  var ni = g.index ? g.toNonIndexed() : g, man = manFromPositions(new Float32Array(ni.attributes.position.array));
-  if (ni!==g) ni.dispose(); g.dispose(); return man;
+/* Toute zone fermée par les traits d'un même plan est remplie, même si elle est formée par plusieurs traits */
+function planeUV(kind,p){ return kind==='face' ? [p.x,p.y] : (kind==='sol' ? [p.x,-p.z] : [-p.z,p.y]); }
+function csUnion(CS,list){
+  if (CS.union){ try { return CS.union(list); } catch(e){} }
+  var acc = list[0], i; for (i=1;i<list.length;i++){ var n = acc.add ? acc.add(list[i]) : acc.union(list[i]); acc = n; } return acc;
 }
-function isClosedStroke(pts,r){
-  return pts.length>=8 && pts[0].distanceTo(pts[pts.length-1])<=Math.max(2.5*r,3);
-}
-function strokeMan(s){
-  var raw = sweep(s.pts,s.r);
-  if (!s.fill) return raw;
+function fillGroupMan(kind,off,strokes){
+  var CS = MF.CrossSection, tmp = [], maxR = 0, pieces = [];
+  strokes.forEach(function(s){ maxR = Math.max(maxR,s.r); });
+  var tol = Math.max(1,maxR*0.75), result = null;
   try {
-    var f = fillShape(s.fill,s.pts,s.r); if (!f) return raw;
-    var u = MF.Manifold.union([raw,f]); raw.delete(); f.delete(); return u;
-  } catch(e){ return raw; }
+    strokes.forEach(function(s){
+      var circ = CS.circle(s.r+tol,16), prev = null, last = null;
+      tmp.push(circ);
+      s.pts.forEach(function(p){
+        var q = planeUV(kind,p);
+        if (last && Math.hypot(q[0]-last[0],q[1]-last[1])<0.4) return;
+        last = q; var c = circ.translate(q); tmp.push(c);
+        if (prev){ var h = CS.hull([prev,c]); tmp.push(h); pieces.push(h); } else pieces.push(c);
+        prev = c;
+      });
+    });
+    if (!pieces.length) return null;
+    var U = csUnion(CS,pieces); tmp.push(U);
+    var holes = U.toPolygons().filter(function(poly){
+      var a = 0, i; for (i=0;i<poly.length;i++){ var p = poly[i], q = poly[(i+1)%poly.length]; a += p[0]*q[1]-q[0]*p[1]; }
+      return a<0;
+    }).map(function(poly){ return poly.slice().reverse(); });
+    if (!holes.length) return null;
+    var H = new CS(holes,'NonZero'); tmp.push(H);
+    var G = H.offset(tol+0.05,'Round',2,16); tmp.push(G);
+    var t = Math.max(2*maxR,2), M = G.extrude(t);
+    var R;
+    if (kind==='sol'){ R = M.rotate([-90,0,0]).translate([0,off-t/2,0]); }
+    else if (kind==='face'){ R = M.translate([0,0,off-t/2]); }
+    else { R = M.rotate([0,90,0]).translate([off-t/2,0,0]); }
+    if (R!==M) M.delete();
+    result = R;
+  } catch(e){ result = null; }
+  tmp.forEach(function(x){ try { x.delete(); } catch(e){} });
+  return result;
 }
+function strokeGroups(){
+  var g = {};
+  draw.strokes.forEach(function(s){ if (!s.plane || s.plane.kind==='surface') return; var k = s.plane.kind+'|'+s.plane.off; (g[k] = g[k]||{kind:s.plane.kind,off:s.plane.off,list:[]}).list.push(s); });
+  return Object.keys(g).map(function(k){ return g[k]; });
+}
+function refreshFills(){
+  if (!draw) return;
+  (draw.fills||[]).forEach(function(m){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  draw.fills = [];
+  if (!draw.free || !$('penFill').checked || !MF) return;
+  strokeGroups().forEach(function(gr){
+    var man = fillGroupMan(gr.kind,gr.off,gr.list); if (!man) return;
+    try {
+      var cl = clipToPlate(man), pos = manToPositions(cl); cl.delete();
+      if (pos.length){
+        var g = new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); setNormals(g);
+        var mat = new THREE.MeshStandardMaterial({roughness:0.6,metalness:0.04}); mat.color.set(cssVar('--accent')||'#d9520b').convertSRGBToLinear();
+        var mesh = new THREE.Mesh(g,mat); scene.add(mesh); draw.fills.push(mesh);
+      }
+    } catch(e){}
+    man.delete();
+  });
+}
+$('penFill').addEventListener('change',function(){ refreshFills(); });
 function endPenStroke(pts){
   if (!draw || !draw.free || !pts.length) return;
   try {
-    var r = penR(), fill = null;
-    if ($('penFill').checked && draw.plane.kind!=='surface' && isClosedStroke(pts,r)) fill = {kind:draw.plane.kind,off:draw.plane.off};
-    var st = {pts:pts,r:r,mesh:null,fill:fill}, raw = strokeMan(st), man = clipToPlate(raw), pos = manToPositions(man);
+    var r = penR(), st = {pts:pts,r:r,mesh:null,plane:{kind:draw.plane.kind,off:draw.plane.off}}, raw = sweep(pts,r), man = clipToPlate(raw), pos = manToPositions(man);
     raw.delete(); man.delete();
     if (!pos.length) return;
     var g = new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); setNormals(g);
     var mat = new THREE.MeshStandardMaterial({roughness:0.6,metalness:0.04}); mat.color.set(cssVar('--accent')||'#d9520b').convertSRGBToLinear();
     var mesh = new THREE.Mesh(g,mat); scene.add(mesh);
     draw.redo.forEach(dropStroke); draw.redo = [];
-    st.mesh = mesh; draw.strokes.push(st);
+    st.mesh = mesh; draw.strokes.push(st); refreshFills();
   } catch(e){ toast('Ce trait n’a pas pu être transformé en volume.'); }
   drawRefresh();
 }
 function finishPen(){
   if (!draw.strokes.length) return;
   try {
-    var mans = draw.strokes.map(strokeMan), U = mans.length>1 ? MF.Manifold.union(mans) : mans[0], R = clipToPlate(U), pos = manToPositions(R);
+    var mans = draw.strokes.map(function(s){ return sweep(s.pts,s.r); });
+    if ($('penFill').checked) strokeGroups().forEach(function(gr){ var m = fillGroupMan(gr.kind,gr.off,gr.list); if (m) mans.push(m); });
+    var U = mans.length>1 ? MF.Manifold.union(mans) : mans[0], R = clipToPlate(U), pos = manToPositions(R);
     mans.forEach(function(x){ if (x!==U) x.delete(); }); U.delete(); R.delete();
     if (!pos.length){ toast('Le dessin est vide.'); return; }
     var n = state.objs.filter(function(o){ return /^Dessin /.test(o.name); }).length+1;
-    draw.strokes.concat(draw.redo).forEach(dropStroke); draw = null; drawRefresh();
+    draw.strokes.concat(draw.redo).forEach(dropStroke); (draw.fills||[]).forEach(function(m){ scene.remove(m); }); draw = null; drawRefresh();
     var o = addMeshObject(pos,'Dessin '+n); state.sel = [o.id]; rebuild(); commit();
     toast('Dessin transformé en objet 3D.');
   } catch(e){ toast('Le dessin n’a pas pu être transformé en objet.'); }
@@ -1604,7 +1661,7 @@ var erase = null;
 function setErase(on){
   if (on){
     if (!MF){ toast('La gomme n’est pas encore prête ou pas disponible dans cette fenêtre.'); return; }
-    if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); setSel([]);
+    if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); if (sculpt) setSculpt(false); setSel([]);
   } else if (stroking==='erase') abortStroke();
   erase = on ? {} : null;
   $('eraseBar').hidden = !on; $('eraseBtn').setAttribute('aria-pressed',String(!!on)); hintVis();
@@ -1637,6 +1694,109 @@ $('eraseBtn').addEventListener('click',function(){ setErase(!erase); });
 $('eraseDone').addEventListener('click',function(){ setErase(false); });
 $('eraseSize').addEventListener('input',function(){ $('eraseVal').textContent = this.value+' mm'; });
 
+/* ---------- Sculpter : lisser, enfoncer, gonfler, aplatir ---------- */
+var sculpt = false, sMode = 'push', sst = null, sRing = null;
+function sculptR(){ return Math.max(2,(+$('sculptSize').value||24)/2); }
+function setSculpt(on){
+  if (on){
+    if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); setSel([]);
+  } else { if (sst) sculptEnd(false); if (sRing) sRing.visible = false; }
+  sculpt = !!on; $('sculptBar').hidden = !on; $('sculptBtn').setAttribute('aria-pressed',String(!!on)); hintVis();
+}
+function sculptRing(e){
+  var h = pickSolid(e);
+  if (!h){ if (sRing) sRing.visible = false; return; }
+  if (!sRing){ sRing = new THREE.Mesh(new THREE.RingGeometry(0.93,1,48),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.95,side:THREE.DoubleSide,depthTest:false})); sRing.renderOrder = 16; scene.add(sRing); }
+  var wn = h.face.normal.clone().transformDirection(h.object.matrixWorld);
+  sRing.visible = true; sRing.scale.setScalar(sculptR()); sRing.position.copy(h.point).addScaledVector(wn,0.1); sRing.lookAt(sRing.position.clone().add(wn));
+}
+/* Maillage soudé (sommets partagés) puis subdivisé jusqu'à une finesse suffisante pour le pinceau */
+function sculptMesh(geo,target,cap){
+  var src = geo.index ? geo.toNonIndexed() : geo, a = src.attributes.position, n = a.count, map = {}, V = [], F = [], i;
+  for (i=0;i<n;i++){
+    var x = a.getX(i), y = a.getY(i), z = a.getZ(i), k = Math.round(x*1000)+','+Math.round(y*1000)+','+Math.round(z*1000), id = map[k];
+    if (id===undefined){ id = V.length/3; map[k] = id; V.push(x,y,z); }
+    F.push(id);
+  }
+  if (src!==geo) src.dispose();
+  function maxEdge(){ var m = 0, t; for (t=0;t<F.length;t+=3){ for (var e=0;e<3;e++){ var p = F[t+e]*3, q = F[t+(e+1)%3]*3; m = Math.max(m,Math.hypot(V[p]-V[q],V[p+1]-V[q+1],V[p+2]-V[q+2])); } } return m; }
+  var guard = 0;
+  while (guard++<8 && maxEdge()>target && F.length/3*4<=cap){
+    var mid = {}, NF = [];
+    var mp = function(p,q){ var k = p<q ? p+'_'+q : q+'_'+p, id = mid[k]; if (id===undefined){ id = V.length/3; mid[k] = id; V.push((V[p*3]+V[q*3])/2,(V[p*3+1]+V[q*3+1])/2,(V[p*3+2]+V[q*3+2])/2); } return id; };
+    for (var t=0;t<F.length;t+=3){ var A = F[t], B = F[t+1], C = F[t+2], ab = mp(A,B), bc = mp(B,C), ca = mp(C,A); NF.push(A,ab,ca, ab,B,bc, ca,bc,C, ab,bc,ca); }
+    F = NF;
+  }
+  return {V:new Float32Array(V),F:new Uint32Array(F)};
+}
+function sculptBegin(h,e){
+  var o = getObj(h.object.userData.id), m = h.object; if (!o) return;
+  m.updateMatrixWorld(true);
+  var sc = new THREE.Vector3().setFromMatrixScale(m.matrixWorld), scl = (sc.x+sc.y+sc.z)/3 || 1, R = sculptR();
+  var d;
+  try { d = sculptMesh(m.geometry,Math.max(0.6,R/4)/scl,160000); } catch(err){ toast('Cet objet ne peut pas être modelé.'); return; }
+  var N = d.V.length/3, nb = new Array(N), i;
+  for (i=0;i<N;i++) nb[i] = [];
+  for (i=0;i<d.F.length;i+=3){ for (var k=0;k<3;k++){ var p = d.F[i+k], q = d.F[i+(k+1)%3]; if (nb[p].indexOf(q)<0) nb[p].push(q); if (nb[q].indexOf(p)<0) nb[q].push(p); } }
+  var g = new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(d.V,3).setUsage(THREE.DynamicDrawUsage)); g.setIndex(new THREE.BufferAttribute(d.F,1)); g.computeVertexNormals();
+  var old = m.geometry; m.geometry = g; old.dispose();
+  var vc = m.material.vertexColors; if (vc){ m.material.vertexColors = false; m.material.needsUpdate = true; }
+  var inv = new THREE.Matrix4().copy(m.matrixWorld).invert();
+  sst = {id:o.id,m:m,V:d.V,F:d.F,nb:nb,scl:scl,inv:inv,last:null,vc:vc,n0:h.face.normal.clone(),moved:false};
+  stroking = 'sculpt'; orbit.enabled = false; if (sRing) sRing.visible = false;
+  try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+  sculptStamp(h.point);
+}
+function sculptStamp(wp){
+  var s = sst, V = s.V, R = sculptR()/s.scl, force = (+$('sculptForce').value||4), p = wp.clone().applyMatrix4(s.inv), n0 = s.n0, i, N = V.length/3;
+  var amt = R*0.025*force, R2 = R*R, hit = [], wts = [];
+  for (i=0;i<N;i++){
+    var dx = V[i*3]-p.x, dy = V[i*3+1]-p.y, dz = V[i*3+2]-p.z, d2 = dx*dx+dy*dy+dz*dz;
+    if (d2<R2){ var w = 1-d2/R2; hit.push(i); wts.push(w*w); }
+  }
+  if (!hit.length) return;
+  if (sMode==='smooth'){
+    var np = new Float32Array(hit.length*3), j, k;
+    for (j=0;j<hit.length;j++){ i = hit[j]; var nb = s.nb[i], cx = 0, cy = 0, cz = 0; for (k=0;k<nb.length;k++){ cx += V[nb[k]*3]; cy += V[nb[k]*3+1]; cz += V[nb[k]*3+2]; } var c = nb.length||1, t = Math.min(1,wts[j]*0.12*force);
+      np[j*3] = V[i*3]+(cx/c-V[i*3])*t; np[j*3+1] = V[i*3+1]+(cy/c-V[i*3+1])*t; np[j*3+2] = V[i*3+2]+(cz/c-V[i*3+2])*t; }
+    for (j=0;j<hit.length;j++){ i = hit[j]; V[i*3] = np[j*3]; V[i*3+1] = np[j*3+1]; V[i*3+2] = np[j*3+2]; }
+  } else {
+    var sg = sMode==='push' ? -1 : 1, j;
+    for (j=0;j<hit.length;j++){ i = hit[j]; var w = wts[j];
+      if (sMode==='flat'){ var dd = (V[i*3]-p.x)*n0.x+(V[i*3+1]-p.y)*n0.y+(V[i*3+2]-p.z)*n0.z, t = Math.min(1,w*0.15*force); V[i*3] -= n0.x*dd*t; V[i*3+1] -= n0.y*dd*t; V[i*3+2] -= n0.z*dd*t; }
+      else { V[i*3] += n0.x*amt*w*sg; V[i*3+1] += n0.y*amt*w*sg; V[i*3+2] += n0.z*amt*w*sg; }
+    }
+  }
+  s.moved = true; s.last = wp.clone();
+  var g = s.m.geometry; g.attributes.position.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox();
+}
+function sculptMove(e){
+  var h = pickSolid(e); if (!h || h.object!==sst.m) return;
+  var R = sculptR(), step = Math.max(0.5,R*0.3), d = sst.last.distanceTo(h.point);
+  if (d<step) return;
+  var k = Math.min(8,Math.floor(d/step)), i;
+  for (i=1;i<k;i++) sculptStamp(sst.last.clone().lerp(h.point,1/(k-i+1)));
+  sculptStamp(h.point);
+}
+function sculptEnd(cancel){
+  var s = sst; sst = null; stroking = null; orbit.enabled = true;
+  if (!s) return;
+  var o = getObj(s.id);
+  if (cancel || !s.moved || !o){ rebuild(); return; }
+  try {
+    var F = s.F, V = s.V, pos = new Float32Array(F.length*3), v = new THREE.Vector3(), i;
+    s.m.updateMatrixWorld(true);
+    for (i=0;i<F.length;i++){ v.set(V[F[i]*3],V[F[i]*3+1],V[F[i]*3+2]).applyMatrix4(s.m.matrixWorld); pos[i*3] = v.x; pos[i*3+1] = v.y; pos[i*3+2] = v.z; }
+    replaceWithMesh(o,s.m,pos);
+    rebuild(); commit();
+  } catch(err){ rebuild(); toast('Le modelage n’a pas pu être enregistré.'); }
+}
+$('sculptBtn').addEventListener('click',function(){ setSculpt(!sculpt); });
+$('sculptDone').addEventListener('click',function(){ setSculpt(false); });
+$('sculptSize').addEventListener('input',function(){ $('sculptVal').textContent = this.value+' mm'; });
+$('sculptForce').addEventListener('input',function(){ $('sculptFVal').textContent = this.value; });
+document.querySelectorAll('#sculptModes .btn').forEach(function(b){ b.addEventListener('click',function(){ sMode = b.dataset.sm; document.querySelectorAll('#sculptModes .btn').forEach(function(x){ x.setAttribute('aria-pressed',String(x===b)); }); }); });
+
 /* ---------- Mesure entre deux points ---------- */
 var measure = null, mLine = null, mDots = null;
 function fr(v){ return fmt(v).replace('.',','); }
@@ -1655,7 +1815,7 @@ function measureRefresh(){
   if (n===2){ mLine = new THREE.Line(g.clone(),new THREE.LineBasicMaterial({color:col,depthTest:false})); mLine.renderOrder = 12; scene.add(mLine); }
 }
 function setMeasure(on){
-  if (on){ if (draw) cancelDraw(); if (paint) setPaint(false); if (erase) setErase(false); setSel([]); }
+  if (on){ if (draw) cancelDraw(); if (paint) setPaint(false); if (erase) setErase(false); if (sculpt) setSculpt(false); setSel([]); }
   measure = on ? {pts:[]} : null; measureRefresh();
 }
 function measureAt(hit){
@@ -1935,6 +2095,7 @@ function setPaint(on){
   if (on && draw) cancelDraw();
   if (on && measure) setMeasure(false);
   if (on && erase) setErase(false);
+  if (on && sculpt) setSculpt(false);
   if (!on && pst) abortStroke();
   paint = on; if (on) setSel([]); else hideRing();
   $('paintBar').hidden = !on; $('paintBtn').setAttribute('aria-pressed',String(on));
