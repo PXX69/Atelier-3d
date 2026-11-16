@@ -1568,7 +1568,10 @@ function fillGroupMan(kind,off,strokes){
   var CS = MF.CrossSection, tmp = [], maxR = 0, result = null, regions = [];
   strokes.forEach(function(s){ maxR = Math.max(maxR,s.r); });
   /* Plusieurs tolérances : un petit trou se ferme tout de suite, un trait mal refermé (écart jusqu'à ~2 cm) se ferme avec la plus large */
-  var tols = [Math.max(1,maxR*0.75),Math.max(3,maxR*2.5),Math.max(6,maxR*5)];
+  var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  strokes.forEach(function(s){ s.pts.forEach(function(p){ var q = planeUV(kind,p); x0 = Math.min(x0,q[0]); x1 = Math.max(x1,q[0]); y0 = Math.min(y0,q[1]); y1 = Math.max(y1,q[1]); }); });
+  var diag = Math.hypot(x1-x0,y1-y0);
+  var tols = [Math.max(1,maxR*0.75),Math.max(3,maxR*2.5),Math.max(6,maxR*5),Math.max(10,Math.min(diag*0.14,40))];
   try {
     tols.forEach(function(tol){
       var pieces = [];
@@ -1607,8 +1610,14 @@ function fillGroupMan(kind,off,strokes){
 }
 function strokeGroups(){
   var g = {};
-  draw.strokes.forEach(function(s){ if (!s.plane || s.plane.kind==='surface') return; var k = s.plane.kind+'|'+s.plane.off; (g[k] = g[k]||{kind:s.plane.kind,off:s.plane.off,list:[]}).list.push(s); });
-  return Object.keys(g).map(function(k){ return g[k]; });
+  var groups = [];
+  draw.strokes.forEach(function(s){
+    if (!s.plane || s.plane.kind==='surface') return;
+    var gr = null; groups.forEach(function(x){ if (!gr && x.kind===s.plane.kind && Math.abs(x.off-s.plane.off)<=Math.max(2,s.r*2)) gr = x; });
+    if (!gr){ gr = {kind:s.plane.kind,off:s.plane.off,list:[]}; groups.push(gr); }
+    gr.list.push(s);
+  });
+  return groups;
 }
 function refreshFills(){
   if (!draw) return;
