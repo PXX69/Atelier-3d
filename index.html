@@ -893,6 +893,9 @@ var plate = {w:200,d:200,h:200,name:''};
     if (s && [s.w,s.d,s.h].every(function(v){ return typeof v==='number' && v>=20 && v<=2000; })) plate = {w:s.w,d:s.d,h:s.h,name:String(s.name||'')};
   } catch(e){}
 })();
+/* Les nouveaux objets arrivent toujours sur le plateau 1 */
+function newX(){ var x = Math.round(orbit.target.x); return Math.abs(x)<=plate.w/2 ? x : 0; }
+function newZ(){ var z = Math.round(orbit.target.z); return Math.abs(z)<=plate.d/2 ? z : 0; }
 var PGAP = 40, PLATES_KEY = 'atelier3d.plates.v1', plateCount = 1;
 try { plateCount = Math.max(1,Math.min(12,parseInt(localStorage.getItem(PLATES_KEY),10)||1)); } catch(e){}
 function savePlates(){ try { localStorage.setItem(PLATES_KEY,String(plateCount)); } catch(e){} }
@@ -1290,7 +1293,7 @@ function addShape(type,dims){
   var b = BASE[type], k = 20, s = dims ? [dims[0]/b[0],dims[1]/b[1],dims[2]/b[2]] : [k,k,k];
   var n = state.objs.filter(function(o){ return o.type===type; }).length+1;
   var o = {id:nextId++,type:type,name:NAMES[type]+' '+n,color:COLORS[state.objs.length%COLORS.length],
-    p:[Math.round(orbit.target.x),b[1]*s[1]/2,Math.round(orbit.target.z)],r:[0,0,0],s:s};
+    p:[newX(),b[1]*s[1]/2,newZ()],r:[0,0,0],s:s};
   if (state.neg) o.hole = true;
   state.objs.push(o); state.sel = [o.id]; rebuild(); commit();
 }
@@ -2067,7 +2070,7 @@ function createFromSpec(parts,label){
   if (!ok.length) return 0;
   /* Pose le nouvel objet à côté de ce qui est déjà sur le plateau, s'il y a la place */
   var used = -Infinity, lo = Infinity, hi = -Infinity;
-  state.objs.forEach(function(o){ var m = meshes[o.id]; if (m && !o.hole) used = Math.max(used,primBox(o,m).max.x); });
+  state.objs.forEach(function(o){ var m = meshes[o.id]; if (m && !o.hole && plateOfObj(o)===0) used = Math.max(used,primBox(o,m).max.x); });
   ok.forEach(function(o){ var b = BASE[o.type], half = Math.max(o.s[0]*b[0],o.s[2]*b[2])/2; lo = Math.min(lo,o.p[0]-half); hi = Math.max(hi,o.p[0]+half); });
   if (isFinite(used) && used>lo-10){ var dx = used+10-lo; if (hi+dx<=plate.w/2) ok.forEach(function(o){ o.p[0] += dx; }); }
   var g = ok.length>1 ? newGroupId() : null, base = COLORS[state.objs.length%COLORS.length];
