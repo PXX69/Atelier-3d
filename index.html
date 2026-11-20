@@ -129,6 +129,11 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 /* Options de l'outil actif : un seul gabarit pour dessin, gomme, sculpture, mesure et peinture */
 .opts{position:absolute;left:12px;right:12px;top:12px;z-index:5;display:flex;flex-direction:column;gap:.3em;background:var(--glass);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:.55em .8em;box-shadow:var(--lift)}
 .opts-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"title ctrl end";align-items:center;gap:.4em 1em}
+.opts-titlebox{grid-area:title;display:flex;align-items:center;gap:.6em;min-width:0}
+.opts-fold{padding:0;width:2.4em;min-height:2.4em;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.opts-fold[aria-pressed=true]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+#drawBar:not(.free) .opts-fold{display:none}
+#drawBar.free.min .opts-ctrl,#drawBar.free.min #drawMsg{display:none}
 .opts-title{grid-area:title;font-family:var(--display);font-weight:700;font-size:1.08em;letter-spacing:-.01em;white-space:nowrap}
 .opts-ctrl{grid-area:ctrl;display:flex;flex-wrap:wrap;align-items:center;gap:.5em 1em;min-width:0}
 .opts-end{grid-area:end;display:flex;gap:.4em;align-items:center}
@@ -261,6 +266,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
   .opts-end .btn{padding:.4em .7em}
   .opts-msg{font-size:.8em;line-height:1.35}
   .opts-msg:not(#drawMsg){display:none}
+  #drawMsg{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   #planeOff,#penFillT{width:80px}
   #paintSize,#paintTol,#sculptSize,#sculptForce,#eraseSize{width:90px}
   .sw{width:24px;height:24px}
@@ -278,6 +284,8 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
   #inspector.open{display:flex}
   #info{display:none}
   #views{right:8px;top:8px;transform:none}
+  body.tool #views{display:none}
+  body.drawing #dock{display:none}
   #views button{height:2.1em}
   .opts{padding:.4em .7em}
   .opts-top,#drawBar .opts-top{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"title ctrl end"}
@@ -285,6 +293,8 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
   .opts-ctrl::-webkit-scrollbar{display:none}
   .opts-ctrl>*,.opts-ctrl .group{flex:none}
   .opts-ctrl .group{flex-wrap:nowrap}
+  #drawBar .opts-ctrl{flex-wrap:wrap;overflow:visible}
+  #drawBar .opts-ctrl .group{flex-wrap:wrap}
   .opts-msg:not(#drawMsg){display:none}
   #drawMsg{font-size:.78em;line-height:1.3;max-height:2.6em;overflow:hidden}
   .lg{display:none}
@@ -295,7 +305,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
 /* Écran tactile : zones de toucher d'au moins 44 px */
 @media (pointer:coarse){
   .btn{min-height:44px}
-  #helpTop{min-width:44px}
+  #helpTop,.opts-fold{min-width:44px}
   #dock .btn{min-width:44px;min-height:44px}
   #views button{height:40px;min-width:52px}
   .shape{min-height:52px}
@@ -369,7 +379,8 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
 
     <div id="drawBar" class="opts" hidden>
       <div class="opts-top">
-        <b class="opts-title" id="drawTitle">Dessin 3D</b>
+        <div class="opts-titlebox"><b class="opts-title" id="drawTitle">Dessin 3D</b>
+          <button type="button" class="btn opts-fold" id="drawFold" aria-pressed="true" aria-label="Réglages du dessin" title="Masquer les réglages"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h8M14 5h2M2 13h2M8 13h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="12" cy="5" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="13" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button></div>
         <div class="opts-ctrl">
           <span id="planeWrap" hidden>
             <select id="drawPlane" aria-label="Plan de dessin"><option value="sol">Sol : largeur × profondeur</option><option value="face">Face : largeur × hauteur</option><option value="cote">Côté : profondeur × hauteur</option><option value="surface">Sur les objets</option></select>
@@ -1196,12 +1207,54 @@ function layoutVars(){
   var r = document.documentElement.style;
   r.setProperty('--bar-h',$('bar').offsetHeight+'px'); r.setProperty('--dockh',$('dock').offsetHeight+'px');
 }
+/* Zone libre : le plateau moins les panneaux d'options (en haut ou en bas) et la barre d'outils flottante.
+   Le centre de la vue est décalé pour que ce qu'on regarde reste au milieu de ce qui est réellement visible. */
+var vo = {cur:0,tgt:0,free:1};
+function freeInsets(){
+  var s = stage.getBoundingClientRect(), top = 0, bot = 0;
+  if (!s.height) return {top:0,bot:0};
+  Array.prototype.forEach.call(stage.querySelectorAll('.opts'),function(el){
+    if (el.hidden) return;
+    var r = el.getBoundingClientRect(); if (!r.height) return;
+    if (r.top+r.height/2 < s.top+s.height/2) top = Math.max(top,r.bottom-s.top+6); else bot = Math.max(bot,s.bottom-r.top+6);
+  });
+  var d = $('dock').getBoundingClientRect();
+  if (d.height && d.top<s.bottom && d.bottom>s.top) bot = Math.max(bot,s.bottom-d.top+8);
+  return {top:top,bot:bot};
+}
+function setVO(){
+  var W = stage.clientWidth, H = stage.clientHeight; if (!W||!H) return;
+  if (Math.abs(vo.cur)<0.5) camera.clearViewOffset(); else camera.setViewOffset(W,H,0,-vo.cur,W,H);
+}
+function applyInsets(snap){
+  var H = stage.clientHeight; if (!H||!vo) return;
+  var ins = freeInsets(), free = Math.max(H*0.4,H-ins.top-ins.bot);
+  vo.free = free/H; vo.tgt = (ins.top-ins.bot)/2;
+  if (snap){ vo.cur = vo.tgt; setVO(); }
+  wake();
+}
+/* Un objet qu'on vient de créer (au « zéro » du plateau, par exemple) doit se voir : s'il est hors du cadre, la caméra glisse jusqu'à lui */
+function ensureVisible(){
+  var W = stage.clientWidth, H = stage.clientHeight, b = new THREE.Box3(), any = false;
+  if (!W||!H) return;
+  selObjs().forEach(function(o){ var m = meshes[o.id]; if (m){ b.union(primBox(o,m)); any = true; } });
+  if (!any) return;
+  camera.updateMatrixWorld(true);
+  var c = b.getCenter(new THREE.Vector3()), v = c.clone().project(camera), ins = freeInsets();
+  var fh = Math.max(40,H-ins.top-ins.bot), fx = v.x, fy = ((1-v.y)/2*H-(ins.top+fh/2))/(fh/2);
+  if (v.z<1 && Math.abs(fx)<0.7 && Math.abs(fy)<0.75) return;
+  flyTo(camera.position.clone().add(c.clone().sub(orbit.target)),c);
+}
 function resize(){
   var w = stage.clientWidth, h = stage.clientHeight; if (!w||!h) return;
-  renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); layoutVars(); wake();
+  renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); layoutVars(); applyInsets(true); wake();
 }
 if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize',resize);
 resize();
+if (window.ResizeObserver){
+  var roIns = new ResizeObserver(function(){ applyInsets(false); });
+  roIns.observe($('dock')); Array.prototype.forEach.call(stage.querySelectorAll('.opts'),function(el){ roIns.observe(el); });
+}
 
 function applyToMesh(o,m){
   m.position.set(o.p[0],o.p[1],o.p[2]); m.rotation.set(o.r[0],o.r[1],o.r[2]); m.scale.set(o.s[0],o.s[1],o.s[2]);
@@ -1545,7 +1598,7 @@ function addShape(type,dims){
     p:[0,b[1]*s[1]/2,0],r:[0,0,0],s:s};
   var fc = freeCorner(b[0]*s[0],b[2]*s[2]); o.p[0] = fc[0]+b[0]*s[0]/2; o.p[2] = fc[1]+b[2]*s[2]/2;
   if (state.neg) o.hole = true;
-  state.objs.push(o); state.sel = [o.id]; rebuild(); commit();
+  state.objs.push(o); state.sel = [o.id]; rebuild(); commit(); ensureVisible();
 }
 function duplicate(){
   var src = selObjs(); if (!src.length) return;
@@ -1659,7 +1712,8 @@ function dropStroke(s){ scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.
 function drawRefresh(){
   [drawLine,drawDots].forEach(function(x){ if (x){ scene.remove(x); x.geometry.dispose(); x.material.dispose(); } });
   drawLine = drawDots = null;
-  $('drawBar').hidden = !draw; hintVis();
+  $('drawBar').hidden = !draw; if (draw) $('drawBar').classList.toggle('free',!!draw.free); hintVis();
+  if (!draw && savedCam && !keepCam){ flyTo(savedCam.pos,savedCam.tgt); savedCam = null; if (viewMarkHook) viewMarkHook(null); }
   document.querySelector('[data-draw]').setAttribute('aria-pressed',String(!!draw && !draw.free));
   document.querySelector('[data-free]').setAttribute('aria-pressed',String(!!draw && !!draw.free));
   undoState(); planeUi(); planeUpdate();
@@ -1682,6 +1736,19 @@ function drawRefresh(){
   drawLine = new (n>=3?THREE.LineLoop:THREE.Line)(g,new THREE.LineBasicMaterial({color:col,depthTest:false})); drawLine.renderOrder = 10; scene.add(drawLine);
   drawDots = new THREE.Points(g.clone(),new THREE.PointsMaterial({color:col,size:10,sizeAttenuation:false,depthTest:false})); drawDots.renderOrder = 11; scene.add(drawDots);
 }
+/* Réglages du dessin : on peut les replier pour voir tout le plan (surtout sur téléphone) */
+(function(){
+  var bar = $('drawBar'), btn = $('drawFold'), pref = null;
+  try { pref = localStorage.getItem('atelier3d.drawmin'); } catch(e){}
+  function apply(min){ bar.classList.toggle('min',min); btn.setAttribute('aria-pressed',String(!min)); btn.title = min ? 'Afficher les réglages' : 'Masquer les réglages'; }
+  /* par défaut : repliés seulement sur un écran très peu haut (téléphone couché) */
+  apply(pref===null ? (window.matchMedia && window.matchMedia('(max-height:420px)').matches) : pref==='1');
+  btn.addEventListener('click',function(){
+    var min = !bar.classList.contains('min'); apply(min);
+    try { localStorage.setItem('atelier3d.drawmin',min ? '1' : '0'); } catch(e){}
+    if (draw && planeFit) viewPlane();
+  });
+})();
 var planeMesh = null;
 function planeRange(kind){
   return kind==='sol' ? [0,plate.h,2] : (kind==='face' ? [-plate.d/2,plate.d/2,0] : [-plate.w/2,plate.w/2,0]);
@@ -1704,13 +1771,24 @@ function planeUpdate(){
   else { planeMesh.rotation.y = Math.PI/2; planeMesh.position.set(P.off,plate.h/2,0); }
   planeMesh.renderOrder = 2; scene.add(planeMesh);
 }
+var viewMarkHook = null, planeFit = false;
+orbit.addEventListener('start',function(){ planeFit = false; });
 function viewPlane(){
-  var P = draw.plane, pw = P.kind==='cote' ? plate.d : plate.w, tn = Math.tan(camera.fov*Math.PI/360);
-  var D = Math.max(plate.h*1.3/2/tn,pw*1.12/2/(tn*Math.max(0.5,camera.aspect))), ty = plate.h*0.6;
-  if (P.kind==='face'){ orbit.target.set(0,ty,P.off); camera.position.set(0,ty,P.off+D); }
-  else if (P.kind==='cote'){ orbit.target.set(P.off,ty,0); camera.position.set(P.off+D,ty,0); }
-  else frameView();
-  orbit.update();
+  applyInsets(false); planeFit = true;
+  var P = draw.plane, tn = Math.tan(camera.fov*Math.PI/360), a = Math.max(0.4,camera.aspect), fk = Math.max(0.3,vo.free), pos, tgt, D;
+  if (P.kind==='sol'){
+    /* vue de dessus : tout le plateau, avec les traits bien en face */
+    D = Math.max(plate.d*1.12/2/(tn*fk),plate.w*1.12/2/(tn*a))+4;
+    tgt = new THREE.Vector3(0,P.off,0); pos = new THREE.Vector3(0,P.off+D,D*0.0004);
+  } else {
+    var pw = P.kind==='cote' ? plate.d : plate.w, ty = plate.h*0.5;
+    D = Math.max(plate.h*1.12/2/(tn*fk),pw*1.12/2/(tn*a))+4;
+    if (P.kind==='face'){ tgt = new THREE.Vector3(0,ty,P.off); pos = new THREE.Vector3(0,ty,P.off+D); }
+    else { tgt = new THREE.Vector3(P.off,ty,0); pos = new THREE.Vector3(P.off+D,ty,0); }
+  }
+  orbit.maxDistance = Math.max(orbit.maxDistance,D*1.2);
+  flyTo(pos,tgt);
+  if (viewMarkHook) viewMarkHook(P.kind==='sol' ? 'vTop' : (P.kind==='face' ? 'vFront' : 'vSide'));
 }
 $('drawPlane').addEventListener('change',function(){
   if (!draw || !draw.free) return;
@@ -1723,13 +1801,21 @@ $('planeOff').addEventListener('input',function(){
   if (!draw || !draw.free) return;
   draw.plane.off = +this.value; $('planeOffVal').textContent = Math.round(draw.plane.off*10)/10+' mm'; planeUpdate();
 });
-function hintVis(){ $('info').style.visibility = (draw || paint || measure || erase || sculpt) ? 'hidden' : ''; }
+function hintVis(){
+  var tool = !!(draw || paint || measure || erase || sculpt);
+  $('info').style.visibility = tool ? 'hidden' : '';
+  document.body.classList.toggle('tool',tool); document.body.classList.toggle('drawing',!!draw);
+  applyInsets(false);
+}
+/* Dessiner change la vue pour bien voir le plan ; en sortant, la vue d'avant revient */
+var savedCam = null, keepCam = false;
 function startDraw(free){
   free = free===true;
-  if (draw){ var same = !!draw.free===free; cancelDraw(); if (same) return; }
+  if (draw){ var same = !!draw.free===free; if (same){ cancelDraw(); return; } keepCam = true; cancelDraw(); keepCam = false; }
   if (free && !MF){ toast('Le dessin en 3D n’est pas encore prêt ou pas disponible dans cette fenêtre.'); return; }
   if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); if (sculpt) setSculpt(false);
-  draw = {pts:[],redo:[],strokes:[],free:free,plane:{kind:'sol',off:2}}; setSel([]); drawRefresh();
+  if (!savedCam) savedCam = {pos:camera.position.clone(),tgt:orbit.target.clone()};
+  draw = {pts:[],redo:[],strokes:[],free:free,plane:{kind:'sol',off:2}}; setSel([]); drawRefresh(); viewPlane();
 }
 function cancelDraw(){
   if (draw){ draw.strokes.concat(draw.free?draw.redo:[]).forEach(dropStroke); (draw.fills||[]).forEach(function(m){ scene.remove(m); }); }
@@ -2579,7 +2665,7 @@ function createFromSpec(parts,label){
   else if (isFinite(used) && used>lo-10){ var dx = used+10-lo; if (hi+dx<=plate.w/2) ok.forEach(function(o){ o.p[0] += dx; }); }
   var g = ok.length>1 ? newGroupId() : null, base = COLORS[state.objs.length%COLORS.length];
   ok.forEach(function(o){ if (!o.color) o.color = base; if (!o.hole) delete o.hole; if (g!=null) o.g = g; state.objs.push(o); });
-  state.sel = ok.map(function(o){ return o.id; }); rebuild(); commit();
+  state.sel = ok.map(function(o){ return o.id; }); rebuild(); commit(); ensureVisible();
   return ok.length;
 }
 function localAssistant(text){
@@ -2987,6 +3073,7 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
   /* Points de vue : 3D, dessus, face, côté (sur la sélection s'il y en a une, sinon sur tous les objets) */
   var viewBtns = ['frame','vTop','vFront','vSide'].map($);
   function viewMark(id){ viewBtns.forEach(function(b){ b.setAttribute('aria-pressed',String(b.id===id)); }); }
+  viewMarkHook = viewMark;
   function focusBox(){
     var b = new THREE.Box3(), any = false, list = state.sel.length ? selObjs() : state.objs;
     list.forEach(function(o){ var m = meshes[o.id]; if (!m || (o.hole && !state.sel.length)) return; b.union(primBox(o,m)); any = true; });
@@ -2996,12 +3083,12 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
     var bb = focusBox(), c, sz;
     if (bb){ c = bb.getCenter(new THREE.Vector3()); sz = bb.getSize(new THREE.Vector3()); }
     else { c = new THREE.Vector3((plateCount-1)*(plate.w+PGAP)/2,plate.h*0.12,0); sz = new THREE.Vector3(plateCount*(plate.w+PGAP)-PGAP,plate.h*0.25,plate.d); }
-    var tn = Math.tan(camera.fov*Math.PI/360), a = Math.max(0.4,camera.aspect), hw, hh, depth, dir;
+    var tn = Math.tan(camera.fov*Math.PI/360), a = Math.max(0.4,camera.aspect), fk = Math.max(0.3,vo.free), hw, hh, depth, dir;
     if (kind==='top'){ hw = sz.x; hh = sz.z; depth = sz.y; dir = new THREE.Vector3(0,1,0.0004); }
     else if (kind==='front'){ hw = sz.x; hh = sz.y; depth = sz.z; dir = new THREE.Vector3(0,0,1); }
     else { hw = sz.z; hh = sz.y; depth = sz.x; dir = new THREE.Vector3(1,0,0); }
     hw = Math.max(hw,40); hh = Math.max(hh,40);
-    var D = Math.max(hh*1.3/2/tn,hw*1.3/2/(tn*a))+depth/2;
+    var D = Math.max(hh*1.3/2/(tn*fk),hw*1.3/2/(tn*a))+depth/2;
     D = Math.min(Math.max(D,orbit.minDistance+5),orbit.maxDistance*0.95);
     orbit.maxDistance = Math.max(orbit.maxDistance,D*1.05);
     flyTo(c.clone().addScaledVector(dir.normalize(),D),c);
@@ -3158,7 +3245,7 @@ function addImported(parts,fileName){
     if (g!=null) o.g = g;
     state.objs.push(o); ids.push(o.id);
   });
-  state.sel = ids; rebuild(); commit();
+  state.sel = ids; rebuild(); commit(); ensureVisible();
   toast('« '+base+' » importé : '+(parts.length>1?parts.length+' objets, ':'')+tris+' triangles.'+(meshDb?'':' Il ne sera pas gardé après fermeture de cette fenêtre.'));
 }
 
@@ -3437,6 +3524,7 @@ canvas.addEventListener('pointerdown',function(){ fly = null; });
     camera.position.lerpVectors(fly.p0,fly.p1,e); orbit.target.lerpVectors(fly.q0,fly.q1,e);
     if (k>=1) fly = null;
   }
+  if (vo.cur!==vo.tgt){ var dv = vo.tgt-vo.cur; vo.cur = Math.abs(dv)<0.6 ? vo.tgt : vo.cur+dv*0.3; setVO(); lastAct = now; }
   orbit.update();
   if (helper.visible) helper.update();
   renderer.render(scene,camera);
