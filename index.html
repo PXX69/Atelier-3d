@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Atelier 3D</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#d9520b">
@@ -11,12 +11,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Layout : un établi. Barre d'outils en haut, formes à gauche, plateau au centre, fiche de l'objet à droite.
-   Sur téléphone : formes en bandeau bas, fiche en tiroir. */
+/* Atelier 3D : mise en page.
+   Ordinateur et tablette : barre fine en haut, formes à gauche, plateau au centre avec son dock d'outils flottant, fiche de l'objet à droite.
+   Téléphone : plateau pleine largeur, outils puis formes en bandeaux bas, fiche de l'objet en tiroir. */
 :root{
   --bg:#e9edf1; --panel:#f8fafb; --ink:#18212c; --muted:#5f6b7a; --line:#cfd6de;
   --accent:#d9520b; --accent-ink:#ffffff; --stage:#dfe5ea; --grid:#aab5c1; --grid-strong:#74828f;
   --danger:#b3261e;
+  --glass:rgba(248,250,251,.94); --lift:0 8px 28px rgba(16,24,40,.18),0 1px 3px rgba(16,24,40,.14);
   --display:"Bricolage Grotesque","Trebuchet MS",sans-serif;
   --body:"IBM Plex Sans","Segoe UI",Roboto,sans-serif;
   --mono:"IBM Plex Mono",Consolas,monospace;
@@ -26,41 +28,68 @@
     color-scheme:dark;
     --bg:#12161b; --panel:#1a2027; --ink:#e7ecf1; --muted:#8e9aa9; --line:#2b343f;
     --accent:#ff7a2f; --accent-ink:#1a0d04; --stage:#161b21; --grid:#262f39; --grid-strong:#46525f;
-    --danger:#ff8a80;
+    --danger:#ff8a80; --glass:rgba(26,32,39,.94); --lift:0 8px 28px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.5);
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#12161b; --panel:#1a2027; --ink:#e7ecf1; --muted:#8e9aa9; --line:#2b343f;
   --accent:#ff7a2f; --accent-ink:#1a0d04; --stage:#161b21; --grid:#262f39; --grid-strong:#46525f;
-  --danger:#ff8a80;
+  --danger:#ff8a80; --glass:rgba(26,32,39,.94); --lift:0 8px 28px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.5);
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);--u:clamp(13px,calc(0.5vw + 8px),18px);font-size:var(--u);overflow:hidden}
-button,input{font:inherit;color:inherit}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);--u:clamp(13px,calc(0.5vw + 8px),18px);font-size:var(--u);overflow:hidden;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
+input[type=range],input[type=checkbox]{accent-color:var(--accent)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#bar,#dock,#shapes,#views,.opts{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#inspector,#list,#shapes,#dock{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 
-#app{height:100%;display:grid;grid-template-columns:6.6em minmax(0,1fr) 20.5em;grid-template-rows:auto minmax(0,1fr);
+#app{height:100%;position:relative;display:grid;grid-template-columns:8.6em minmax(0,1fr) 21em;grid-template-rows:auto minmax(0,1fr);
   grid-template-areas:"bar bar bar" "shapes stage inspector"}
+@supports (height:100dvh){html,body,#app{height:100dvh}}
 
-/* Barre d'outils */
-#bar{grid-area:bar;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
-#brand{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.02em;white-space:nowrap}
+/* Barre du haut : l'essentiel seulement */
+#bar{grid-area:bar;display:flex;align-items:center;gap:.5em .8em;padding:.5em 1em;background:var(--panel);border-bottom:1px solid var(--line);position:relative;z-index:8}
+#brand{font-family:var(--display);font-weight:700;font-size:1.4em;letter-spacing:-.02em;white-space:nowrap;margin-right:.35em}
 #brand span{color:var(--accent)}
 .group{display:flex;gap:4px;align-items:center}
 .sep{width:1px;align-self:stretch;background:var(--line);flex:none}
-.btn{border:1px solid var(--line);background:transparent;border-radius:6px;padding:.5em .8em;white-space:nowrap;min-height:2.6em}
-.btn:hover{border-color:var(--grid-strong)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:transparent;border-radius:8px;padding:.45em .85em;white-space:nowrap;min-height:2.5em;transition:background .12s,border-color .12s}
+@media (hover:hover){.btn:hover{border-color:var(--grid-strong);background:var(--bg)}}
 .btn:disabled{opacity:.4;cursor:default}
 .btn[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+@media (hover:hover){.btn.primary:hover{background:var(--accent);border-color:var(--accent);filter:brightness(1.08)}}
 .btn.danger{color:var(--danger)}
-.spacer{flex:1}
-#toggleInspector{display:none}
+#undo,#redo{min-width:2.5em}
+#helpTop{width:2.5em;padding:0;border-radius:50%;font-weight:600}
+#toggleInspector,#closeInspector{display:none}
+#toggleInspector{align-items:center;gap:.45em}
+#toggleInspector::before{content:"";width:1.3em;height:1.3em;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
 body.simple .adv{display:none!important}
-#hint{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:7px 11px;font-size:13px;line-height:1.35;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+/* Menu du projet */
+.menu-wrap{position:relative}
+#menuBtn .m{display:none}
+.menu{position:absolute;left:0;top:calc(100% + 6px);min-width:16.5em;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--lift);padding:6px;z-index:40;display:flex;flex-direction:column}
+.menu button{border:0;background:transparent;text-align:left;padding:.6em .8em;border-radius:8px;display:flex;align-items:center;gap:.6em;white-space:nowrap;min-height:2.5em}
+.menu button:hover,.menu button:focus-visible{background:var(--bg)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:5px 4px}
+#menu .m-only{display:none}
+.menu button[aria-pressed]::after,#levelBtn::after{content:"";margin-left:auto;flex:none;width:2.3em;height:1.25em;border-radius:99px;
+  background:radial-gradient(circle at center,#fff 0 .46em,transparent .48em) no-repeat .12em 50%/1.02em 1.02em,var(--grid);transition:background-position .15s}
+.menu button[aria-pressed="true"]::after,#levelBtn[aria-pressed="true"]::after{background:radial-gradient(circle at center,#fff 0 .46em,transparent .48em) no-repeat calc(100% - .12em) 50%/1.02em 1.02em,var(--accent)}
+#levelBtn{display:inline-flex;align-items:center;gap:.7em}
+#levelBtn[aria-pressed="true"]{background:transparent;color:var(--ink);border-color:var(--line)}
+
+/* Guide, cadre de sélection, pastilles de la liste */
+#info{position:absolute;left:12px;top:12px;z-index:2;max-width:min(36em,calc(100% - 24px));display:flex;flex-direction:column;align-items:flex-start;gap:.45em;pointer-events:none}
+#hint{background:var(--glass);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:.5em .8em;font-size:.86em;line-height:1.35;box-shadow:var(--lift)}
 #boxRect{position:absolute;z-index:2;border:2px dashed var(--accent);background:rgba(217,82,11,.10);pointer-events:none;border-radius:3px}
 #boxRect[hidden]{display:none}
 .tick{width:20px;height:20px;border:1.5px solid var(--grid-strong);border-radius:5px;flex:none;display:inline-flex;align-items:center;justify-content:center;margin:-4px 0 -4px -2px;padding:0}
@@ -70,74 +99,88 @@ ol.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px}
 ol.steps li b{display:block;font-size:15px}
 ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 
-/* Formes */
-#shapes{grid-area:shapes;background:var(--panel);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:6px;overflow:auto}
+/* Formes : deux colonnes compactes, tout tient sans défiler */
+#shapes{grid-area:shapes;background:var(--panel);border-right:1px solid var(--line);padding:.7em .5em 1em;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:.25em;overflow:auto}
 #shapes h2,#inspector h2{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:2px 4px 4px}
-.shape{border:1px solid transparent;background:transparent;border-radius:8px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.86em;flex:none;transform-origin:center;will-change:transform}
-.shape:hover{border-color:var(--line);background:var(--bg)}
-.shape svg{width:2.6em;height:2.6em;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+#shapes h2{grid-column:1/-1;margin-top:.6em}
+#shapes h2:first-child{margin-top:.1em}
+.shape{border:1px solid transparent;background:transparent;border-radius:10px;padding:.55em .15em .45em;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:.3em;font-size:.78em;line-height:1.15;text-align:center;min-width:0;transform-origin:center;will-change:transform}
+@media (hover:hover){.shape:hover{border-color:var(--line);background:var(--bg)}}
+.shape svg{width:2.9em;height:2.9em;flex:none;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 .shape svg .f{fill:var(--accent);fill-opacity:.22;stroke:none}
+.shape svg .t{fill:var(--ink);stroke:none}
+.shape[aria-pressed="true"]{border-color:var(--accent);background:var(--bg)}
 
 /* Plateau */
 #stage{grid-area:stage;position:relative;background:var(--stage);min-width:0;min-height:0}
 #view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
-#plate{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:11px;color:var(--muted);pointer-events:none}
-#hint{position:absolute;left:14px;top:12px;font-size:12px;color:var(--muted);pointer-events:none;max-width:60%}
-#drawBar,#paintBar,#measureBar,#eraseBar,#sculptBar{position:absolute;left:12px;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:8px 12px}
-#planeWrap{display:contents}#planeWrap[hidden],#planeOffWrap[hidden]{display:none}#drawPlane{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit;max-width:100%}#planeOff{width:120px}#planeOffVal{font-family:var(--mono);font-weight:500;min-width:52px}
-#fillWrap[hidden]{display:none}#fillWrap{display:contents}#penFillT{width:110px}#penFillTVal{font-family:var(--mono);font-weight:500;min-width:48px}
-#drawBar[hidden],#paintBar[hidden],#measureBar[hidden],#eraseBar[hidden],#sculptBar[hidden],#penWrap[hidden],#drawUndo[hidden],#warn[hidden],.modal[hidden],#exportNote[hidden]{display:none}
-#drawBar .group,#paintBar .group{flex-wrap:wrap}
-#measureMsg{font-variant-numeric:tabular-nums}
+#plate{font-family:var(--mono);font-size:11px;color:var(--muted);padding-left:.2em}
+#warn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--dockh,60px) + 26px);z-index:3;max-width:80%;text-align:center;background:var(--panel);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:5px 10px;font-size:12px}
+#toast{position:absolute;left:50%;bottom:calc(var(--dockh,60px) + 26px);transform:translateX(-50%);z-index:6;background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:86%;text-align:center}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion: reduce){#toast{transition:none}.btn,.menu button::after{transition:none}}
+
+/* Points de vue */
+#views{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;gap:2px;padding:4px;background:var(--glass);border:1px solid var(--line);border-radius:12px;box-shadow:var(--lift)}
+#views button{border:0;background:transparent;border-radius:8px;min-width:4.2em;height:2.5em;font-size:.82em;font-weight:500}
+@media (hover:hover){#views button:hover{background:var(--bg)}}
+#views button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+
+/* Options de l'outil actif : un seul gabarit pour dessin, gomme, sculpture, mesure et peinture */
+.opts{position:absolute;left:12px;right:12px;top:12px;z-index:5;display:flex;flex-direction:column;gap:.3em;background:var(--glass);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:.55em .8em;box-shadow:var(--lift)}
+.opts-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"title ctrl end";align-items:center;gap:.4em 1em}
+.opts-title{grid-area:title;font-family:var(--display);font-weight:700;font-size:1.08em;letter-spacing:-.01em;white-space:nowrap}
+.opts-ctrl{grid-area:ctrl;display:flex;flex-wrap:wrap;align-items:center;gap:.5em 1em;min-width:0}
+.opts-end{grid-area:end;display:flex;gap:.4em;align-items:center}
+.opts-msg{margin:0;font-size:.84em;line-height:1.4;color:var(--muted)}
+.opts-msg:empty{display:none}
+.opts-ctrl .group{flex-wrap:wrap}
+#drawBar .opts-top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title end" "ctrl ctrl"}
+#planeWrap{display:contents}#drawPlane{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;max-width:100%}#planeOff{width:120px}#planeOffVal{font-family:var(--mono);font-weight:500;min-width:52px}
+#fillWrap{display:contents}#penFillT{width:110px}#penFillTVal{font-family:var(--mono);font-weight:500;min-width:48px}
+#measureMsg{font-variant-numeric:tabular-nums;font-size:1.05em}
 .check .num{width:72px}
 #eraseSize{width:140px}
+#sculptSize,#sculptForce{width:110px}
 #paintSize,#paintTol{width:130px}
 #paintSizeVal,#paintTolVal{font-family:var(--mono);font-weight:500;min-width:48px}
-#paintSizeWrap[hidden],#paintTolWrap[hidden],#paintSw[hidden]{display:none}
-#paintMsg{font-size:.85em;opacity:.8}
-#eraseVal{font-family:var(--mono);font-weight:500;min-width:52px}
-.shape svg .t{fill:var(--ink);stroke:none}
-#warn{position:absolute;right:14px;bottom:12px;max-width:60%;background:var(--panel);border:1px solid var(--danger);color:var(--danger);border-radius:6px;padding:5px 9px;font-size:12px}
+#eraseVal,#sculptVal{font-family:var(--mono);font-weight:500;min-width:52px}
+#sculptFVal{font-family:var(--mono);font-weight:500;min-width:20px}
 .item.out small{color:var(--danger)}
-.modal{position:fixed;inset:0;z-index:20;background:rgba(10,14,20,.5);display:flex;align-items:center;justify-content:center;padding:16px}
-.sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;width:100%;max-width:440px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(10,14,20,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--lift);padding:18px;width:100%;max-width:440px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px}
 .sheet h2{margin:0;font-family:var(--display);font-size:20px;letter-spacing:-.01em}
-.sheet select{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.sheet select{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
 #imgWork{display:flex;flex-direction:column;gap:12px}
 #imgWork[hidden]{display:none}
 #imgCv{width:100%;max-height:240px;object-fit:contain;image-rendering:pixelated;border:1px solid var(--line);border-radius:6px;background:#f0f3f6}
 .check{display:flex;gap:8px;align-items:center}
 #imgFile{max-width:100%}
 #imgThr{width:100%}
-#aiText{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+#aiText{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
 .trio{display:flex;gap:6px}.trio input{width:100%}
-#platesTo{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit}
-#aiCfg{margin:8px 0;font-size:13px}#aiCfg summary{cursor:pointer;font-weight:600;margin-bottom:6px}#aiCfg select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:inherit}
-#aiCfg input[type=password]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+#platesTo{padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit}
+#aiCfg{margin:8px 0;font-size:13px}#aiCfg summary{cursor:pointer;font-weight:600;margin-bottom:6px}#aiCfg select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit}
+#aiCfg input[type=password]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips .btn{white-space:normal;text-align:left;font-size:12px;min-height:0;padding:5px 8px}
 #aiStatus{margin:0;min-height:1.2em;font-size:13px}
 #aiStatus:empty{display:none}
-#aiStop[hidden]{display:none}
-.choice{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:12px 14px}
+.choice{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:12px 14px}
 .choice:hover{border-color:var(--accent)}
 .choice b{font-size:15px}
 .choice span{color:var(--muted);font-size:13px;line-height:1.4}
-.shape[aria-pressed="true"]{border-color:var(--accent);background:var(--bg)}
-#toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:86%;text-align:center}
-#toast.on{opacity:1}
-@media (prefers-reduced-motion: reduce){#toast{transition:none}}
 
 /* Fiche de l'objet */
-#inspector{grid-area:inspector;background:var(--panel);border-left:1px solid var(--line);padding:12px 14px 20px;overflow:auto;display:flex;flex-direction:column;gap:16px}
-#list{display:flex;flex-direction:column;gap:2px;max-height:180px;overflow:auto}
-.item{display:flex;align-items:center;gap:8px;border:0;background:transparent;text-align:left;padding:6px 8px;border-radius:6px;border-left:3px solid transparent}
-.item:hover{background:var(--bg)}
+#inspector{grid-area:inspector;background:var(--panel);border-left:1px solid var(--line);padding:1em 1.1em 1.4em;overflow:auto;display:flex;flex-direction:column;gap:1.1em}
+#list{display:flex;flex-direction:column;gap:2px;max-height:13em;overflow:auto}
+.item{display:flex;align-items:center;gap:8px;border:0;background:transparent;text-align:left;padding:6px 8px;border-radius:8px;border-left:3px solid transparent}
+@media (hover:hover){.item:hover{background:var(--bg)}}
 .item[aria-current="true"]{background:var(--bg);border-left-color:var(--accent);font-weight:600}
 .dot{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid var(--line)}
 .dot.hole{border:1px dashed var(--muted);background:transparent}
 .note{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
-#colorRow[hidden],#single[hidden],.btn[hidden],#multiTitle[hidden]{display:none}
+#colorRow[hidden],#single[hidden],#multiTitle[hidden]{display:none}
 #single{display:flex;flex-direction:column;gap:14px}
 #multiTitle{margin:0;font-weight:600}
 .item small{margin-left:auto;color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:400}
@@ -145,45 +188,120 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #props{display:flex;flex-direction:column;gap:14px}
 #props[hidden]{display:none}
 .field label,.rowlabel{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
-.field input[type=text]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.field input[type=text]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 .triple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.num{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--bg);overflow:hidden}
+.num{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);overflow:hidden}
 .num b{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--muted);padding:0 0 0 7px}
 .num input{width:100%;min-width:0;border:0;background:transparent;padding:7px 6px 7px 5px;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 .num input::-webkit-outer-spin-button,.num input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .num:focus-within{border-color:var(--accent)}
 .num input:focus-visible{outline:none}
 #swatches{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.sw{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);padding:0}
+.sw{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);padding:0}
 .sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
 #custom{width:30px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:transparent}
 .actions{display:flex;flex-wrap:wrap;gap:6px}
+#props .actions{display:grid;grid-template-columns:1fr 1fr;gap:.4em}
+#props .actions .btn{white-space:normal;line-height:1.15;padding:.5em .55em;text-align:center}
+#closeInspector{position:absolute;right:.6em;top:.5em;width:2.4em;height:2.4em;padding:0;border-radius:50%;align-items:center;justify-content:center;z-index:2}
 
-/* Barre en mode « dock » : icônes qui grossissent quand on glisse dessus */
-.btn[data-ic]{position:relative;transform-origin:center;will-change:transform}
-body.dock #bar .btn[data-ic]{font-size:0;width:calc(var(--u)*2.9);height:calc(var(--u)*2.9);min-height:0;padding:0;display:inline-flex;align-items:center;justify-content:center}
-body.dock #bar .btn[data-ic]::before{content:"";width:calc(var(--u)*1.55);height:calc(var(--u)*1.55);background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
-body.dock #bar{touch-action:none}
-body.dock #bar .group{gap:3px}
-#dockTip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--panel);font-size:13px;padding:4px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,0);opacity:0;transition:opacity .12s}
+/* Dock d'outils : icônes qui grossissent sous la souris, noms sous les icônes sur écran tactile */
+#dock{grid-area:stage;align-self:end;justify-self:center;margin-bottom:14px;z-index:4;display:flex;align-items:flex-end;gap:2px;padding:6px 8px;
+  background:var(--glass);border:1px solid var(--line);border-radius:20px;box-shadow:var(--lift);max-width:calc(100% - 24px)}
+#dock.scroll{overflow-x:auto;scrollbar-width:none}
+#dock.scroll::-webkit-scrollbar{display:none}
+#dock .group{gap:2px;align-items:flex-end}
+#dock .sep{align-self:center;height:1.9em;margin:0 .3em}
+#dock .btn{flex:none;position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:.2em;width:calc(var(--u)*3);height:calc(var(--u)*3);min-height:0;padding:0;border:0;border-radius:12px;font-size:0;transform-origin:50% 100%;will-change:transform}
+#dock .btn::before{content:"";width:calc(var(--u)*1.65);height:calc(var(--u)*1.65);background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+#dock .btn:disabled{opacity:.35}
+body.labels #dock .btn{width:auto;min-width:calc(var(--u)*4);height:auto;padding:.4em .3em .3em}
+body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74);line-height:1.1;white-space:nowrap;font-weight:500}
+#dockTip{position:fixed;z-index:60;pointer-events:none;background:var(--ink);color:var(--panel);font-size:13px;padding:4px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,0);opacity:0;transition:opacity .12s}
 #dockTip.on{opacity:1}
 
-@media (max-width:760px){
-  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"bar" "stage" "shapes"}
-  #bar{gap:6px;padding:8px 16px;flex-wrap:wrap;overflow:visible}
-  #bar .sep,#bar .spacer{display:none}
-  #bar .group{display:contents}
-  #bar .btn{padding:6px 9px;font-size:13px}
-  #brand{width:100%}
-  #brand{font-size:17px}
-  #shapes{flex-direction:row;border-right:0;border-top:1px solid var(--line);padding:6px 16px;overflow-x:auto;overflow-y:hidden}
+/* Téléphone ou tablette en hauteur : plateau pleine largeur, outils et formes en bandeaux bas, fiche en tiroir */
+@media (max-width:760px) and (min-height:521px), (min-width:761px) and (max-width:1024px) and (orientation:portrait) and (min-height:521px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto auto;grid-template-areas:"bar" "stage" "inspector" "dock" "shapes"}
+  #bar{padding:.4em .7em;gap:.4em}
+  #brand{font-size:1.25em;margin-right:0}
+  #menuBtn .d,#undo .w,#redo .w,#helpTop,#levelBtn{display:none}
+  #menuBtn .m{display:inline}
+  #menuBtn,#undo,#redo{width:40px;padding:0}
+  #toggleInspector{font-size:0;width:40px;padding:0;justify-content:center}
+  #toggleInspector::before{width:21px;height:21px}
+  #menu .m-only{display:flex}
+  .menu{min-width:15em}
+  #dock{grid-area:dock;margin:0;align-self:stretch;justify-self:stretch;max-width:none;border-radius:0;border-width:1px 0 0;box-shadow:none;background:var(--panel);overflow-x:auto;justify-content:flex-start;align-items:center;padding:.35em .6em;scrollbar-width:none}
+  #dock::-webkit-scrollbar{display:none}
+  #toggleInspector{display:inline-flex}
+  #shapes{display:flex;flex-direction:row;align-items:stretch;border-right:0;border-top:1px solid var(--line);padding:.35em .6em calc(.35em + env(safe-area-inset-bottom));gap:.15em;overflow-x:auto;overflow-y:hidden}
   #shapes h2{display:none}
-  .shape{min-width:64px}
-  #toggleInspector{display:inline-block}
-  #inspector{position:absolute;left:0;right:0;bottom:0;z-index:5;max-height:58%;border-left:0;border-top:1px solid var(--line);
-    box-shadow:0 -8px 24px rgba(0,0,0,.18);display:none;padding:12px 16px 20px}
+  .shape{flex:none;min-width:4.6em;font-size:.76em}
+  #inspector{position:relative;display:none;max-height:46vh;border-left:0;border-top:1px solid var(--line);box-shadow:0 -10px 24px rgba(0,0,0,.14);padding:.8em 1em 1.1em}
   #inspector.open{display:flex}
-  #hint{max-width:none;right:12px;font-size:12px}
+  #closeInspector{display:inline-flex}
+  #info{right:12px}
+  #hint{font-size:.82em}
+  #plate{display:none}
+  #warn,#toast{bottom:14px}
+  #views{top:4.9em;right:8px;transform:none}
+  #views button{min-width:3.4em;height:2.3em}
+  #undo,#redo{font-size:1.3em}
+  .check .num{width:56px}
+  .lg{display:none}
+  .opts{left:0;right:0;top:auto;bottom:0;border-radius:16px 16px 0 0;border-width:1px 0 0;border-top:3px solid var(--accent);padding:.6em .8em .7em}
+  .opts-top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title end" "ctrl ctrl"}
+  #drawBar .opts-top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title end" "ctrl ctrl"}
+  .opts-ctrl{gap:.45em .8em}
+  #paintTools{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}
+  #paintTools::-webkit-scrollbar{display:none}
+  #paintTools .btn{flex:none}
+  .opts-ctrl label.check{white-space:nowrap}
+  .opts-end .btn{padding:.4em .7em}
+  .opts-msg{font-size:.8em;line-height:1.35}
+  .opts-msg:not(#drawMsg){display:none}
+  #planeOff,#penFillT{width:80px}
+  #paintSize,#paintTol,#sculptSize,#sculptForce,#eraseSize{width:90px}
+  .sw{width:24px;height:24px}
+}
+/* Écran large mais peu haut (téléphone couché) : formes à gauche, fiche en tiroir à droite */
+@media (max-height:520px){
+  body{--u:clamp(11px,calc(0.35vw + 8px),14px)}
+  #app{grid-template-columns:9.6em minmax(0,1fr);grid-template-areas:"bar bar" "shapes stage"}
+  #bar{padding:.3em .8em}
+  #brand{font-size:1.2em}
+  #helpTop{display:none}
+  #toggleInspector{display:inline-flex}
+  #closeInspector{display:inline-flex}
+  #inspector{position:absolute;right:0;top:var(--bar-h,3em);bottom:0;width:min(22em,62vw);z-index:9;display:none;box-shadow:-10px 0 24px rgba(0,0,0,.2)}
+  #inspector.open{display:flex}
+  #info{display:none}
+  #views{right:8px;top:8px;transform:none}
+  #views button{height:2.1em}
+  .opts{padding:.4em .7em}
+  .opts-top,#drawBar .opts-top{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"title ctrl end"}
+  .opts-ctrl{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .opts-ctrl::-webkit-scrollbar{display:none}
+  .opts-ctrl>*,.opts-ctrl .group{flex:none}
+  .opts-ctrl .group{flex-wrap:nowrap}
+  .opts-msg:not(#drawMsg){display:none}
+  #drawMsg{font-size:.78em;line-height:1.3;max-height:2.6em;overflow:hidden}
+  .lg{display:none}
+}
+@media (max-width:700px) and (max-height:520px){
+  #app{grid-template-columns:8.6em minmax(0,1fr)}
+}
+/* Écran tactile : zones de toucher d'au moins 44 px */
+@media (pointer:coarse){
+  .btn{min-height:44px}
+  #helpTop{min-width:44px}
+  #dock .btn{min-width:44px;min-height:44px}
+  #views button{height:40px;min-width:52px}
+  .shape{min-height:52px}
+  .menu button{min-height:46px}
+  .item{min-height:44px}
+  .opts-ctrl .check input[type=checkbox]{width:22px;height:22px}
 }
 </style>
 </head>
@@ -191,51 +309,34 @@ body.dock #bar .group{gap:3px}
 <div id="app">
   <header id="bar">
     <div id="brand">Atelier<span>3D</span></div>
-    <div class="sep"></div>
+    <div class="menu-wrap">
+      <button class="btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="menu" aria-label="Menu du projet"><span class="d">Projet ▾</span><span class="m" aria-hidden="true">⋯</span></button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button role="menuitem" id="newProject" title="Vide le plateau pour repartir de zéro">Nouveau projet</button>
+        <button role="menuitem" id="openProj" title="Rouvre un projet enregistré dans un fichier .atelier3d">Ouvrir un projet…</button>
+        <button role="menuitem" id="saveProj" title="Enregistre le projet dans un fichier .atelier3d : formes, couleurs et modèles importés">Enregistrer le projet…</button>
+        <hr class="adv">
+        <button role="menuitem" class="adv" id="printerBtn" title="Imprimante et taille du plateau">Imprimante et plateau…</button>
+        <button role="menuitem" class="adv" id="platesBtn" title="Plusieurs plateaux séparés : un fichier par plateau">Plateaux : 1</button>
+        <hr>
+        <button role="menuitem" class="m-only" id="levelBtn2" aria-pressed="false" title="Affiche ou cache les outils avancés">Mode expert</button>
+        <button role="menuitem" id="dockBtn" aria-pressed="false" title="Affiche le nom sous chaque icône d’outil">Noms sous les outils</button>
+        <button role="menuitem" id="helpBtn" title="Revoir le guide de démarrage">Guide de démarrage</button>
+      </div>
+    </div>
     <div class="group">
-      <button class="btn" id="newProject" title="Vide le plateau pour repartir de zéro">Nouveau projet</button>
-      <button class="btn" id="undo" title="Revenir en arrière (Ctrl+Z)">↶ Annuler</button>
-      <button class="btn" id="redo" title="Refaire ce qui a été annulé (Ctrl+Y)">Rétablir ↷</button>
+      <button class="btn" id="undo" title="Revenir en arrière (Ctrl+Z)" aria-label="Annuler"><span aria-hidden="true">↶</span><span class="w"> Annuler</span></button>
+      <button class="btn" id="redo" title="Refaire ce qui a été annulé (Ctrl+Y)" aria-label="Rétablir"><span class="w">Rétablir </span><span aria-hidden="true">↷</span></button>
     </div>
-    <div class="sep"></div>
-    <div class="group" role="group" aria-label="Outil">
-      <button class="btn" data-mode="translate" aria-pressed="true" title="Touche T">Déplacer</button>
-      <button class="btn" data-mode="rotate" aria-pressed="false" title="Touche R">Tourner</button>
-      <button class="btn" data-mode="scale" aria-pressed="false" title="Changer la taille (touche E)">Taille</button>
-      <button class="btn adv" id="measureBtn" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
-      <button class="btn adv" id="eraseBtn" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
-      <button class="btn" id="sculptBtn" aria-pressed="false" title="Lisser, enfoncer, gonfler ou aplatir la surface d\u2019un objet">Sculpter</button>
-      <button class="btn" id="paintBtn" aria-pressed="false" title="Pinceau, remplissage de zone, pipette et gomme de couleur">Peindre</button>
-    </div>
-    <div class="sep"></div>
-    <div class="group">
-      <button class="btn adv" id="snap" aria-pressed="true" title="Déplacement par pas de 1 mm, rotation par pas de 15°">Aimant 1 mm</button>
-      <button class="btn" id="multi" aria-pressed="false" title="Activé : chaque objet touché s'ajoute à la sélection. Au clavier : Maj+clic">Choisir plusieurs</button>
-      <button class="btn" id="selAll" title="Choisit tous les objets (Ctrl+A)">Tout choisir</button>
-      <button class="btn" id="boxBtn" aria-pressed="false" title="Glissez un cadre sur le plateau pour choisir les objets qu'il contient">Cadre</button>
-      <button class="btn" id="frame" title="Remet la vue face au plateau">Recentrer</button>
-      <button class="btn adv" id="printerBtn" title="Imprimante et taille du plateau">Imprimante</button>
-      <button class="btn adv" id="platesBtn" title="Plusieurs plateaux séparés : un fichier par plateau">Plateaux : 1</button>
-      <button class="btn" id="mergeTop" title="Réunit les formes sélectionnées en un seul objet (Ctrl+M). Sélectionnez-en au moins deux." disabled>Fusionner</button>
-      <button class="btn danger" id="delTop" title="Supprime les objets sélectionnés (touche Suppr)" disabled>Supprimer</button>
-    </div>
-    <button class="btn" id="dockBtn" aria-pressed="false" title="Barre d\u2019outils en icônes qui grossissent sous le doigt ou la souris">Icônes</button>
-    <button class="btn" id="helpBtn" title="Revoir le guide de démarrage">? Aide</button>
-    <button class="btn" id="levelBtn" title="Affiche ou cache les outils avancés">Mode expert</button>
     <div class="spacer"></div>
-    <button class="btn" id="toggleInspector" aria-expanded="false">Objet</button>
+    <button class="btn" id="toggleInspector" aria-expanded="false" aria-pressed="false" title="Liste des objets, dimensions, couleur">Objet</button>
+    <button class="btn" id="levelBtn" aria-pressed="false" title="Affiche ou cache les outils avancés">Mode expert</button>
+    <button class="btn" id="helpTop" aria-label="Aide" title="Revoir le guide de démarrage">?</button>
     <button class="btn primary" id="export">Exporter</button>
   </header>
 
   <nav id="shapes" aria-label="Ajouter une forme">
     <h2>Formes</h2>
-    <button class="shape" id="aiBtn" title="Décrivez un objet avec vos mots : l'assistant le construit"><svg viewBox="0 0 36 36"><path class="f" d="M5 8h26v16H16l-7 6v-6H5z"/><path d="M5 8h26v16H16l-7 6v-6H5zM12 16h.1M18 16h.1M24 16h.1" stroke-width="2"/></svg>Assistant</button>
-    <button class="shape" id="negBtn" aria-pressed="false" title="Activé : les formes que vous ajoutez deviennent des trous qui creusent les autres"><svg viewBox="0 0 36 36"><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14" stroke-dasharray="3 3"/><path d="M13 22h10" stroke-width="2.4"/></svg>Trou</button>
-    <button class="shape adv" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
-    <button class="shape" data-free aria-pressed="false" title="Dessinez en 3D (sol, face, côté) : tous les traits sont réunis en un seul objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
-    <button class="shape" id="imgBtn" title="Transformez la photo ou le fichier d'un dessin en objet"><svg viewBox="0 0 36 36"><path class="f" d="M5 7h26v22H5z"/><path d="M5 7h26v22H5zM5 24l8-8 6 6 4-4 8 8"/><circle cx="24" cy="13" r="2.5"/></svg>Image</button>
-    <button class="shape" id="importBtn" title="Ouvrez un fichier STL ou 3MF pour le modifier ici"><svg viewBox="0 0 36 36"><path class="f" d="M6 22v8h24v-8z"/><path d="M6 22v8h24v-8M18 5v17M11 15l7 7 7-7"/></svg>Importer</button>
-    <button class="shape adv" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
     <button class="shape" data-add="cube"><svg viewBox="0 0 36 36"><path class="f" d="M6 12l12-6 12 6v14l-12 6-12-6z"/><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14"/></svg>Cube</button>
     <button class="shape" data-add="sphere"><svg viewBox="0 0 36 36"><circle class="f" cx="18" cy="18" r="13"/><circle cx="18" cy="18" r="13"/><ellipse cx="18" cy="18" rx="13" ry="5"/></svg>Sphère</button>
     <button class="shape" data-add="cylinder"><svg viewBox="0 0 36 36"><path class="f" d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9z"/><ellipse cx="18" cy="9" rx="11" ry="4.5"/><path d="M7 9v18c0 3 5 5 11 5s11-2 11-5V9"/></svg>Cylindre</button>
@@ -243,71 +344,137 @@ body.dock #bar .group{gap:3px}
     <button class="shape" data-add="pyramid"><svg viewBox="0 0 36 36"><path class="f" d="M18 4L4 25l14 7 14-7z"/><path d="M18 4L4 25l14 7 14-7zM18 4v28"/></svg>Pyramide</button>
     <button class="shape" data-add="ramp"><svg viewBox="0 0 36 36"><path class="f" d="M4 28V10l20 18zM4 10l8-4 20 18-8 4"/><path d="M4 28V10l20 18zM4 10l8-4 20 18-8 4"/></svg>Rampe</button>
     <button class="shape" data-add="torus"><svg viewBox="0 0 36 36"><ellipse class="f" cx="18" cy="18" rx="14" ry="9"/><ellipse cx="18" cy="18" rx="14" ry="9"/><ellipse cx="18" cy="17" rx="6" ry="3"/></svg>Anneau</button>
+    <button class="shape" id="negBtn" aria-pressed="false" title="Activé : les formes que vous ajoutez deviennent des trous qui creusent les autres"><svg viewBox="0 0 36 36"><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14" stroke-dasharray="3 3"/><path d="M13 22h10" stroke-width="2.4"/></svg>Trou</button>
+    <h2>Créer</h2>
+    <button class="shape" id="aiBtn" title="Décrivez un objet avec vos mots : l'assistant le construit"><svg viewBox="0 0 36 36"><path class="f" d="M5 8h26v16H16l-7 6v-6H5z"/><path d="M5 8h26v16H16l-7 6v-6H5zM12 16h.1M18 16h.1M24 16h.1" stroke-width="2"/></svg>Assistant</button>
+    <button class="shape adv" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
+    <button class="shape" data-free aria-pressed="false" title="Dessinez en 3D (sol, face, côté) : tous les traits sont réunis en un seul objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
+    <button class="shape" id="imgBtn" title="Transformez la photo ou le fichier d'un dessin en objet"><svg viewBox="0 0 36 36"><path class="f" d="M5 7h26v22H5z"/><path d="M5 7h26v22H5zM5 24l8-8 6 6 4-4 8 8"/><circle cx="24" cy="13" r="2.5"/></svg>Image</button>
+    <button class="shape" id="importBtn" title="Ouvrez un fichier STL ou 3MF pour le modifier ici"><svg viewBox="0 0 36 36"><path class="f" d="M6 22v8h24v-8z"/><path d="M6 22v8h24v-8M18 5v17M11 15l7 7 7-7"/></svg>Importer</button>
+    <button class="shape adv" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
   </nav>
 
   <main id="stage">
     <canvas id="view" aria-label="Vue 3D du modèle"></canvas>
-    <div id="hint">Glisser : tourner la vue · Molette ou pincement : zoom · Clic droit ou deux doigts : déplacer la vue</div>
+    <div id="info"><div id="hint">Glisser : tourner la vue · Molette ou pincement : zoom · Clic droit ou deux doigts : déplacer la vue</div>
+    <div id="plate">Plateau 200 × 200 mm · carreau 10 mm</div></div>
     <div id="boxRect" hidden></div>
-    <div id="plate">Plateau 200 × 200 mm · carreau 10 mm</div>
     <div id="warn" hidden></div>
-    <div id="drawBar" hidden>
-      <span id="drawMsg"></span>
-      <span id="planeWrap" hidden>
-        <select id="drawPlane" aria-label="Plan de dessin"><option value="sol">Plan du sol : largeur × profondeur</option><option value="face">Plan de face : largeur × hauteur</option><option value="cote">Plan de côté : profondeur × hauteur</option><option value="surface">Sur les objets</option></select>
-        <button class="btn" id="drawView" title="Recadre la vue pour voir tout le plan">Voir tout le plan</button>
-        <label class="check" id="planeOffWrap">Position <input type="range" id="planeOff" min="0" max="200" step="1" value="2"> <b id="planeOffVal">2 mm</b></label>
-      </span>
-      <span id="fillWrap" class="group"><label class="check"><input type="checkbox" id="penFill" checked> Remplir les traits fermés</label>
-        <label class="check" title="Épaisseur de la zone remplie : elle devient un volume">Épaisseur <input type="range" id="penFillT" min="2" max="100" step="1" value="10"> <b id="penFillTVal">10 mm</b></label>
-        <label class="check" title="Avec des remplissages dans plusieurs plans (sol, face, côté), garde seulement le volume commun, comme des vues de dessus, de face et de côté"><input type="checkbox" id="penVol"> Volume entre les plans</label></span>
-      <label class="check" id="penWrap" hidden>Épaisseur du trait <span class="num"><input type="number" id="penSize" min="1" max="40" step="0.5" value="4" aria-label="Épaisseur du trait en mm"></span> mm</label>
-      <div class="group">
-        <button class="btn" id="drawUndo">Retirer le dernier point</button>
-        <button class="btn primary" id="drawDone">Terminer la forme</button>
-        <button class="btn" id="drawCancel">Abandonner</button>
+    <div id="views" role="group" aria-label="Point de vue">
+      <button type="button" id="frame" aria-pressed="false" title="Vue en perspective, face au plateau">3D</button>
+      <button type="button" id="vTop" data-view="top" aria-pressed="false" title="Vue de dessus">Dessus</button>
+      <button type="button" id="vFront" data-view="front" aria-pressed="false" title="Vue de face">Face</button>
+      <button type="button" id="vSide" data-view="side" aria-pressed="false" title="Vue de côté">Côté</button>
+    </div>
+
+    <div id="drawBar" class="opts" hidden>
+      <div class="opts-top">
+        <b class="opts-title" id="drawTitle">Dessin 3D</b>
+        <div class="opts-ctrl">
+          <span id="planeWrap" hidden>
+            <select id="drawPlane" aria-label="Plan de dessin"><option value="sol">Sol : largeur × profondeur</option><option value="face">Face : largeur × hauteur</option><option value="cote">Côté : profondeur × hauteur</option><option value="surface">Sur les objets</option></select>
+            <button class="btn" id="drawView" title="Recadre la vue pour voir tout le plan">Voir<span class="lg"> tout le plan</span></button>
+            <label class="check" id="planeOffWrap">Position <input type="range" id="planeOff" min="0" max="200" step="1" value="2"> <b id="planeOffVal">2 mm</b></label>
+          </span>
+          <span id="fillWrap" class="group"><label class="check"><input type="checkbox" id="penFill" checked><span>Remplir<span class="lg"> les traits fermés</span></span></label>
+            <label class="check" title="Épaisseur de la zone remplie : elle devient un volume">Épaisseur <input type="range" id="penFillT" min="2" max="100" step="1" value="10"> <b id="penFillTVal">10 mm</b></label>
+            <label class="check" title="Avec des remplissages dans plusieurs plans (sol, face, côté), garde seulement le volume commun, comme des vues de dessus, de face et de côté"><input type="checkbox" id="penVol"><span>Volume<span class="lg"> entre les plans</span></span></label></span>
+          <label class="check" id="penWrap" hidden><span><span class="lg">Épaisseur du </span>Trait</span> <span class="num"><input type="number" id="penSize" min="1" max="40" step="0.5" value="4" aria-label="Épaisseur du trait en mm"></span> mm</label>
+        </div>
+        <div class="opts-end">
+          <button class="btn" id="drawUndo">Retirer le dernier point</button>
+          <button class="btn primary" id="drawDone">Terminer la forme</button>
+          <button class="btn" id="drawCancel">Abandonner</button>
+        </div>
+      </div>
+      <p class="opts-msg" id="drawMsg"></p>
+    </div>
+    <div id="eraseBar" class="opts" hidden>
+      <div class="opts-top">
+        <b class="opts-title">Gomme</b>
+        <div class="opts-ctrl"><label class="check" for="eraseSize">Taille <input type="range" id="eraseSize" min="1" max="80" step="1" value="10"> <b id="eraseVal">10 mm</b></label></div>
+        <div class="opts-end"><button class="btn primary" id="eraseDone">Terminer</button></div>
+      </div>
+      <p class="opts-msg">Glissez sur un modèle pour effacer de la matière. Glissez à côté pour tourner la vue.</p>
+    </div>
+    <div id="sculptBar" class="opts" hidden>
+      <div class="opts-top">
+        <b class="opts-title">Sculpture</b>
+        <div class="opts-ctrl">
+          <span class="group" id="sculptModes">
+            <button class="btn" data-sm="push" aria-pressed="true" title="Creuse la surface">Enfoncer</button>
+            <button class="btn" data-sm="pull" aria-pressed="false" title="Fait ressortir la surface">Gonfler</button>
+            <button class="btn" data-sm="smooth" aria-pressed="false" title="Adoucit les angles et les bosses">Lisser</button>
+            <button class="btn" data-sm="flat" aria-pressed="false" title="Rend la surface plane">Aplatir</button>
+          </span>
+          <label class="check" for="sculptSize">Taille <input type="range" id="sculptSize" min="4" max="100" step="1" value="24"> <b id="sculptVal">24 mm</b></label>
+          <label class="check" for="sculptForce">Force <input type="range" id="sculptForce" min="1" max="10" step="1" value="4"> <b id="sculptFVal">4</b></label>
+        </div>
+        <div class="opts-end"><button class="btn primary" id="sculptDone">Terminer</button></div>
+      </div>
+      <p class="opts-msg">Glissez sur un objet pour le modeler. Glissez à côté pour tourner la vue.</p>
+    </div>
+    <div id="measureBar" class="opts" hidden>
+      <div class="opts-top">
+        <b class="opts-title">Mesure</b>
+        <div class="opts-ctrl"><span id="measureMsg"></span></div>
+        <div class="opts-end"><button class="btn primary" id="measureDone">Terminer</button></div>
       </div>
     </div>
-    <div id="eraseBar" hidden>
-      <span>Glissez sur un modèle pour effacer de la matière. Glissez à côté pour tourner la vue.</span>
-      <label class="check" for="eraseSize">Taille de la gomme <input type="range" id="eraseSize" min="1" max="80" step="1" value="10"> <b id="eraseVal">10 mm</b></label>
-      <button class="btn" id="eraseDone">Terminer</button>
-    </div>
-    <div id="sculptBar" hidden>
-      <span>Glissez sur un objet pour le modeler. Glissez à côté pour tourner la vue.</span>
-      <span class="group" id="sculptModes">
-        <button class="btn" data-sm="push" aria-pressed="true" title="Creuse la surface">Enfoncer</button>
-        <button class="btn" data-sm="pull" aria-pressed="false" title="Fait ressortir la surface">Gonfler</button>
-        <button class="btn" data-sm="smooth" aria-pressed="false" title="Adoucit les angles et les bosses">Lisser</button>
-        <button class="btn" data-sm="flat" aria-pressed="false" title="Rend la surface plane">Aplatir</button>
-      </span>
-      <label class="check" for="sculptSize">Taille <input type="range" id="sculptSize" min="4" max="100" step="1" value="24"> <b id="sculptVal">24 mm</b></label>
-      <label class="check" for="sculptForce">Force <input type="range" id="sculptForce" min="1" max="10" step="1" value="4"> <b id="sculptFVal">4</b></label>
-      <button class="btn" id="sculptDone">Terminer</button>
-    </div>
-    <div id="measureBar" hidden>
-      <span id="measureMsg"></span>
-      <button class="btn" id="measureDone">Terminer</button>
-    </div>
-    <div id="paintBar" hidden>
-      <div id="paintTools" class="group">
-        <button class="btn" data-pt="brush" aria-pressed="true" title="Glissez sur le modèle pour peindre">Pinceau</button>
-        <button class="btn" data-pt="zone" aria-pressed="false" title="Colore d\u2019un coup toute une face ou une zone lisse">Remplir une zone</button>
-        <button class="btn" data-pt="all" aria-pressed="false" title="Colore l\u2019objet en entier">Objet entier</button>
-        <button class="btn" data-pt="pick" aria-pressed="false" title="Reprend la couleur d\u2019un endroit du modèle">Pipette</button>
-        <button class="btn" data-pt="unpaint" aria-pressed="false" title="Retire la peinture et retrouve la couleur de l\u2019objet">Gomme de couleur</button>
+    <div id="paintBar" class="opts" hidden>
+      <div class="opts-top">
+        <b class="opts-title">Peinture</b>
+        <div class="opts-ctrl">
+          <div id="paintTools" class="group">
+            <button class="btn" data-pt="brush" aria-pressed="true" title="Glissez sur le modèle pour peindre">Pinceau</button>
+            <button class="btn" data-pt="zone" aria-pressed="false" title="Colore d’un coup toute une face ou une zone lisse">Remplir une zone</button>
+            <button class="btn" data-pt="all" aria-pressed="false" title="Colore l’objet en entier">Objet entier</button>
+            <button class="btn" data-pt="pick" aria-pressed="false" title="Reprend la couleur d’un endroit du modèle">Pipette</button>
+            <button class="btn" data-pt="unpaint" aria-pressed="false" title="Retire la peinture et retrouve la couleur de l’objet">Gomme de couleur</button>
+          </div>
+          <label class="check" id="paintSizeWrap" for="paintSize">Taille <input type="range" id="paintSize" min="1" max="60" step="1" value="8"> <b id="paintSizeVal">8 mm</b></label>
+          <label class="check" id="paintTolWrap" for="paintTol" hidden>Tolérance <input type="range" id="paintTol" min="3" max="180" step="1" value="30"> <b id="paintTolVal">30°</b></label>
+          <div id="paintSw" class="group"></div>
+        </div>
+        <div class="opts-end"><button class="btn primary" id="paintDone">Terminer</button></div>
       </div>
-      <label class="check" id="paintSizeWrap" for="paintSize">Taille <input type="range" id="paintSize" min="1" max="60" step="1" value="8"> <b id="paintSizeVal">8 mm</b></label>
-      <label class="check" id="paintTolWrap" for="paintTol" hidden>Tolérance <input type="range" id="paintTol" min="3" max="180" step="1" value="30"> <b id="paintTolVal">30°</b></label>
-      <div id="paintSw" class="group"></div>
-      <span id="paintMsg"></span>
-      <button class="btn" id="paintDone">Terminer</button>
+      <p class="opts-msg" id="paintMsg"></p>
     </div>
     <input type="file" id="importFile" hidden>
+    <input type="file" id="openFile" hidden>
     <div id="toast" role="status"></div>
   </main>
 
+  <div id="dock" role="toolbar" aria-label="Outils">
+    <div class="group" role="group" aria-label="Outil">
+      <button class="btn" data-mode="translate" data-lb="Déplacer" aria-pressed="true" title="Déplacer (touche T)">Déplacer</button>
+      <button class="btn" data-mode="rotate" data-lb="Tourner" aria-pressed="false" title="Tourner (touche R)">Tourner</button>
+      <button class="btn" data-mode="scale" data-lb="Taille" aria-pressed="false" title="Changer la taille (touche E)">Taille</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group" role="group" aria-label="Sélection">
+      <button class="btn" id="multi" data-lb="Plusieurs" aria-pressed="false" title="Activé : chaque objet touché s'ajoute à la sélection. Au clavier : Maj+clic">Choisir plusieurs</button>
+      <button class="btn" id="selAll" data-lb="Tout" title="Choisit tous les objets (Ctrl+A)">Tout choisir</button>
+      <button class="btn" id="boxBtn" data-lb="Cadre" aria-pressed="false" title="Glissez un cadre sur le plateau pour choisir les objets qu'il contient">Cadre</button>
+      <button class="btn adv" id="snap" data-lb="Aimant" aria-pressed="true" title="Déplacement par pas de 1 mm, rotation par pas de 15°">Aimant 1 mm</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group" role="group" aria-label="Modeler">
+      <button class="btn adv" id="measureBtn" data-lb="Mesurer" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
+      <button class="btn adv" id="eraseBtn" data-lb="Gomme" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
+      <button class="btn" id="sculptBtn" data-lb="Sculpter" aria-pressed="false" title="Lisser, enfoncer, gonfler ou aplatir la surface d’un objet">Sculpter</button>
+      <button class="btn" id="paintBtn" data-lb="Peindre" aria-pressed="false" title="Pinceau, remplissage de zone, pipette et gomme de couleur">Peindre</button>
+    </div>
+    <div class="sep" id="selSep" hidden></div>
+    <div class="group" id="selGroup" role="group" aria-label="Actions sur la sélection" hidden>
+      <button class="btn" id="dupTop" data-lb="Dupliquer" title="Duplique les objets choisis (Ctrl+D)">Dupliquer</button>
+      <button class="btn" id="mergeTop" data-lb="Fusionner" title="Réunit les formes sélectionnées en un seul objet (Ctrl+M). Sélectionnez-en au moins deux." disabled>Fusionner</button>
+      <button class="btn danger" id="delTop" data-lb="Supprimer" title="Supprime les objets choisis (touche Suppr)" disabled>Supprimer</button>
+    </div>
+  </div>
+
   <aside id="inspector" aria-label="Objets et propriétés">
+    <button class="btn" id="closeInspector" aria-label="Fermer la fiche de l’objet">✕</button>
     <section>
       <h2>Objets</h2>
       <div id="list"></div>
@@ -316,15 +483,15 @@ body.dock #bar .group{gap:3px}
     <section id="props" hidden>
       <p id="multiTitle" hidden></p>
       <div class="actions">
+        <button class="btn" id="dup" title="Ctrl+D">Dupliquer</button>
+        <button class="btn danger" id="del" title="Suppr">Supprimer</button>
         <button class="btn" id="grp" title="Ctrl+G" hidden>Grouper</button>
         <button class="btn" id="ungrp" title="Ctrl+Maj+G" hidden>Dégrouper</button>
         <button class="btn" id="mergeBtn" title="Réunit les formes sélectionnées en un seul objet (les négatifs sélectionnés sont creusés)" hidden>Fusionner</button>
-        <button class="btn" id="splitBtn" title="Coupe le modèle en parties qui tiennent sur le plateau de votre imprimante">Découper en parties</button>
-        <button class="btn" id="dup" title="Ctrl+D">Dupliquer</button>
         <button class="btn" id="drop">Poser sur le plateau</button>
         <button class="btn adv" id="alignZero" title="Place la sélection dans le coin avant gauche du plateau, le zéro de l'imprimante">Aligner au zéro</button>
         <button class="btn adv" id="centerBtn">Centrer sur le plateau</button>
-        <button class="btn danger" id="del" title="Suppr">Supprimer</button>
+        <button class="btn" id="splitBtn" title="Coupe le modèle en parties qui tiennent sur le plateau de votre imprimante">Découper en parties</button>
       </div>
       <div id="single">
       <div class="field"><label for="name">Nom</label><input type="text" id="name" autocomplete="off"></div>
@@ -425,13 +592,13 @@ body.dock #bar .group{gap:3px}
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <h2 id="helpTitle">Bienvenue dans Atelier 3D</h2>
     <ol class="steps">
-      <li><b>Ajoutez une forme</b><span>Touchez Cube, Sphère, Cylindre… dans la colonne des formes (en bas sur téléphone).</span></li>
+      <li><b>Ajoutez une forme</b><span>Touchez Cube, Sphère, Cylindre… dans la colonne de gauche (en bas sur téléphone).</span></li>
       <li><b>Choisissez-la</b><span>Touchez l'objet sur le plateau : il s'entoure d'un cadre.</span></li>
-      <li><b>Modifiez-la</b><span>Touchez Déplacer, Tourner ou Taille en haut, puis glissez les flèches de couleur. Le bouton Objet permet aussi de taper les dimensions en millimètres.</span></li>
+      <li><b>Modifiez-la</b><span>Touchez Déplacer, Tourner ou Taille dans la barre d'outils en bas du plateau, puis glissez les flèches de couleur. La fiche Objet permet aussi de taper les dimensions en millimètres.</span></li>
       <li><b>Combinez</b><span>Passez une forme en « Trou » pour creuser les autres. Pour en assembler plusieurs, choisissez-les puis touchez Fusionner.</span></li>
-      <li><b>Imprimez</b><span>Exporter crée un fichier 3MF ou STL pour votre imprimante 3D.</span></li>
+      <li><b>Imprimez</b><span>Exporter crée un fichier 3MF ou STL pour votre imprimante 3D. Le menu Projet enregistre votre travail pour le reprendre plus tard.</span></li>
     </ol>
-    <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ».</p>
+    <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer ; Dessus, Face et Côté (à droite du plateau) alignent la vue. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ».</p>
     <div class="actions"><button class="btn primary" data-close>C'est parti</button></div>
   </div>
 </div>
@@ -962,10 +1129,18 @@ function savePlates(){ try { localStorage.setItem(PLATES_KEY,String(plateCount))
 function plateX(k){ return k*(plate.w+PGAP); }
 function plateOfX(x){ return Math.max(0,Math.min(plateCount-1,Math.round(x/(plate.w+PGAP)))); }
 function plateOfObj(o){ var m = meshes[o.id]; if (!m) return 0; var b = primBox(o,m); return plateOfX((b.min.x+b.max.x)/2); }
-function frameView(){
+function frameView(anim){
   var span = plateCount*(plate.w+PGAP)-PGAP, k = Math.max(plate.w,plate.d,span*0.62)/200, cx = (plateCount-1)*(plate.w+PGAP)/2;
   orbit.maxDistance = 1200*Math.max(1,k);
-  camera.position.set(cx+95*k,80*k,125*k); orbit.target.set(cx,12*k,0); orbit.update();
+  var pos = new THREE.Vector3(cx+95*k,80*k,125*k), tgt = new THREE.Vector3(cx,12*k,0);
+  if (anim===true){ flyTo(pos,tgt); return; }
+  camera.position.copy(pos); orbit.target.copy(tgt); orbit.update();
+}
+/* Les changements de point de vue glissent doucement d'une position à l'autre */
+var fly = null;
+function flyTo(pos,tgt){
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ camera.position.copy(pos); orbit.target.copy(tgt); orbit.update(); wake(); return; }
+  fly = {t0:performance.now(),dur:380,p0:camera.position.clone(),q0:orbit.target.clone(),p1:pos,q1:tgt}; wake();
 }
 function seg(points,color,opacity){
   var m = new THREE.LineBasicMaterial({color:new THREE.Color(color),transparent:opacity<1,opacity:opacity});
@@ -984,7 +1159,7 @@ function buildPlate(){
     var one = onePlate(); one.position.x = plateX(pk); if (plateCount>1) one.add(plateLabel(pk+1)); grid.add(one);
   }
   scene.add(grid);
-  $('plate').textContent = (plate.name?plate.name+' · ':'')+(plateCount>1?plateCount+' plateaux de ':'Plateau ')+plate.w+' × '+plate.d+' mm · hauteur '+plate.h+' mm · carreau 10 mm · zéro au coin avant gauche';
+  $('plate').textContent = (plate.name?plate.name+' · ':'')+(plateCount>1?plateCount+' plateaux de ':'Plateau ')+plate.w+' × '+plate.d+' × '+plate.h+' mm · carreau 10 mm';
   $('platesBtn').textContent = 'Plateaux : '+plateCount;
 }
 function onePlate(){
@@ -1017,9 +1192,13 @@ try {
   new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 } catch(e){}
 
+function layoutVars(){
+  var r = document.documentElement.style;
+  r.setProperty('--bar-h',$('bar').offsetHeight+'px'); r.setProperty('--dockh',$('dock').offsetHeight+'px');
+}
 function resize(){
   var w = stage.clientWidth, h = stage.clientHeight; if (!w||!h) return;
-  renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); layoutVars(); wake();
 }
 if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize',resize);
 resize();
@@ -1168,15 +1347,14 @@ function updateGuide(){
   else if (n>1) t = n+' objets choisis : Fusionner les assemble en un seul, Supprimer les efface. Touchez-en d\u2019autres avec « Choisir plusieurs ».';
   else if (state.mode==='rotate') t = 'Glissez un des anneaux de couleur pour tourner l\u2019objet.';
   else if (state.mode==='scale') t = 'Glissez un des petits cubes de couleur pour changer la taille, ou tapez-la dans Objet.';
-  else t = 'Glissez l\u2019objet ou ses flèches pour le déplacer. Tourner et Taille sont en haut.';
+  else t = 'Glissez l\u2019objet ou ses flèches pour le déplacer. Tourner et Taille : barre d\u2019outils en bas.';
   $('hint').textContent = t;
 }
 /* ---------- Mode simple / expert ---------- */
 var LEVEL_KEY = 'atelier3d.level.v1';
 function setLevel(expert){
   document.body.classList.toggle('simple',!expert);
-  $('levelBtn').textContent = expert ? 'Mode simple' : 'Mode expert';
-  $('levelBtn').setAttribute('aria-pressed',String(expert));
+  ['levelBtn','levelBtn2'].forEach(function(id){ $(id).setAttribute('aria-pressed',String(expert)); });
   if (!expert){ if (erase) setErase(false); if (measure) setMeasure(false); if (draw && !draw.free) cancelDraw(); }
   try { localStorage.setItem(LEVEL_KEY,expert?'expert':'simple'); } catch(e){}
 }
@@ -1487,6 +1665,7 @@ function drawRefresh(){
   undoState(); planeUi(); planeUpdate();
   if (!draw) return;
   $('penWrap').hidden = !draw.free; $('fillWrap').hidden = !draw.free; $('drawUndo').hidden = !!draw.free;
+  $('drawTitle').textContent = draw.free ? 'Dessin 3D' : 'Tracé';
   if (draw.free){
     var k = draw.strokes.length;
     $('drawMsg').textContent = k ? k+(k>1?' traits : ils seront réunis en un seul objet. ':' trait. ')+'Changez de plan pour dessiner dans une autre direction, puis terminez. Annuler retire le dernier trait.'
@@ -1544,7 +1723,7 @@ $('planeOff').addEventListener('input',function(){
   if (!draw || !draw.free) return;
   draw.plane.off = +this.value; $('planeOffVal').textContent = Math.round(draw.plane.off*10)/10+' mm'; planeUpdate();
 });
-function hintVis(){ $('hint').style.visibility = (draw || paint || measure || erase || sculpt) ? 'hidden' : ''; }
+function hintVis(){ $('info').style.visibility = (draw || paint || measure || erase || sculpt) ? 'hidden' : ''; }
 function startDraw(free){
   free = free===true;
   if (draw){ var same = !!draw.free===free; cancelDraw(); if (same) return; }
@@ -2621,13 +2800,14 @@ function refreshUI(){
   var o = one();
   var n = state.sel.length, os = selObjs();
   $('props').hidden = n===0; $('single').hidden = !o; $('empty').hidden = n>0;
-  $('delTop').disabled = n===0;
+  $('delTop').disabled = n===0; $('selGroup').hidden = $('selSep').hidden = n===0;
   $('multiTitle').hidden = n<2; $('multiTitle').textContent = n+' objets sélectionnés';
   $('grp').hidden = n<2 || (os[0].g!=null && os.every(function(x){ return x.g===os[0].g; }));
   $('ungrp').hidden = !os.some(function(x){ return x.g!=null; });
   $('mergeBtn').hidden = n<2; $('mergeTop').disabled = n<2;
   $('multi').textContent = 'Choisir plusieurs'+(n>1?' ('+n+')':'');
-  $('selAll').textContent = state.objs.length && n===state.objs.length ? 'Tout enlever' : 'Tout choisir';
+  var allOn = state.objs.length && n===state.objs.length;
+  $('selAll').textContent = allOn ? 'Tout enlever' : 'Tout choisir'; $('selAll').dataset.lb = allOn ? 'Aucun' : 'Tout';
   updateGuide();
   $('empty').textContent = state.objs.length ? 'Touchez un objet sur le plateau pour le modifier, ou ajoutez une forme. Pour en choisir plusieurs, touchez « Choisir plusieurs » ou « Tout choisir ».' : 'Le plateau est vide. Ajoutez une forme pour commencer.';
   if (o){
@@ -2696,72 +2876,197 @@ $('splitGo').addEventListener('click',splitRun);
 $('selAll').addEventListener('click',selectAll);
 $('boxBtn').addEventListener('click',function(){ setBox(!boxOn); });
 $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; });
-$('levelBtn').addEventListener('click',function(){ setLevel(document.body.classList.contains('simple')); }); $('mergeTop').addEventListener('click',mergeSel);
+['levelBtn','levelBtn2'].forEach(function(id){ $(id).addEventListener('click',function(){ setLevel(document.body.classList.contains('simple')); }); }); $('mergeTop').addEventListener('click',mergeSel);
 
-/* ---------- Barre en icônes (effet « dock ») et adaptation à l'écran ---------- */
+/* ---------- Dock d'outils (icônes qui grossissent), menu du projet, points de vue, projets en fichier ---------- */
 (function(){
   var IC = {
     '[data-mode="translate"]':'<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>',
     '[data-mode="rotate"]':'<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/>',
     '[data-mode="scale"]':'<path d="M4 4h6M4 4v6M4 4l6 6M20 20h-6M20 20v-6M20 20l-6-6"/>',
+    '#multi':'<path d="M4 6l2 2 3-3M4 14l2 2 3-3M12 7h8M12 15h8"/>',
+    '#selAll':'<path d="M4 4h16v16H4z"/><path d="M8 12l3 3 5-6"/>',
+    '#boxBtn':'<path d="M4 4h4M10 4h4M16 4h4M4 20h4M10 20h4M16 20h4M4 4v4M4 10v4M4 16v4M20 4v4M20 10v4M20 16v4"/>',
+    '#snap':'<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>',
     '#measureBtn':'<path d="M3 15l12-12 6 6-12 12z"/><path d="M7 11l2 2M10 8l2 2M13 5l2 2"/>',
     '#eraseBtn':'<path d="M4 15l9-10 7 6-7 8H8z"/><path d="M9 19h11"/>',
     '#sculptBtn':'<path d="M5 18c-2-4 0-9 4-10 1-4 7-4 8 0 3 1 4 5 2 8-2 3-10 5-14 2z"/><path d="M9 14c2 1 4 1 6-1"/>',
     '#paintBtn':'<path d="M4 20c3 0 4-1 4-3a2 2 0 0 1 2-2 2 2 0 0 1 2 2c0 2-2 5-8 3z"/><path d="M11 15L20 5l-1-1-9 10"/>',
-    '#snap':'<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>',
-    '#multi':'<path d="M4 6l2 2 3-3M4 14l2 2 3-3M12 7h8M12 15h8"/>',
-    '#selAll':'<path d="M4 4h16v16H4z"/><path d="M8 12l3 3 5-6"/>',
-    '#boxBtn':'<path d="M4 4h4M10 4h4M16 4h4M4 20h4M10 20h4M16 20h4M4 4v4M4 10v4M4 16v4M20 4v4M20 10v4M20 16v4"/>',
-    '#frame':'<circle cx="12" cy="12" r="6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
-    '#printerBtn':'<path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/>',
-    '#platesBtn':'<path d="M3 8l9-4 9 4-9 4zM3 12l9 4 9-4M3 16l9 4 9-4"/>',
+    '#dupTop':'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/>',
     '#mergeTop':'<circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/>',
-    '#delTop':'<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/>'
+    '#delTop':'<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/>',
+    '#toggleInspector':'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'
   };
   var css = '', sel;
   for (sel in IC){
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+IC[sel]+'</svg>';
-    css += '#bar '+sel+'{--ic:url("data:image/svg+xml,'+encodeURIComponent(svg)+'")}\n';
-    var b = document.querySelector('#bar '+sel); if (b) b.setAttribute('data-ic','1');
+    css += (sel==='#toggleInspector' ? '' : '#dock ')+sel+'{--ic:url("data:image/svg+xml,'+encodeURIComponent(svg)+'")}\n';
   }
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   var tip = document.createElement('div'); tip.id = 'dockTip'; document.body.appendChild(tip);
-  var pref = null; try { pref = localStorage.getItem('atelier3d.dock'); } catch(e){}
-  function dockOn(){ return pref==='on' || (pref!=='off' && window.innerWidth<1500); }
-  function applyDock(){ var on = dockOn(); document.body.classList.toggle('dock',on); $('dockBtn').setAttribute('aria-pressed',String(on)); try { resize(); } catch(e){} }
-  $('dockBtn').addEventListener('click',function(){ pref = dockOn() ? 'off' : 'on'; try { localStorage.setItem('atelier3d.dock',pref); } catch(e){} applyDock(); });
-  window.addEventListener('resize',applyDock);
-  applyDock();
-  /* Grossissement façon dock : plus l'icône est proche du doigt ou du pointeur, plus elle grossit */
-  var items = [], tipFor = null;
+  var dock = $('dock'), shapes = $('shapes'), stageEl = $('stage');
+  var fine = window.matchMedia ? window.matchMedia('(hover:hover) and (pointer:fine)') : {matches:true};
+
+  /* Noms sous les icônes : par défaut sur écran tactile, au choix sur ordinateur */
+  var pref = null; try { pref = localStorage.getItem('atelier3d.labels'); } catch(e){}
+  function labelsOn(){ return pref==='on' || (pref!=='off' && !fine.matches); }
+  var fitting = false;
+  function fitDock(){
+    if (fitting) return; fitting = true;
+    dock.classList.remove('scroll');
+    if (dock.scrollWidth>dock.clientWidth+1) dock.classList.add('scroll');
+    layoutVars(); fitting = false;
+  }
+  function applyLabels(){ var on = labelsOn(); document.body.classList.toggle('labels',on); $('dockBtn').setAttribute('aria-pressed',String(on)); fitDock(); }
+  $('dockBtn').addEventListener('click',function(){ pref = labelsOn() ? 'off' : 'on'; try { localStorage.setItem('atelier3d.labels',pref); } catch(e){} applyLabels(); });
+  window.addEventListener('resize',fitDock);
+  if (window.ResizeObserver){ new ResizeObserver(fitDock).observe(stageEl); new ResizeObserver(fitDock).observe(dock); }
+  applyLabels();
+
+  /* Noms des plans de dessin : courts sur petit écran */
+  var PLANE_LONG = {sol:'Sol : largeur × profondeur',face:'Face : largeur × hauteur',cote:'Côté : profondeur × hauteur',surface:'Sur les objets'}, PLANE_SHORT = {sol:'Sol',face:'Face',cote:'Côté',surface:'Sur les objets'};
+  var smallQ = window.matchMedia ? window.matchMedia('(max-width:760px), (max-height:520px)') : {matches:false};
+  function planeLabels(){ Array.prototype.forEach.call($('drawPlane').options,function(o){ o.textContent = (smallQ.matches ? PLANE_SHORT : PLANE_LONG)[o.value]; }); }
+  window.addEventListener('resize',planeLabels); planeLabels();
+
+  /* Grossissement façon dock : plus l'icône est proche du pointeur, plus elle grossit (souris uniquement) */
+  var items = [];
   function reset(){ items.forEach(function(b){ b.style.transform = ''; b.style.zIndex = ''; }); items = []; tip.classList.remove('on'); }
-  function magnify(root,sel,e,max){
-    var list = Array.prototype.slice.call(root.querySelectorAll(sel)).filter(function(b){ return b.offsetParent!==null; });
+  function visible(root,q){ return Array.prototype.slice.call(root.querySelectorAll(q)).filter(function(b){ return b.offsetParent!==null; }); }
+  function mouseLike(e){ return !e.pointerType || e.pointerType==='mouse' || e.pointerType==='pen'; }
+  function magnifyDock(e){
+    if (!mouseLike(e) || !fine.matches || dock.classList.contains('scroll')){ reset(); return; }
+    var list = visible(dock,'.btn'), dr = dock.getBoundingClientRect();
+    if (e.clientY<dr.top-60 || e.clientY>dr.bottom+8){ reset(); return; }
     var best = null, bs = 1;
     list.forEach(function(b){
-      var r = b.getBoundingClientRect(), cx = r.left+r.width/2, cy = r.top+r.height/2, d = Math.hypot(e.clientX-cx,e.clientY-cy), R = Math.max(r.width,r.height)*2.2;
-      var k = Math.max(0,1-d/R), sc = 1+(max-1)*k*k;
+      var r = b.getBoundingClientRect(), cx = r.left+r.width/2, d = Math.abs(e.clientX-cx), R = b.offsetWidth*2.6;
+      var k = Math.max(0,1-d/R), sc = 1+0.75*k*k;
       b.style.transform = sc>1.01 ? 'scale('+sc.toFixed(3)+')' : ''; b.style.zIndex = sc>1.01 ? String(Math.round(sc*10)) : '';
       if (sc>bs){ bs = sc; best = b; }
     });
     items = list;
-    if (best && bs>1.25 && root.id==='bar'){
-      var r2 = best.getBoundingClientRect(), t = (best.getAttribute('title')||'').split(/[.(]/)[0]; var lab = best.textContent.trim() || t;
-      tip.textContent = lab; tip.style.left = (r2.left+r2.width/2)+'px'; tip.style.top = (r2.bottom+bs*4+6)+'px'; tip.classList.add('on');
+    if (best && bs>1.3){
+      var r2 = best.getBoundingClientRect();
+      tip.textContent = best.textContent.trim(); tip.style.left = (r2.left+r2.width/2)+'px'; tip.style.top = Math.max(4,r2.top-34)+'px'; tip.classList.add('on');
     } else tip.classList.remove('on');
   }
-  var bar = $('bar'), shapes = $('shapes');
-  bar.addEventListener('pointermove',function(e){ if (document.body.classList.contains('dock')) magnify(bar,'.btn[data-ic]',e,1.7); });
-  bar.addEventListener('pointerleave',reset); bar.addEventListener('pointerup',function(e){ if (e.pointerType!=='mouse') setTimeout(reset,350); });
-  shapes.addEventListener('pointermove',function(e){ magnify(shapes,'.shape',e,1.45); });
-  shapes.addEventListener('pointerleave',reset); shapes.addEventListener('pointerup',function(e){ if (e.pointerType!=='mouse') setTimeout(reset,350); });
+  function magnifyShapes(e){
+    if (!mouseLike(e) || !fine.matches){ reset(); return; }
+    var list = visible(shapes,'.shape');
+    list.forEach(function(b){
+      var r = b.getBoundingClientRect(), cx = r.left+r.width/2, cy = r.top+r.height/2, d = Math.hypot(e.clientX-cx,e.clientY-cy), R = Math.max(b.offsetWidth,b.offsetHeight)*2.2;
+      var k = Math.max(0,1-d/R), sc = 1+0.4*k*k;
+      b.style.transform = sc>1.01 ? 'scale('+sc.toFixed(3)+')' : ''; b.style.zIndex = sc>1.01 ? String(Math.round(sc*10)) : '';
+    });
+    items = list;
+  }
+  dock.addEventListener('pointermove',magnifyDock); dock.addEventListener('pointerleave',reset);
+  shapes.addEventListener('pointermove',magnifyShapes); shapes.addEventListener('pointerleave',reset);
+
+  /* Menu du projet */
+  var menu = $('menu'), menuBtn = $('menuBtn');
+  function menuClose(){ if (menu.hidden) return; menu.hidden = true; menuBtn.setAttribute('aria-expanded','false'); }
+  function menuOpen(kbd){
+    menu.hidden = false; menuBtn.setAttribute('aria-expanded','true');
+    if (kbd){ var f = visible(menu,'button')[0]; if (f) f.focus(); }
+  }
+  menuBtn.addEventListener('click',function(e){ if (menu.hidden) menuOpen(e.detail===0); else menuClose(); });
+  menu.addEventListener('click',function(e){ if (e.target.closest && e.target.closest('button')) setTimeout(menuClose,0); });
+  document.addEventListener('pointerdown',function(e){ if (!menu.hidden && !menu.contains(e.target) && !menuBtn.contains(e.target)) menuClose(); },true);
+  window.addEventListener('keydown',function(e){
+    if (menu.hidden) return;
+    if (e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); menuClose(); menuBtn.focus(); }
+    else if (e.key==='ArrowDown' || e.key==='ArrowUp'){
+      var its = visible(menu,'button'), i = its.indexOf(document.activeElement); e.preventDefault();
+      i = e.key==='ArrowDown' ? (i+1)%its.length : (i<=0 ? its.length-1 : i-1); its[i].focus();
+    }
+  },true);
+  $('helpTop').addEventListener('click',function(){ $('helpDlg').hidden = false; });
+
+  /* Points de vue : 3D, dessus, face, côté (sur la sélection s'il y en a une, sinon sur tous les objets) */
+  var viewBtns = ['frame','vTop','vFront','vSide'].map($);
+  function viewMark(id){ viewBtns.forEach(function(b){ b.setAttribute('aria-pressed',String(b.id===id)); }); }
+  function focusBox(){
+    var b = new THREE.Box3(), any = false, list = state.sel.length ? selObjs() : state.objs;
+    list.forEach(function(o){ var m = meshes[o.id]; if (!m || (o.hole && !state.sel.length)) return; b.union(primBox(o,m)); any = true; });
+    return any ? b : null;
+  }
+  function viewPreset(kind){
+    var bb = focusBox(), c, sz;
+    if (bb){ c = bb.getCenter(new THREE.Vector3()); sz = bb.getSize(new THREE.Vector3()); }
+    else { c = new THREE.Vector3((plateCount-1)*(plate.w+PGAP)/2,plate.h*0.12,0); sz = new THREE.Vector3(plateCount*(plate.w+PGAP)-PGAP,plate.h*0.25,plate.d); }
+    var tn = Math.tan(camera.fov*Math.PI/360), a = Math.max(0.4,camera.aspect), hw, hh, depth, dir;
+    if (kind==='top'){ hw = sz.x; hh = sz.z; depth = sz.y; dir = new THREE.Vector3(0,1,0.0004); }
+    else if (kind==='front'){ hw = sz.x; hh = sz.y; depth = sz.z; dir = new THREE.Vector3(0,0,1); }
+    else { hw = sz.z; hh = sz.y; depth = sz.x; dir = new THREE.Vector3(1,0,0); }
+    hw = Math.max(hw,40); hh = Math.max(hh,40);
+    var D = Math.max(hh*1.3/2/tn,hw*1.3/2/(tn*a))+depth/2;
+    D = Math.min(Math.max(D,orbit.minDistance+5),orbit.maxDistance*0.95);
+    orbit.maxDistance = Math.max(orbit.maxDistance,D*1.05);
+    flyTo(c.clone().addScaledVector(dir.normalize(),D),c);
+  }
+  [['vTop','top'],['vFront','front'],['vSide','side']].forEach(function(p){ $(p[0]).addEventListener('click',function(){ viewPreset(p[1]); viewMark(p[0]); }); });
+  $('frame').addEventListener('click',function(){ frameView(true); viewMark('frame'); });
+  orbit.addEventListener('start',function(){ viewMark(null); });
+
+  /* Projets : un fichier .atelier3d garde les formes, les couleurs et les modèles importés */
+  function f32b64(a){
+    var u = new Uint8Array(a.buffer,a.byteOffset,a.byteLength), s = '', i;
+    for (i=0;i<u.length;i+=0x8000) s += String.fromCharCode.apply(null,u.subarray(i,i+0x8000));
+    return btoa(s);
+  }
+  function b64f32(s){
+    var bin = atob(s), u = new Uint8Array(bin.length), i;
+    for (i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i);
+    return new Float32Array(u.buffer);
+  }
+  $('saveProj').addEventListener('click',function(){
+    if (!state.objs.length){ toast('Le plateau est vide : rien à enregistrer.'); return; }
+    var data = {app:'atelier3d',v:1,saved:new Date().toISOString(),plate:{w:plate.w,d:plate.d,h:plate.h,name:plate.name},plates:plateCount,objs:state.objs,meshes:{}};
+    state.objs.forEach(function(o){ if (o.type==='mesh' && MESH[o.mid] && !data.meshes[o.mid]) data.meshes[o.mid] = f32b64(MESH[o.mid].geo.attributes.position.array); });
+    saveFile('projet-'+new Date().toISOString().slice(0,10)+'.atelier3d',new TextEncoder().encode(JSON.stringify(data)));
+  });
+  $('openProj').addEventListener('click',function(){ $('openFile').value = ''; $('openFile').click(); });
+  $('openFile').addEventListener('change',function(){ if (this.files && this.files[0]) openProject(this.files[0]); });
+  function openProject(file){
+    if (file.size>800*1024*1024){ toast('Ce fichier dépasse 800 Mo : il est trop lourd pour l’app.'); return; }
+    var rd = new FileReader();
+    rd.onerror = function(){ toast('Le fichier n’a pas pu être lu.'); };
+    rd.onload = function(){
+      var d = null; try { d = JSON.parse(rd.result); } catch(e){}
+      if (!d || d.app!=='atelier3d' || !validObjs(d.objs)){ toast('Ce fichier n’est pas un projet Atelier 3D.'); return; }
+      try {
+        Object.keys(d.meshes||{}).forEach(function(mid){
+          if (MESH[mid]) return;
+          var arr = b64f32(d.meshes[mid]); if (arr.length<9) return;
+          saveMesh(mid,arr.slice(0)); MESH[mid] = meshFromPositions(arr);
+        });
+        var objs = d.objs.filter(function(o){ return o.type!=='mesh' || MESH[o.mid]; });
+        if (draw) cancelDraw(); if (measure) setMeasure(false); if (erase) setErase(false); if (paint) setPaint(false); if (sculpt) setSculpt(false);
+        var pl = d.plate;
+        if (pl && [pl.w,pl.d,pl.h].every(function(v){ return typeof v==='number' && v>=20 && v<=2000; })){
+          plate = {w:pl.w,d:pl.d,h:pl.h,name:String(pl.name||'')}; try { localStorage.setItem(PLATE_KEY,JSON.stringify(plate)); } catch(e){}
+        }
+        plateCount = Math.max(1,Math.min(MAXP,parseInt(d.plates,10)||1));
+        objs.forEach(function(o){ if (!o.hole) plateCount = Math.min(MAXP,Math.max(plateCount,Math.round(o.p[0]/(plate.w+PGAP))+1)); });
+        savePlates(); state.objs = objs; state.sel = [];
+        buildPlate(); rebuild(); commit(); frameView();
+        toast(objs.length<d.objs.length ? 'Projet ouvert, mais un modèle importé manquait dans le fichier.' : 'Projet ouvert. Touchez Annuler pour retrouver l’ancien.');
+      } catch(e){ toast('Ce projet n’a pas pu être ouvert.'); }
+    };
+    rd.readAsText(file);
+  }
 })();
 $('multi').addEventListener('click',function(){ state.multi = !state.multi; this.setAttribute('aria-pressed',String(state.multi)); updateGuide();
   toast(state.multi ? 'Touchez les objets un par un : chacun s\u2019ajoute à la sélection.' : 'Un objet à la fois.'); });
 $('dup').addEventListener('click',duplicate); $('del').addEventListener('click',remove); $('delTop').addEventListener('click',remove); $('drop').addEventListener('click',dropToPlate);
-$('toggleInspector').addEventListener('click',function(){
-  var open = $('inspector').classList.toggle('open'); this.setAttribute('aria-expanded',String(open));
-});
+function showInspector(open){
+  $('inspector').classList.toggle('open',open); $('toggleInspector').setAttribute('aria-expanded',String(open)); $('toggleInspector').setAttribute('aria-pressed',String(open));
+}
+$('toggleInspector').addEventListener('click',function(){ showInspector(!$('inspector').classList.contains('open')); });
+$('closeInspector').addEventListener('click',function(){ showInspector(false); });
+$('dupTop').addEventListener('click',duplicate);
 window.addEventListener('keydown',function(e){
   var t = e.target.tagName; if (t==='INPUT'||t==='TEXTAREA') return;
   var k = e.key.toLowerCase(), mod = e.ctrlKey||e.metaKey;
@@ -3117,8 +3422,21 @@ function start(){
 })();
 try { if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function(){ return {objs:state.objs}; }); } catch(e){}
 
-(function loop(){
+/* Rendu économe : plein régime tant qu'on touche l'écran, quelques images par seconde ensuite (batterie du téléphone) */
+var lastAct = performance.now(), lastDraw = 0;
+function wake(){ lastAct = performance.now(); }
+['pointerdown','pointermove','pointerup','wheel','keydown','touchstart','input','change','click'].forEach(function(t){ window.addEventListener(t,wake,{passive:true,capture:true}); });
+canvas.addEventListener('pointerdown',function(){ fly = null; });
+(function loop(now){
   requestAnimationFrame(loop);
+  now = performance.now();
+  if (!fly && now-lastAct>1500 && now-lastDraw<250) return;
+  lastDraw = now;
+  if (fly){
+    var k = Math.min(1,(now-fly.t0)/fly.dur), e = 1-Math.pow(1-k,3);
+    camera.position.lerpVectors(fly.p0,fly.p1,e); orbit.target.lerpVectors(fly.q0,fly.q1,e);
+    if (k>=1) fly = null;
+  }
   orbit.update();
   if (helper.visible) helper.update();
   renderer.render(scene,camera);
