@@ -1233,7 +1233,7 @@ function applyInsets(snap){
   if (snap){ vo.cur = vo.tgt; setVO(); }
   wake();
 }
-/* Un objet qu'on vient de créer (au « zéro » du plateau, par exemple) doit se voir : s'il est hors du cadre, la caméra glisse jusqu'à lui */
+/* Un objet qu'on vient de créer (au « zéro » du plateau, par exemple) doit se voir en entier : sinon la caméra glisse jusqu'à lui, en reculant si besoin */
 function ensureVisible(){
   var W = stage.clientWidth, H = stage.clientHeight, b = new THREE.Box3(), any = false;
   if (!W||!H) return;
@@ -1242,9 +1242,14 @@ function ensureVisible(){
   camera.updateMatrixWorld(true);
   var c = b.getCenter(new THREE.Vector3()), v = c.clone().project(camera), ins = freeInsets();
   var fh = Math.max(40,H-ins.top-ins.bot), fx = v.x, fy = ((1-v.y)/2*H-(ins.top+fh/2))/(fh/2);
-  if (v.z<1 && Math.abs(fx)<0.7 && Math.abs(fy)<0.75) return;
-  flyTo(camera.position.clone().add(c.clone().sub(orbit.target)),c);
+  var tn = Math.tan(camera.fov*Math.PI/360), lim = Math.min(tn*Math.max(0.3,vo.free),tn*Math.max(0.4,camera.aspect))*0.9;
+  var need = b.getSize(new THREE.Vector3()).length()*0.5/Math.sin(Math.atan(lim));
+  var off = camera.position.clone().sub(orbit.target), cur = off.length();
+  if (v.z<1 && Math.abs(fx)<0.7 && Math.abs(fy)<0.75 && cur>=need) return;
+  flyTo(c.clone().addScaledVector(off.normalize(),Math.min(Math.max(cur,need),orbit.maxDistance*0.95)),c);
 }
+/* Après un dessin, la caméra reprend sa vue d'avant ; si le nouvel objet n'y est pas dans le cadre, elle glisse ensuite jusqu'à lui */
+function showNewObject(){ if (fly) fly.after = ensureVisible; else ensureVisible(); }
 function resize(){
   var w = stage.clientWidth, h = stage.clientHeight; if (!w||!h) return;
   renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); layoutVars(); applyInsets(true); wake();
@@ -1950,7 +1955,7 @@ function finishPen(){
     if (!pos.length){ toast('Le dessin est vide.'); return; }
     var n = state.objs.filter(function(o){ return /^Dessin /.test(o.name); }).length+1;
     draw.strokes.concat(draw.redo).forEach(dropStroke); (draw.fills||[]).forEach(function(m){ scene.remove(m); }); draw = null; drawRefresh();
-    var o = addMeshObject(pos,'Dessin '+n); state.sel = [o.id]; rebuild(); commit();
+    var o = addMeshObject(pos,'Dessin '+n); state.sel = [o.id]; rebuild(); commit(); showNewObject();
     toast('Dessin transformé en objet 3D.');
   } catch(e){ toast('Le dessin n’a pas pu être transformé en objet.'); }
 }
@@ -2157,7 +2162,7 @@ function finishDraw(){
   var o = {id:nextId++,type:'poly',name:'Tracé '+n,color:COLORS[state.objs.length%COLORS.length],
     pts:pts.map(function(p){ return [Math.round((p[0]-cx)*10)/10,Math.round((p[1]-cz)*10)/10]; }),p:[cx,5,cz],r:[0,0,0],s:[1,10,1]};
   if (state.neg) o.hole = true;
-  state.objs.push(o); state.sel = [o.id]; draw = null; drawRefresh(); rebuild(); commit();
+  state.objs.push(o); state.sel = [o.id]; draw = null; drawRefresh(); rebuild(); commit(); showNewObject();
   toast('Forme créée, haute de 10 mm. Changez sa hauteur dans les dimensions.');
 }
 
@@ -3522,7 +3527,7 @@ canvas.addEventListener('pointerdown',function(){ fly = null; });
   if (fly){
     var k = Math.min(1,(now-fly.t0)/fly.dur), e = 1-Math.pow(1-k,3);
     camera.position.lerpVectors(fly.p0,fly.p1,e); orbit.target.lerpVectors(fly.q0,fly.q1,e);
-    if (k>=1) fly = null;
+    if (k>=1){ var fin = fly.after; fly = null; if (fin) fin(); }
   }
   if (vo.cur!==vo.tgt){ var dv = vo.tgt-vo.cur; vo.cur = Math.abs(dv)<0.6 ? vo.tgt : vo.cur+dv*0.3; setVO(); lastAct = now; }
   orbit.update();
