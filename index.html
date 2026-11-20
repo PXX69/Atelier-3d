@@ -133,7 +133,7 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 .opts-fold{padding:0;width:2.4em;min-height:2.4em;display:inline-flex;align-items:center;justify-content:center;flex:none}
 .opts-fold[aria-pressed=true]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 #drawBar:not(.free) .opts-fold{display:none}
-#drawBar.free.min .opts-ctrl,#drawBar.free.min #drawMsg{display:none}
+#drawBar.free.min #drawMsg,#drawBar.free.min #penTabs,#drawBar.free.min .dpanel{display:none}
 .opts-title{grid-area:title;font-family:var(--display);font-weight:700;font-size:1.08em;letter-spacing:-.01em;white-space:nowrap}
 .opts-ctrl{grid-area:ctrl;display:flex;flex-wrap:wrap;align-items:center;gap:.5em 1em;min-width:0}
 .opts-end{grid-area:end;display:flex;gap:.4em;align-items:center}
@@ -143,6 +143,29 @@ ol.steps li span{color:var(--muted);font-size:13px;line-height:1.4}
 #drawBar .opts-top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title end" "ctrl ctrl"}
 #planeWrap{display:contents}#drawPlane{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;max-width:100%}#planeOff{width:120px}#planeOffVal{font-family:var(--mono);font-weight:500;min-width:52px}
 #fillWrap{display:contents}#penFillT{width:110px}#penFillTVal{font-family:var(--mono);font-weight:500;min-width:48px}
+/* Boîte à outils du dessin : outils, réglages par groupes (Trait, Remplissage, Plan, Aides) */
+.free-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:.5em .9em;width:100%}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg);flex:none}
+.seg .btn{border:0;border-radius:0;min-height:2.4em;padding:0 .65em;display:inline-flex;align-items:center;justify-content:center;gap:.4em;background:transparent}
+.seg .btn+.btn{border-left:1px solid var(--line)}
+.seg .btn[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.seg .btn svg{flex:none}
+.stylusBtn{display:inline-flex;align-items:center;gap:.4em;padding:0 .7em}
+.dpanel{display:flex;flex-wrap:wrap;align-items:center;gap:.4em .9em;width:100%}
+.dpanel .cap{font-size:.66em;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;min-width:6.4em}
+#penTabs{display:inline-flex}
+.dpanel:not(.on){display:none}
+.dpanel .cap{display:none}
+#drawBar.narrow .seg .tl,#drawBar.narrow .stylusBtn .tl{display:none}
+#drawBar.narrow #penTools .btn[aria-pressed="true"] .tl{display:inline}
+#drawBar.narrow .seg .btn{padding:0 .55em}
+#drawBar.tight #penStyle .tl{display:none}
+.opts-end .stylusBtn{padding:0 .6em}
+@media (max-width:700px){.opts-end .stylusBtn .tl{display:none}}
+#penSizeR{width:110px}#penSmooth{width:100px}
+#penSmoothVal{font-family:var(--mono);font-weight:500;min-width:40px}
+#penSym,#penGrid{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit}
+#drawChip{position:absolute;z-index:6;pointer-events:none;background:var(--ink);color:var(--panel);font:600 .86em var(--mono);padding:.25em .6em;border-radius:7px;white-space:nowrap;box-shadow:var(--lift);transform:translate(-50%,-135%)}
 #measureMsg{font-variant-numeric:tabular-nums;font-size:1.05em}
 .check .num{width:72px}
 #eraseSize{width:140px}
@@ -312,6 +335,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
   .menu button{min-height:46px}
   .item{min-height:44px}
   .opts-ctrl .check input[type=checkbox]{width:22px;height:22px}
+  .seg .btn,.stylusBtn{min-height:44px}
 }
 </style>
 </head>
@@ -382,15 +406,53 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
         <div class="opts-titlebox"><b class="opts-title" id="drawTitle">Dessin 3D</b>
           <button type="button" class="btn opts-fold" id="drawFold" aria-pressed="true" aria-label="Réglages du dessin" title="Masquer les réglages"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h8M14 5h2M2 13h2M8 13h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="12" cy="5" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="13" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button></div>
         <div class="opts-ctrl">
-          <span id="planeWrap" hidden>
-            <select id="drawPlane" aria-label="Plan de dessin"><option value="sol">Sol : largeur × profondeur</option><option value="face">Face : largeur × hauteur</option><option value="cote">Côté : profondeur × hauteur</option><option value="surface">Sur les objets</option></select>
-            <button class="btn" id="drawView" title="Recadre la vue pour voir tout le plan">Voir<span class="lg"> tout le plan</span></button>
-            <label class="check" id="planeOffWrap">Position <input type="range" id="planeOff" min="0" max="200" step="1" value="2"> <b id="planeOffVal">2 mm</b></label>
-          </span>
-          <span id="fillWrap" class="group"><label class="check"><input type="checkbox" id="penFill" checked><span>Remplir<span class="lg"> les traits fermés</span></span></label>
-            <label class="check" title="Épaisseur de la zone remplie : elle devient un volume">Épaisseur <input type="range" id="penFillT" min="2" max="100" step="1" value="10"> <b id="penFillTVal">10 mm</b></label>
-            <label class="check" title="Avec des remplissages dans plusieurs plans (sol, face, côté), garde seulement le volume commun, comme des vues de dessus, de face et de côté"><input type="checkbox" id="penVol"><span>Volume<span class="lg"> entre les plans</span></span></label></span>
-          <label class="check" id="penWrap" hidden><span><span class="lg">Épaisseur du </span>Trait</span> <span class="num"><input type="number" id="penSize" min="1" max="40" step="0.5" value="4" aria-label="Épaisseur du trait en mm"></span> mm</label>
+          <div id="freeCtl" class="free-ctl" hidden>
+            <div class="seg" id="penTools" role="group" aria-label="Outil de dessin">
+              <button type="button" class="btn" data-pt="pen" aria-pressed="true" title="Crayon : dessinez à main levée"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 17.5c2.5-7 4.5-1 7-6s4-6.5 10-6.5"/></svg><span class="tl">Crayon</span></button>
+              <button type="button" class="btn" data-pt="line" aria-pressed="false" title="Ligne droite : glissez d’un point à l’autre"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.5" fill="currentColor"/><circle cx="19" cy="5" r="1.5" fill="currentColor"/></svg><span class="tl">Ligne</span></button>
+              <button type="button" class="btn" data-pt="rect" aria-pressed="false" title="Rectangle ou carré : glissez d’un coin à l’autre"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6.5" width="16" height="11" rx="1.2"/></svg><span class="tl">Rectangle</span></button>
+              <button type="button" class="btn" data-pt="oval" aria-pressed="false" title="Ovale ou cercle : glissez d’un coin à l’autre"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="8.5" ry="6"/></svg><span class="tl">Ovale</span></button>
+              <button type="button" class="btn" data-pt="del" aria-pressed="false" title="Gomme : touchez un trait pour le retirer"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 13.5l7-7a2 2 0 012.8 0l3.2 3.2a2 2 0 010 2.8l-6 6H9.5l-4-4a2 2 0 010-1z"/><path d="M9 20.5h11"/></svg><span class="tl">Gomme</span></button>
+            </div>
+            <button type="button" class="btn stylusBtn" id="penStylus" aria-pressed="false" hidden title="Mode stylet : le stylet dessine, les doigts déplacent la vue 3D"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2 2 0 012.8 0l.2.2a2 2 0 010 2.8L8 19z"/><path d="M14.5 6.5l3 3"/></svg><span class="tl">Stylet</span></button>
+            <div class="seg" id="penTabs" role="group" aria-label="Réglages du dessin">
+              <button type="button" class="btn" data-tab="trait" aria-pressed="true">Trait</button>
+              <button type="button" class="btn" data-tab="fill" aria-pressed="false">Remplissage</button>
+              <button type="button" class="btn" data-tab="plane" aria-pressed="false">Plan</button>
+              <button type="button" class="btn" data-tab="aids" aria-pressed="false">Aides</button>
+            </div>
+            <div class="dpanel on" data-panel="trait"><b class="cap">Trait</b>
+              <label class="check" title="Largeur du trait en millimètres"><span>Largeur</span> <input type="range" id="penSizeR" min="1" max="40" step="0.5" value="4" aria-label="Largeur du trait"> <span class="num"><input type="number" id="penSize" min="1" max="40" step="0.5" value="4" aria-label="Largeur du trait en mm"></span> mm</label>
+              <div class="seg" id="penStyle" role="group" aria-label="Style du trait">
+                <button type="button" class="btn" data-ps="solid" aria-pressed="true" title="Trait plein"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16" stroke-width="4.2"/></svg><span class="tl">Plein</span></button>
+                <button type="button" class="btn" data-ps="taper" aria-pressed="false" title="Trait effilé : fin aux deux bouts, comme un pinceau"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c5-4.6 13-4.6 18 0-5 4.6-13 4.6-18 0z" fill="currentColor"/></svg><span class="tl">Effilé</span></button>
+                <button type="button" class="btn" data-ps="dash" aria-pressed="false" title="Tirets"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4M10 12h4M17 12h4" stroke-width="3.4"/></svg><span class="tl">Tirets</span></button>
+                <button type="button" class="btn" data-ps="dot" aria-pressed="false" title="Points"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.9" fill="currentColor"/><circle cx="12" cy="12" r="1.9" fill="currentColor"/><circle cx="19" cy="12" r="1.9" fill="currentColor"/></svg><span class="tl">Points</span></button>
+              </div>
+              <div class="seg" id="penProf" role="group" aria-label="Forme du trait">
+                <button type="button" class="btn" data-pf="round" aria-pressed="true" title="Rond : un tube arrondi, comme un fil"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6.5"/></svg><span class="tl">Rond</span></button>
+                <button type="button" class="btn" data-pf="flat" aria-pressed="false" title="Plat : une bande plate à dessous plan, de l’épaisseur réglée dans Remplissage"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9" width="17" height="6" rx="1.2"/></svg><span class="tl">Plat</span></button>
+              </div>
+              <label class="check" id="penPressWrap" hidden title="Le stylet appuie plus fort = trait plus large"><input type="checkbox" id="penPress" checked><span>Pression<span class="lg"> du stylet</span></span></label>
+            </div>
+            <div class="dpanel" data-panel="fill"><b class="cap">Remplissage</b>
+              <label class="check" title="Les formes fermées dessinées ensuite sont remplies. Décochez pour dessiner seulement le contour."><input type="checkbox" id="penFill" checked><span>Remplir<span class="lg"> les prochaines formes</span></span></label>
+              <label class="check" title="Épaisseur de la matière, pour toutes les zones remplies et tous les traits plats du dessin"><span>Épaisseur</span> <input type="range" id="penFillT" min="2" max="100" step="1" value="10"> <b id="penFillTVal">10 mm</b></label>
+              <label class="check" title="Avec des remplissages dans plusieurs plans (sol, face, côté), garde seulement le volume commun, comme des vues de dessus, de face et de côté"><input type="checkbox" id="penVol"><span>Volume<span class="lg"> entre les plans</span></span></label>
+            </div>
+            <div class="dpanel" data-panel="plane"><b class="cap">Plan</b>
+              <span id="planeWrap">
+                <select id="drawPlane" aria-label="Plan de dessin"><option value="sol">Sol : largeur × profondeur</option><option value="face">Face : largeur × hauteur</option><option value="cote">Côté : profondeur × hauteur</option><option value="surface">Sur les objets</option></select>
+                <button class="btn" id="drawView" title="Recadre la vue pour voir tout le plan">Voir<span class="lg"> tout le plan</span></button>
+                <label class="check" id="planeOffWrap">Position <input type="range" id="planeOff" min="0" max="200" step="1" value="2"> <b id="planeOffVal">2 mm</b></label>
+              </span>
+            </div>
+            <div class="dpanel" data-panel="aids"><b class="cap">Aides</b>
+              <label class="check" title="Adoucit les tremblements du trait à main levée"><span>Lissage</span> <input type="range" id="penSmooth" min="0" max="100" step="5" value="35"> <b id="penSmoothVal">35 %</b></label>
+              <label class="check" title="Dessine aussi le trait en miroir, de l’autre côté de l’axe au centre du plateau"><span>Symétrie</span> <select id="penSym" aria-label="Symétrie"><option value="0">Aucune</option><option value="v">Gauche ↔ droite</option><option value="h">Haut ↕ bas</option><option value="vh">Les deux</option></select></label>
+              <label class="check" title="Les formes (ligne, rectangle, ovale) se calent sur une grille"><span>Grille</span> <select id="penGrid" aria-label="Grille magnétique"><option value="0">Libre</option><option value="1">1 mm</option><option value="5">5 mm</option><option value="10">10 mm</option></select></label>
+            </div>
+          </div>
         </div>
         <div class="opts-end">
           <button class="btn" id="drawUndo">Retirer le dernier point</button>
@@ -404,7 +466,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
       <div class="opts-top">
         <b class="opts-title">Gomme</b>
         <div class="opts-ctrl"><label class="check" for="eraseSize">Taille <input type="range" id="eraseSize" min="1" max="80" step="1" value="10"> <b id="eraseVal">10 mm</b></label></div>
-        <div class="opts-end"><button class="btn primary" id="eraseDone">Terminer</button></div>
+        <div class="opts-end"><button type="button" class="btn stylusBtn" aria-pressed="false" hidden title="Mode stylet : le stylet dessine, les doigts déplacent la vue 3D"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2 2 0 012.8 0l.2.2a2 2 0 010 2.8L8 19z"/><path d="M14.5 6.5l3 3"/></svg><span class="tl">Stylet</span></button><button class="btn primary" id="eraseDone">Terminer</button></div>
       </div>
       <p class="opts-msg">Glissez sur un modèle pour effacer de la matière. Glissez à côté pour tourner la vue.</p>
     </div>
@@ -421,7 +483,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
           <label class="check" for="sculptSize">Taille <input type="range" id="sculptSize" min="4" max="100" step="1" value="24"> <b id="sculptVal">24 mm</b></label>
           <label class="check" for="sculptForce">Force <input type="range" id="sculptForce" min="1" max="10" step="1" value="4"> <b id="sculptFVal">4</b></label>
         </div>
-        <div class="opts-end"><button class="btn primary" id="sculptDone">Terminer</button></div>
+        <div class="opts-end"><button type="button" class="btn stylusBtn" aria-pressed="false" hidden title="Mode stylet : le stylet dessine, les doigts déplacent la vue 3D"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2 2 0 012.8 0l.2.2a2 2 0 010 2.8L8 19z"/><path d="M14.5 6.5l3 3"/></svg><span class="tl">Stylet</span></button><button class="btn primary" id="sculptDone">Terminer</button></div>
       </div>
       <p class="opts-msg">Glissez sur un objet pour le modeler. Glissez à côté pour tourner la vue.</p>
     </div>
@@ -447,7 +509,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
           <label class="check" id="paintTolWrap" for="paintTol" hidden>Tolérance <input type="range" id="paintTol" min="3" max="180" step="1" value="30"> <b id="paintTolVal">30°</b></label>
           <div id="paintSw" class="group"></div>
         </div>
-        <div class="opts-end"><button class="btn primary" id="paintDone">Terminer</button></div>
+        <div class="opts-end"><button type="button" class="btn stylusBtn" aria-pressed="false" hidden title="Mode stylet : le stylet dessine, les doigts déplacent la vue 3D"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2 2 0 012.8 0l.2.2a2 2 0 010 2.8L8 19z"/><path d="M14.5 6.5l3 3"/></svg><span class="tl">Stylet</span></button><button class="btn primary" id="paintDone">Terminer</button></div>
       </div>
       <p class="opts-msg" id="paintMsg"></p>
     </div>
@@ -609,7 +671,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
       <li><b>Combinez</b><span>Passez une forme en « Trou » pour creuser les autres. Pour en assembler plusieurs, choisissez-les puis touchez Fusionner.</span></li>
       <li><b>Imprimez</b><span>Exporter crée un fichier 3MF ou STL pour votre imprimante 3D. Le menu Projet enregistre votre travail pour le reprendre plus tard.</span></li>
     </ol>
-    <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer ; Dessus, Face et Côté (à droite du plateau) alignent la vue. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ».</p>
+    <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer ; Dessus, Face et Côté (à droite du plateau) alignent la vue. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ». Le Dessin 3D propose crayon, ligne, rectangle, ovale, trait plein, effilé ou en pointillés, remplissage et symétrie ; avec un stylet, il dessine pendant que vos doigts déplacent la vue.</p>
     <div class="actions"><button class="btn primary" data-close>C'est parti</button></div>
   </div>
 </div>
@@ -973,21 +1035,31 @@ var meshes = {}; var meshList = [];
 var helper = new THREE.BoxHelper(new THREE.Mesh(GEO.cube),0xff0000); helper.visible = false; scene.add(helper);
 
 var down = null, gizmoUsed = false;
-var stroking = null, cur = [], touches = new Set(), bodyDrag = null, liveLine = null, liveBall = null;
+var stroking = null, cur = [], curRs = [], strokePid = null, strokeTool = 'pen', shape0 = null, symC = null, lastP = 0.5;
+var touches = new Set(), bodyDrag = null, liveObjs = [], hoverBall = null, chipEl = null;
 window.addEventListener('pointerup',function(e){ touches.delete(e.pointerId); },true);
 window.addEventListener('pointercancel',function(e){ touches.delete(e.pointerId); },true);
-function liveClear(){
-  [liveLine,liveBall].forEach(function(x){ if (x){ scene.remove(x); x.geometry.dispose(); x.material.dispose(); } });
-  liveLine = liveBall = null;
-}
+function dispose3(x){ scene.remove(x); if (x.geometry) x.geometry.dispose(); if (x.material) x.material.dispose(); }
+function liveClear(){ liveObjs.forEach(dispose3); liveObjs = []; }
+/* Aperçu du trait en cours (avec ses copies en miroir) et pastille de la taille du pinceau */
 function liveShow(r,color){
   liveClear(); if (!cur.length) return;
-  var col = new THREE.Color(color);
-  liveLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(cur),new THREE.LineBasicMaterial({color:col,depthTest:false})); liveLine.renderOrder = 14; scene.add(liveLine);
-  liveBall = new THREE.Mesh(new THREE.SphereGeometry(r,20,14),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.35,depthWrite:false}));
-  liveBall.position.copy(cur[cur.length-1]); liveBall.renderOrder = 15; scene.add(liveBall);
+  var col = new THREE.Color(color), rr = (stroking==='pen' && curRs.length) ? curRs[curRs.length-1] : r;
+  (stroking==='pen' ? symCopies(cur,null) : [{pts:cur}]).forEach(function(S){
+    if (S.pts.length>1){ var ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(S.pts),new THREE.LineBasicMaterial({color:col,depthTest:false})); ln.renderOrder = 14; scene.add(ln); liveObjs.push(ln); }
+    var bl = new THREE.Mesh(new THREE.SphereGeometry(rr,20,14),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.35,depthWrite:false}));
+    bl.position.copy(S.pts[S.pts.length-1]); bl.renderOrder = 15; scene.add(bl); liveObjs.push(bl);
+  });
+  wake();
 }
-function abortStroke(){ stroking = null; cur = []; orbit.enabled = true; liveClear(); if (pst){ pst = null; clearPaintPreview(); } if (sst) sculptEnd(true); }
+function abortStroke(){ stroking = null; strokePid = null; cur = []; curRs = []; shape0 = null; orbit.enabled = true; liveClear(); chipHide(); if (pst){ pst = null; clearPaintPreview(); } if (sst) sculptEnd(true); }
+function chipShow(txt,e){
+  if (!chipEl){ chipEl = document.createElement('div'); chipEl.id = 'drawChip'; stage.appendChild(chipEl); }
+  var r = stage.getBoundingClientRect(); chipEl.textContent = txt; chipEl.hidden = false;
+  chipEl.style.left = (e.clientX-r.left)+'px'; chipEl.style.top = (e.clientY-r.top)+'px';
+}
+function chipHide(){ if (chipEl) chipEl.hidden = true; }
+function mmTxt(v){ return String(Math.round(v*10)/10).replace('.',','); }
 function setRay(e){
   var r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
@@ -1000,6 +1072,336 @@ function pickSolid(e){
   return null;
 }
 function penR(){ var v = parseFloat($('penSize').value); return Math.min(20,Math.max(0.5,(isFinite(v)?v:4)/2)); }
+
+/* ---------- Boîte à outils du dessin : outil, trait, remplissage, aides, stylet ---------- */
+var penCfg = {tool:'pen',style:'solid',prof:'round',smooth:35,sym:'0',grid:0,press:true,tab:'trait'};
+(function(){
+  try {
+    var c = JSON.parse(localStorage.getItem('atelier3d.pen.v1')||'null'); if (!c) return;
+    if (['solid','taper','dash','dot'].indexOf(c.style)>=0) penCfg.style = c.style;
+    if (c.prof==='round' || c.prof==='flat') penCfg.prof = c.prof;
+    if (isFinite(c.smooth)) penCfg.smooth = Math.max(0,Math.min(100,+c.smooth));
+    if (['0','v','h','vh'].indexOf(c.sym)>=0) penCfg.sym = c.sym;
+    if ([0,1,5,10].indexOf(+c.grid)>=0) penCfg.grid = +c.grid;
+    if (typeof c.press==='boolean') penCfg.press = c.press;
+    if (['trait','fill','plane','aids'].indexOf(c.tab)>=0) penCfg.tab = c.tab;
+    if (isFinite(c.size) && c.size>=1 && c.size<=40) $('penSize').value = $('penSizeR').value = c.size;
+    if (typeof c.fill==='boolean') $('penFill').checked = c.fill;
+    if (isFinite(c.fillT) && c.fillT>=2 && c.fillT<=100){ $('penFillT').value = c.fillT; $('penFillTVal').textContent = c.fillT+' mm'; }
+  } catch(e){}
+})();
+function savePen(){
+  try { localStorage.setItem('atelier3d.pen.v1',JSON.stringify({style:penCfg.style,prof:penCfg.prof,smooth:penCfg.smooth,sym:penCfg.sym,grid:penCfg.grid,press:penCfg.press,tab:penCfg.tab,size:+$('penSize').value||4,fill:$('penFill').checked,fillT:+$('penFillT').value||10})); } catch(e){}
+}
+function flatH(){ return Math.max(2,+$('penFillT').value||10); }
+function isShapeTool(t){ return t==='line' || t==='rect' || t==='oval'; }
+
+/* Stylet : le stylet dessine, les doigts déplacent la vue ; la paume posée à côté est ignorée */
+var stylus = {pref:null,seen:false,contact:false,upAt:-9999};
+try { var svs = localStorage.getItem('atelier3d.stylus'); stylus.pref = (svs==='1' || svs==='0') ? svs : null; stylus.seen = localStorage.getItem('atelier3d.penseen')==='1'; } catch(e){}
+function stylusOn(){ return stylus.pref==='1' || (stylus.pref===null && stylus.seen); }
+function strokeToolActive(){ return !!(erase || (draw && draw.free) || sculpt || (paint && (ptool==='brush' || ptool==='unpaint'))); }
+function navTouch(e){ return e.pointerType==='touch' && stylusOn() && strokeToolActive(); }
+function palmNow(e){ return e.pointerType==='touch' && stylusOn() && (stylus.contact || performance.now()-stylus.upAt<500); }
+function stylusUi(){
+  var show = stylus.seen || stylus.pref==='1', on = stylusOn();
+  [].forEach.call(document.querySelectorAll('.stylusBtn'),function(b){ b.hidden = !show; b.setAttribute('aria-pressed',String(on)); });
+  $('penPressWrap').hidden = !show; document.body.classList.toggle('stylus',on);
+}
+function penSeen(e){
+  if (e.pointerType!=='pen' || stylus.seen) return;
+  stylus.seen = true; try { localStorage.setItem('atelier3d.penseen','1'); } catch(x){}
+  stylusUi(); if (draw && draw.free) drawRefresh();
+  if (stylus.pref===null && strokeToolActive()) toast('Stylet détecté : il dessine, vos doigts déplacent la vue. Le bouton « Stylet » permet de revenir au dessin au doigt.');
+}
+window.addEventListener('pointerdown',function(e){ if (e.pointerType==='pen'){ stylus.contact = true; penSeen(e); } },true);
+window.addEventListener('pointermove',function(e){ if (e.pointerType==='pen' && !stylus.seen) penSeen(e); },true);
+['pointerup','pointercancel'].forEach(function(t){ window.addEventListener(t,function(e){ if (e.pointerType==='pen'){ stylus.contact = false; stylus.upAt = performance.now(); } },true); });
+[].forEach.call(document.querySelectorAll('.stylusBtn'),function(b){
+  b.addEventListener('click',function(){
+    stylus.pref = stylusOn() ? '0' : '1'; try { localStorage.setItem('atelier3d.stylus',stylus.pref); } catch(x){}
+    stylusUi(); if (draw && draw.free) drawRefresh();
+    toast(stylusOn() ? 'Mode stylet : le stylet dessine, un doigt tourne la vue, deux doigts la zooment.' : 'Mode stylet arrêté : le doigt dessine aussi.');
+  });
+});
+stylusUi();
+
+/* Pression du stylet : appuyer plus fort donne un trait plus large (la largeur choisie correspond à une pression moyenne) */
+function pressureR(e){
+  var r = penR();
+  if (e.pointerType!=='pen' || !penCfg.press) return r;
+  var p = e.pressure>0 ? e.pressure : lastP; lastP = lastP*0.55+p*0.45;
+  return Math.min(30,Math.max(0.4,r*(0.25+1.5*lastP)));
+}
+
+/* Symétrie : chaque trait est copié en miroir autour de l'axe central du plateau */
+function symAxes(){ return penCfg.sym==='v' ? ['v'] : (penCfg.sym==='h' ? ['h'] : (penCfg.sym==='vh' ? ['v','h'] : [])); }
+function mirrorPt(p,ax,k,c){
+  var q = p.clone();
+  if (ax==='v'){ if (k==='cote') q.z = -q.z; else q.x = 2*c.x-q.x; }
+  else { if (k==='sol') q.z = -q.z; else q.y = 2*c.y-q.y; }
+  return q;
+}
+function symCopies(pts,rs){
+  var out = [{pts:pts,rs:rs}], ax = symAxes(), k = draw && draw.plane ? draw.plane.kind : 'sol';
+  if (!ax.length || k==='surface' || !symC) return out;
+  (ax.length===2 ? [['v'],['h'],['v','h']] : [ax]).forEach(function(cb){
+    out.push({pts:pts.map(function(p){ var q = p; cb.forEach(function(a){ q = mirrorPt(q,a,k,symC); }); return q; }),rs:rs});
+  });
+  return out;
+}
+
+/* Formes : ligne, rectangle, ovale entre deux coins, avec aimantation sur la grille et carré/cercle automatiques */
+function planeAxes(k){ return k==='sol' ? ['x','z'] : (k==='face' ? ['x','y'] : ['z','y']); }
+function gridSnap(p){
+  var g = penCfg.grid; if (!g || !draw || draw.plane.kind==='surface') return p;
+  var k = draw.plane.kind, q = p.clone(), cx = plateX(plateOfX(p.x));
+  function sn(v,o){ return o+Math.round((v-o)/g)*g; }
+  if (k==='sol'){ q.x = sn(p.x,cx-plate.w/2); q.z = sn(p.z,-plate.d/2); }
+  else if (k==='face'){ q.x = sn(p.x,cx-plate.w/2); q.y = sn(p.y,0); }
+  else { q.z = sn(p.z,-plate.d/2); q.y = sn(p.y,0); }
+  return q;
+}
+function shapePts(t,A,B,k){
+  var u = planeAxes(k), a0 = A[u[0]], a1 = A[u[1]], b0 = B[u[0]], b1 = B[u[1]];
+  function Q(x,y){ var p = A.clone(); p[u[0]] = x; p[u[1]] = y; return p; }
+  if (t==='line') return [A.clone(),Q(b0,b1)];
+  if (t==='rect') return [Q(a0,a1),Q(b0,a1),Q(b0,b1),Q(a0,b1),Q(a0,a1)];
+  var cx = (a0+b0)/2, cy = (a1+b1)/2, rx = Math.abs(b0-a0)/2, ry = Math.abs(b1-a1)/2, n = Math.max(32,Math.min(120,Math.round(Math.max(rx,ry)*1.2))), out = [], i;
+  for (i=0;i<n;i++){ var a = i/n*Math.PI*2; out.push(Q(cx+rx*Math.cos(a),cy+ry*Math.sin(a))); }
+  out.push(out[0].clone()); return out;
+}
+function shapeFrom(pt,e){
+  var k = draw.plane.kind, u = planeAxes(k), A = shape0, B = gridSnap(pt), t = strokeTool;
+  var d0 = B[u[0]]-A[u[0]], d1 = B[u[1]]-A[u[1]], m0 = Math.abs(d0), m1 = Math.abs(d1);
+  if (!penCfg.grid){
+    if (t==='line'){ if (m1<m0*0.07 && m0>2) B[u[1]] = A[u[1]]; else if (m0<m1*0.07 && m1>2) B[u[0]] = A[u[0]]; }
+    else if (Math.abs(m0-m1)<0.07*Math.max(m0,m1) && Math.max(m0,m1)>2){ var m = (m0+m1)/2; B[u[0]] = A[u[0]]+(d0<0?-m:m); B[u[1]] = A[u[1]]+(d1<0?-m:m); }
+  }
+  d0 = B[u[0]]-A[u[0]]; d1 = B[u[1]]-A[u[1]]; m0 = Math.abs(d0); m1 = Math.abs(d1);
+  chipShow(t==='line' ? mmTxt(Math.hypot(d0,d1))+' mm'
+    : (Math.abs(m0-m1)<0.05 ? (t==='rect' ? 'Carré ' : 'Cercle Ø ')+mmTxt(m0)+' mm' : mmTxt(m0)+' × '+mmTxt(m1)+' mm'),e);
+  return shapePts(t,A,B,k);
+}
+function smoothPath(pts,rs,amount){
+  var n = pts.length, k = Math.round(amount/100*5);
+  if (n<4 || k<1) return {pts:pts,rs:rs};
+  var Pp = pts.map(function(p){ return p.clone(); }), R = rs ? rs.slice() : null, pass, i, j;
+  for (pass=0;pass<2;pass++){
+    var P2 = Pp.map(function(p){ return p.clone(); }), R2 = R ? R.slice() : null;
+    for (i=1;i<n-1;i++){
+      var w = Math.min(k,i,n-1-i), sw = 0, x = 0, y = 0, z = 0, rr = 0;
+      for (j=-w;j<=w;j++){ var wt = w+1-Math.abs(j); sw += wt; x += Pp[i+j].x*wt; y += Pp[i+j].y*wt; z += Pp[i+j].z*wt; if (R) rr += R[i+j]*wt; }
+      P2[i].set(x/sw,y/sw,z/sw); if (R) R2[i] = rr/sw;
+    }
+    Pp = P2; R = R2;
+  }
+  return {pts:Pp,rs:R};
+}
+function finalizeStroke(tool,pts,rs){
+  if (!draw || !draw.free || !pts.length) return;
+  if (tool==='pen'){ var sm = smoothPath(pts,rs,penCfg.smooth); endPenStroke(sm.pts,sm.rs); return; }
+  var L = 0, i; for (i=1;i<pts.length;i++) L += pts[i].distanceTo(pts[i-1]);
+  if (L<1) return;
+  endPenStroke(pts,null);
+}
+
+/* Géométrie d'un trait : tube rond ou bande plate, plein, effilé, en tirets ou en points */
+function densify(pts,rs,step){
+  var Pp = [pts[0]], R = [rs[0]], i, j;
+  for (i=1;i<pts.length;i++){
+    var a = pts[i-1], b = pts[i], n = Math.max(1,Math.ceil(a.distanceTo(b)/step));
+    for (j=1;j<=n;j++){ var t = j/n; Pp.push(a.clone().lerp(b,t)); R.push(rs[i-1]+(rs[i]-rs[i-1])*t); }
+  }
+  return {pts:Pp,rs:R};
+}
+function strokeRadii(st){
+  var rs = [], i;
+  for (i=0;i<st.pts.length;i++) rs.push(st.rs ? st.rs[i] : st.r0);
+  var D = {pts:st.pts,rs:rs};
+  if (st.style==='taper' && st.pts.length>1){
+    D = densify(st.pts,rs,Math.max(1.2,st.r0*0.6));
+    var S = [0]; for (i=1;i<D.pts.length;i++) S[i] = S[i-1]+D.pts[i].distanceTo(D.pts[i-1]);
+    var L = S[S.length-1], ramp = Math.max(1,Math.min(L*0.5,Math.max(8,st.r0*5)));
+    D.rs = D.rs.map(function(r,i){ var k = Math.max(0,Math.min(1,S[i]/ramp,(L-S[i])/ramp)); return Math.max(0.3,r*Math.sin(k*Math.PI/2)); });
+  }
+  return D;
+}
+function dashPieces(D,style){
+  var Pp = D.pts, R = D.rs, n = Pp.length, S = [0], i, r = 0;
+  for (i=1;i<n;i++) S[i] = S[i-1]+Pp[i].distanceTo(Pp[i-1]);
+  var L = S[n-1]; R.forEach(function(v){ r += v; }); r /= n;
+  if (L<1e-6) return [D];
+  var on = style==='dot' ? 0 : 3*r, pitch = on+2*r+(style==='dot'?1.4:1.7)*r;
+  if (L/pitch>300) pitch = L/300;
+  function at(sv){
+    var j = 1; while (j<n-1 && S[j]<sv) j++;
+    var t = S[j]>S[j-1] ? Math.max(0,Math.min(1,(sv-S[j-1])/(S[j]-S[j-1]))) : 0;
+    return {p:Pp[j-1].clone().lerp(Pp[j],t),r:R[j-1]+(R[j]-R[j-1])*t};
+  }
+  var out = [], a, k;
+  for (a=0;a<=L+1e-6;a+=pitch){
+    var b = Math.min(L,a+on), A0 = at(a), pp = [A0.p], rr = [A0.r];
+    for (k=1;k<n-1;k++) if (S[k]>a+1e-6 && S[k]<b-1e-6){ pp.push(Pp[k]); rr.push(R[k]); }
+    if (on>0 && b-a>1e-6){ var B0 = at(b); pp.push(B0.p); rr.push(B0.r); }
+    out.push({pts:pp,rs:rr});
+  }
+  return out;
+}
+function sweepP(pts,rs,prof,kind,ground,off,h){
+  var cache = {}, bl = [], caps = [], res, i;
+  function prim(r){
+    var key = (Math.round(r*20)/20).toFixed(2);
+    if (cache[key]) return cache[key];
+    var q = Math.max(0.15,+key), sg = q<2.5?10:(q<8?14:20), m;
+    if (prof==='flat'){ var c = MF.Manifold.cylinder(h,q,q,sg,true); m = kind==='sol' ? c.rotate([-90,0,0]) : (kind==='cote' ? c.rotate([0,90,0]) : c); if (m!==c) c.delete(); }
+    else m = MF.Manifold.sphere(q,sg);
+    cache[key] = m; return m;
+  }
+  for (i=0;i<pts.length;i++){
+    var p = pts[i], r = rs[i], y = p.y;
+    if (kind==='sol'){ if (prof==='flat') y = (ground ? 0 : Math.max(0,off-r))+h/2; else if (ground) y = r*0.6; }
+    var q = prim(r).translate([p.x,y,p.z]); bl.push(q);
+    if (i) caps.push(MF.Manifold.hull([bl[i-1],q]));
+  }
+  res = caps.length ? (caps.length>1 ? MF.Manifold.union(caps) : caps[0]) : bl[0];
+  Object.keys(cache).forEach(function(k){ cache[k].delete(); });
+  bl.forEach(function(b){ if (b!==res) b.delete(); }); caps.forEach(function(c){ if (c!==res) c.delete(); });
+  return res;
+}
+function strokeMan(st){
+  var k = st.plane.kind, prof = k==='surface' ? 'round' : st.prof, ground = k==='sol' && st.plane.off<=3, D = strokeRadii(st), mans = [], res;
+  ((st.style==='dash' || st.style==='dot') ? dashPieces(D,st.style) : [D]).forEach(function(pc){ mans.push(sweepP(pc.pts,pc.rs,prof,k,ground,st.plane.off,flatH())); });
+  res = mans.length>1 ? MF.Manifold.union(mans) : mans[0];
+  mans.forEach(function(m){ if (m!==res) m.delete(); });
+  return res;
+}
+function strokeMesh(st){
+  var raw = strokeMan(st), man = clipToPlate(raw), pos = manToPositions(man); raw.delete(); man.delete();
+  if (!pos.length) return null;
+  var g = new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); setNormals(g);
+  var mat = new THREE.MeshStandardMaterial({roughness:0.6,metalness:0.04}); mat.color.set(cssVar('--accent')||'#d9520b').convertSRGBToLinear();
+  return new THREE.Mesh(g,mat);
+}
+function rebuildFlat(){
+  if (!draw || !draw.free) return;
+  draw.all.forEach(function(st){
+    if (st.prof!=='flat' || st.plane.kind==='surface') return;
+    var live = !!st.mesh.parent, m = strokeMesh(st); if (!m) return;
+    dropStroke(st); st.mesh = m; if (live) scene.add(m);
+  });
+  wake();
+}
+
+/* Historique du dessin : chaque action (traits ajoutés, traits retirés) est une opération qu'on peut annuler */
+function removeStroke(st){ var i = draw.strokes.indexOf(st); if (i>=0) draw.strokes.splice(i,1); scene.remove(st.mesh); }
+function restoreStroke(st){ if (draw.strokes.indexOf(st)<0) draw.strokes.push(st); scene.add(st.mesh); }
+function opApply(op,undo){ (undo ? op.add : op.del).forEach(removeStroke); (undo ? op.del : op.add).forEach(restoreStroke); }
+function pushOp(op){
+  draw.redo.forEach(function(o){ o.add.forEach(function(st){ if (draw.strokes.indexOf(st)<0){ dropStroke(st); var i = draw.all.indexOf(st); if (i>=0) draw.all.splice(i,1); } }); });
+  draw.redo = []; draw.ops.push(op);
+}
+function dropAll(){
+  if (!draw) return;
+  (draw.all||[]).forEach(dropStroke); draw.all = []; draw.strokes = [];
+  (draw.fills||[]).forEach(function(m){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); }); draw.fills = [];
+}
+
+/* Gomme de traits : touchez un trait (ou glissez dessus) pour le retirer ; surbrillance au survol */
+function segDist(px,py,ax,ay,bx,by){
+  var dx = bx-ax, dy = by-ay, l2 = dx*dx+dy*dy, t = l2>0 ? Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2)) : 0;
+  return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));
+}
+function strokeHit(e){
+  var rc = canvas.getBoundingClientRect(), x = e.clientX-rc.left, y = e.clientY-rc.top, v = new THREE.Vector3(), best = null, bd = 1e9;
+  var tol = e.pointerType==='touch' ? 24 : 12, tn = Math.tan(camera.fov*Math.PI/360);
+  camera.updateMatrixWorld(true);
+  draw.strokes.forEach(function(st){
+    var prev = null, d = 1e9, pxmm = rc.height/(2*tn*Math.max(1,camera.position.distanceTo(st.pts[0])));
+    st.pts.forEach(function(p){
+      v.copy(p).project(camera);
+      if (v.z>1){ prev = null; return; }
+      var cx = (v.x+1)/2*rc.width, cy = (1-v.y)/2*rc.height;
+      d = Math.min(d,prev ? segDist(x,y,prev[0],prev[1],cx,cy) : Math.hypot(x-cx,y-cy)); prev = [cx,cy];
+    });
+    d -= st.r*pxmm; if (d<tol && d<bd){ bd = d; best = st; }
+  });
+  return best;
+}
+function delAt(e){
+  if (!draw || !draw.delOp) return;
+  var st = strokeHit(e); if (!st) return;
+  removeStroke(st); draw.delOp.del.push(st); wake();
+}
+function delEnd(){
+  if (!draw) return;
+  var op = draw.delOp; draw.delOp = null;
+  if (op && op.del.length){ pushOp(op); refreshFills(); }
+  drawRefresh();
+}
+var delHot = null;
+function delHover(e){
+  var st = e && draw && draw.free && penCfg.tool==='del' ? strokeHit(e) : null;
+  if (st===delHot) return;
+  if (delHot && delHot.mesh) delHot.mesh.material.emissive.set(0x000000);
+  delHot = st;
+  if (st){ st.mesh.material.emissive.set(cssVar('--danger')||'#b3261e'); st.mesh.material.emissiveIntensity = 0.7; }
+  wake();
+}
+/* Pastille de la taille du pinceau sous le stylet ou la souris */
+function hoverShow(e){
+  if (!draw || !draw.free || stroking){ hoverHide(); return; }
+  var pt = penPoint(e); if (!pt){ hoverHide(); return; }
+  if (!hoverBall){
+    hoverBall = new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:new THREE.Color(cssVar('--accent')||'#d9520b'),transparent:true,opacity:0.3,depthWrite:false}));
+    hoverBall.renderOrder = 15; scene.add(hoverBall);
+  }
+  hoverBall.visible = true; hoverBall.scale.setScalar(penR()); hoverBall.position.copy(pt); wake();
+}
+function hoverHide(){ if (hoverBall && hoverBall.visible){ hoverBall.visible = false; wake(); } }
+
+/* Barre d'outils du dessin : état des boutons, onglets, messages */
+function penUi(){
+  var surf = !!draw && draw.plane.kind==='surface';
+  if (surf && isShapeTool(penCfg.tool)) penCfg.tool = 'pen';
+  [].forEach.call(document.querySelectorAll('#penTools [data-pt]'),function(b){
+    var t = b.getAttribute('data-pt');
+    b.setAttribute('aria-pressed',String(t===penCfg.tool)); b.disabled = surf && isShapeTool(t);
+    b.setAttribute('aria-label',b.title.split(' :')[0]);
+  });
+  [].forEach.call(document.querySelectorAll('#penStyle [data-ps]'),function(b){ b.setAttribute('aria-pressed',String(b.getAttribute('data-ps')===penCfg.style)); b.setAttribute('aria-label',b.title.split(' :')[0]); });
+  [].forEach.call(document.querySelectorAll('#penProf [data-pf]'),function(b){
+    var f = b.getAttribute('data-pf'); b.setAttribute('aria-pressed',String(f===(surf?'round':penCfg.prof))); b.disabled = surf && f==='flat'; b.setAttribute('aria-label',b.title.split(' :')[0]);
+  });
+  [].forEach.call(document.querySelectorAll('#penTabs [data-tab]'),function(b){ b.setAttribute('aria-pressed',String(b.getAttribute('data-tab')===penCfg.tab)); });
+  [].forEach.call(document.querySelectorAll('.dpanel'),function(p){ p.classList.toggle('on',p.getAttribute('data-panel')===penCfg.tab); });
+  $('penSmooth').value = penCfg.smooth; $('penSmoothVal').textContent = penCfg.smooth+' %';
+  $('penSym').value = penCfg.sym; $('penGrid').value = String(penCfg.grid); $('penPress').checked = penCfg.press;
+  $('penSym').disabled = surf; $('penGrid').disabled = surf;
+}
+(function(){
+  var bar = $('drawBar');
+  function fit(){ var w = bar.clientWidth; bar.classList.toggle('narrow',w>0 && w<640); bar.classList.toggle('tight',w>0 && w<860); }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(bar); window.addEventListener('resize',fit);
+})();
+function drawHint(){
+  var k = draw.strokes.length, how = {pen:'Glissez pour dessiner à main levée.',line:'Glissez d’un point à l’autre pour tracer une ligne.',
+    rect:'Glissez d’un coin à l’autre pour tracer un rectangle (carré si les côtés sont égaux).',oval:'Glissez d’un coin à l’autre pour tracer un ovale (cercle si les côtés sont égaux).',
+    del:'Touchez un trait pour le retirer.'}[penCfg.tool];
+  var view = (stylus.seen && stylusOn()) ? 'Stylet : il dessine ; un doigt tourne la vue, deux doigts la zooment.' : 'Pour tourner la vue, glissez en dehors du plan.';
+  if (!k) return how+' Les traits seront réunis en un seul objet 3D ; une forme fermée est remplie. '+view;
+  return k+(k>1?' traits, réunis en un seul objet. ':' trait. ')+how+' '+view;
+}
+$('penTools').addEventListener('click',function(e){ var b = e.target.closest('[data-pt]'); if (!b || b.disabled) return; penCfg.tool = b.getAttribute('data-pt'); if (penCfg.tool!=='del') delHover(null); drawRefresh(); });
+$('penStyle').addEventListener('click',function(e){ var b = e.target.closest('[data-ps]'); if (!b) return; penCfg.style = b.getAttribute('data-ps'); savePen(); penUi(); });
+$('penProf').addEventListener('click',function(e){ var b = e.target.closest('[data-pf]'); if (!b || b.disabled) return; penCfg.prof = b.getAttribute('data-pf'); savePen(); penUi(); });
+$('penTabs').addEventListener('click',function(e){ var b = e.target.closest('[data-tab]'); if (!b) return; penCfg.tab = b.getAttribute('data-tab'); savePen(); penUi(); if (draw && planeFit) viewPlane(); });
+$('penSizeR').addEventListener('input',function(){ $('penSize').value = this.value; savePen(); });
+$('penSize').addEventListener('input',function(){ var v = parseFloat(this.value); if (isFinite(v)) $('penSizeR').value = Math.max(1,Math.min(40,v)); savePen(); });
+$('penSmooth').addEventListener('input',function(){ penCfg.smooth = +this.value; $('penSmoothVal').textContent = this.value+' %'; savePen(); });
+$('penSym').addEventListener('change',function(){ penCfg.sym = this.value; savePen(); planeUpdate(); });
+$('penGrid').addEventListener('change',function(){ penCfg.grid = +this.value; savePen(); });
+$('penPress').addEventListener('change',function(){ penCfg.press = this.checked; savePen(); });
 function eraseR(){ return Math.max(0.5,(+$('eraseSize').value||10)/2); }
 function drawPlaneObj(P){
   return new THREE.Plane(P.kind==='sol' ? new THREE.Vector3(0,1,0) : (P.kind==='face' ? new THREE.Vector3(0,0,1) : new THREE.Vector3(1,0,0)),-P.off);
@@ -1028,22 +1430,37 @@ function strokePoint(e){
   if (stroking==='erase'){ var h = pickSolid(e); return h ? h.point.clone() : null; }
   return penPoint(e);
 }
+/* Mode stylet : la paume posée pendant que le stylet travaille est ignorée, et le doigt déplace la vue au lieu de dessiner */
+canvas.addEventListener('pointerdown',function(e){ if (palmNow(e)) e.stopImmediatePropagation(); },true);
+canvas.addEventListener('touchstart',function(e){ if (stylusOn() && (stylus.contact || performance.now()-stylus.upAt<500)){ e.stopImmediatePropagation(); e.preventDefault(); } },{capture:true,passive:false});
 canvas.addEventListener('pointerdown',function(e){
+  if (navTouch(e)) return;
   if (e.pointerType==='mouse') touches.clear();
   touches.add(e.pointerId);
   down = {x:e.clientX,y:e.clientY}; gizmoUsed = false; bodyDrag = null;
   if (boxOn && e.button===0 && touches.size===1 && !tc.axis){ boxDrag = {x:e.clientX,y:e.clientY}; down = null; try { canvas.setPointerCapture(e.pointerId); } catch(err){} showBox(e); return; }
   if (stroking){ if (touches.size>1) abortStroke(); return; }
   if (e.button!==0 || touches.size>1) return;
-  if (sculpt){ var sh = pickSolid(e); if (sh) sculptBegin(sh,e); return; }
+  if (sculpt){ var sh = pickSolid(e); if (sh){ strokePid = e.pointerId; sculptBegin(sh,e); } return; }
   if (paint && (ptool==='brush' || ptool==='unpaint')){
-    var ph = pickSolid(e); if (ph) startPaintStroke(ph,e);
+    var ph = pickSolid(e); if (ph){ strokePid = e.pointerId; startPaintStroke(ph,e); }
     return;
   }
+  if (draw && draw.free && penCfg.tool==='del'){
+    stroking = 'del'; strokePid = e.pointerId; draw.delOp = {add:[],del:[]}; orbit.enabled = false;
+    try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+    delAt(e); return;
+  }
   if (erase || (draw && draw.free)){
-    stroking = erase ? 'erase' : 'pen';
+    stroking = erase ? 'erase' : 'pen'; strokePid = e.pointerId;
     var pt = strokePoint(e);
-    if (!pt){ stroking = null; return; }
+    if (!pt){ stroking = null; strokePid = null; return; }
+    strokeTool = stroking==='pen' ? penCfg.tool : 'pen'; shape0 = null; curRs = []; symC = null;
+    if (stroking==='pen'){
+      lastP = e.pressure>0 ? e.pressure : 0.5; hoverHide();
+      if (strokeTool!=='pen'){ pt = gridSnap(pt); shape0 = pt.clone(); }
+      symC = {x:plateX(plateOfX(pt.x)),y:plate.h/2}; curRs = [pressureR(e)];
+    }
     cur = [pt]; orbit.enabled = false;
     try { canvas.setPointerCapture(e.pointerId); } catch(err){}
     liveShow(erase?eraseR():penR(),erase?(cssVar('--danger')||'#b3261e'):(cssVar('--accent')||'#d9520b'));
@@ -1067,11 +1484,20 @@ canvas.addEventListener('pointermove',function(e){
   if (paint && !stroking) updateRing(e);
   if (stroking==='paint'){ if (pst) paintMove(e); return; }
   if (stroking){
-    var pt = strokePoint(e), r = stroking==='erase' ? eraseR() : penR();
-    if (!pt || pt.distanceTo(cur[cur.length-1])<Math.max(0.6,r/3)) return;
-    cur.push(pt); liveShow(r,stroking==='erase'?(cssVar('--danger')||'#b3261e'):(cssVar('--accent')||'#d9520b'));
+    if (e.pointerId!==strokePid) return;
+    if (stroking==='del'){ delAt(e); return; }
+    var evs = (e.pointerType==='pen' && e.getCoalescedEvents) ? e.getCoalescedEvents() : null, r = stroking==='erase' ? eraseR() : penR(), moved = false;
+    if (!evs || !evs.length) evs = [e];
+    evs.forEach(function(ev){
+      var pt = strokePoint(ev); if (!pt) return;
+      if (stroking==='pen' && strokeTool!=='pen'){ cur = shapeFrom(pt,ev); moved = true; return; }
+      if (pt.distanceTo(cur[cur.length-1])<Math.max(0.6,r/3)) return;
+      cur.push(pt); if (stroking==='pen') curRs.push(pressureR(ev)); moved = true;
+    });
+    if (moved) liveShow(r,stroking==='erase'?(cssVar('--danger')||'#b3261e'):(cssVar('--accent')||'#d9520b'));
     return;
   }
+  if (draw && draw.free && e.pointerType!=='touch'){ if (penCfg.tool==='del') delHover(e); else hoverShow(e); }
   if (bodyDrag && !tc.dragging && down){
     if (touches.size>1){ bodyDrag.target.position.copy(bodyDrag.start); bodyDrag = null; orbit.enabled = true; return; }
     if (!bodyDrag.moved && Math.hypot(e.clientX-down.x,e.clientY-down.y)<6) return;
@@ -1084,9 +1510,10 @@ canvas.addEventListener('pointermove',function(e){
     var o = one(); if (o){ syncFromMesh(o); fillFields(o); }
   }
 });
-canvas.addEventListener('pointercancel',function(){
+canvas.addEventListener('pointerleave',function(e){ if (e.pointerType!=='touch'){ hoverHide(); delHover(null); } });
+canvas.addEventListener('pointercancel',function(e){
   if (boxDrag){ boxDrag = null; $('boxRect').hidden = true; }
-  if (stroking) abortStroke();
+  if (stroking && (strokePid===null || e.pointerId===strokePid)){ if (stroking==='del') draw.delOp = null; abortStroke(); }
   if (bodyDrag){ bodyDrag.target.position.copy(bodyDrag.start); bodyDrag = null; orbit.enabled = true; }
 });
 
@@ -1646,7 +2073,7 @@ function newProject(){
 }
 function undo(){
   if (draw){
-    if (draw.free){ var s = draw.strokes.pop(); if (s){ scene.remove(s.mesh); draw.redo.push(s); } refreshFills(); }
+    if (draw.free){ var op = draw.ops.pop(); if (op){ opApply(op,true); draw.redo.push(op); } refreshFills(); }
     else { var p = draw.pts.pop(); if (p) draw.redo.push(p); }
     drawRefresh(); return;
   }
@@ -1655,7 +2082,7 @@ function undo(){
 function redo(){
   if (draw){
     var x = draw.redo.pop();
-    if (x){ if (draw.free){ scene.add(x.mesh); draw.strokes.push(x); refreshFills(); } else draw.pts.push(x); }
+    if (x){ if (draw.free){ opApply(x,false); draw.ops.push(x); refreshFills(); } else draw.pts.push(x); }
     drawRefresh(); return;
   }
   if (hIndex<history.length-1) restore(hIndex+1);
@@ -1678,8 +2105,9 @@ canvas.addEventListener('pointerup',function(e){
   if (stroking==='sculpt'){ down = null; if (sst) sculptEnd(false); else stroking = null; return; }
   if (stroking==='paint'){ down = null; if (pst) endPaintStroke(); else stroking = null; return; }
   if (stroking){
-    var kind = stroking, pts = cur; abortStroke(); down = null;
-    if (kind==='erase') applyErase(pts); else endPenStroke(pts);
+    if (strokePid!==null && e.pointerId!==strokePid) return;
+    var kind = stroking, pts = cur, rs = curRs, tool = strokeTool; abortStroke(); down = null;
+    if (kind==='erase') applyErase(pts); else if (kind==='del') delEnd(); else finalizeStroke(tool,pts,rs);
     return;
   }
   if (bodyDrag){
@@ -1710,25 +2138,24 @@ canvas.addEventListener('pointerup',function(e){
 var draw = null, drawLine = null, drawDots = null, ground = new THREE.Plane(new THREE.Vector3(0,1,0),0);
 function undoState(){
   var u = $('undo'), r = $('redo');
-  if (draw){ u.disabled = draw.free ? !draw.strokes.length : !draw.pts.length; r.disabled = !draw.redo.length; }
+  if (draw){ u.disabled = draw.free ? !draw.ops.length : !draw.pts.length; r.disabled = !draw.redo.length; }
   else { u.disabled = hIndex<=0; r.disabled = hIndex>=history.length-1; }
 }
 function dropStroke(s){ scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.material.dispose(); }
 function drawRefresh(){
   [drawLine,drawDots].forEach(function(x){ if (x){ scene.remove(x); x.geometry.dispose(); x.material.dispose(); } });
-  drawLine = drawDots = null;
+  drawLine = drawDots = null; if (!draw){ hoverHide(); delHover(null); }
   $('drawBar').hidden = !draw; if (draw) $('drawBar').classList.toggle('free',!!draw.free); hintVis();
   if (!draw && savedCam && !keepCam){ flyTo(savedCam.pos,savedCam.tgt); savedCam = null; if (viewMarkHook) viewMarkHook(null); }
   document.querySelector('[data-draw]').setAttribute('aria-pressed',String(!!draw && !draw.free));
   document.querySelector('[data-free]').setAttribute('aria-pressed',String(!!draw && !!draw.free));
   undoState(); planeUi(); planeUpdate();
   if (!draw) return;
-  $('penWrap').hidden = !draw.free; $('fillWrap').hidden = !draw.free; $('drawUndo').hidden = !!draw.free;
+  $('freeCtl').hidden = !draw.free; $('drawUndo').hidden = !!draw.free;
   $('drawTitle').textContent = draw.free ? 'Dessin 3D' : 'Tracé';
   if (draw.free){
-    var k = draw.strokes.length;
-    $('drawMsg').textContent = k ? k+(k>1?' traits : ils seront réunis en un seul objet. ':' trait. ')+'Changez de plan pour dessiner dans une autre direction, puis terminez. Annuler retire le dernier trait.'
-      : 'Choisissez un plan (sol, face ou côté) et sa position, puis dessinez : tous les traits seront réunis en un seul objet 3D, et un trait fermé remplit son intérieur. Pour tourner la vue, glissez en dehors du plan.';
+    var k = draw.strokes.length; penUi();
+    $('drawMsg').textContent = drawHint();
     $('drawDone').disabled = !k; $('drawDone').textContent = 'Terminer l’objet'; return;
   }
   $('drawDone').textContent = 'Terminer la forme';
@@ -1774,6 +2201,13 @@ function planeUpdate(){
   if (P.kind==='sol'){ planeMesh.rotation.x = -Math.PI/2; planeMesh.position.set(0,P.off,0); }
   else if (P.kind==='face'){ planeMesh.position.set(0,plate.h/2,P.off); }
   else { planeMesh.rotation.y = Math.PI/2; planeMesh.position.set(P.off,plate.h/2,0); }
+  var axg = symAxes();
+  if (axg.length){
+    var gp = [];
+    if (axg.indexOf('v')>=0) gp.push(new THREE.Vector3(0,-h/2,0.05),new THREE.Vector3(0,h/2,0.05));
+    if (axg.indexOf('h')>=0) gp.push(new THREE.Vector3(-wd/2,0,0.05),new THREE.Vector3(wd/2,0,0.05));
+    planeMesh.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(gp),new THREE.LineBasicMaterial({color:new THREE.Color(cssVar('--ink')||'#18212c'),transparent:true,opacity:0.55})));
+  }
   planeMesh.renderOrder = 2; scene.add(planeMesh);
 }
 var viewMarkHook = null, planeFit = false;
@@ -1820,10 +2254,11 @@ function startDraw(free){
   if (free && !MF){ toast('Le dessin en 3D n’est pas encore prêt ou pas disponible dans cette fenêtre.'); return; }
   if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); if (sculpt) setSculpt(false);
   if (!savedCam) savedCam = {pos:camera.position.clone(),tgt:orbit.target.clone()};
-  draw = {pts:[],redo:[],strokes:[],free:free,plane:{kind:'sol',off:2}}; setSel([]); drawRefresh(); viewPlane();
+  if (penCfg.tool==='del') penCfg.tool = 'pen';
+  draw = {pts:[],redo:[],strokes:[],ops:[],all:[],gid:0,delOp:null,free:free,plane:{kind:'sol',off:2}}; setSel([]); drawRefresh(); viewPlane();
 }
 function cancelDraw(){
-  if (draw){ draw.strokes.concat(draw.free?draw.redo:[]).forEach(dropStroke); (draw.fills||[]).forEach(function(m){ scene.remove(m); }); }
+  if (draw) dropAll();
   draw = null; if (stroking) abortStroke(); drawRefresh();
 }
 function clipToPlate(man){
@@ -1845,38 +2280,75 @@ function fillGroupMan(kind,off,strokes,span){
   var diag = Math.hypot(x1-x0,y1-y0);
   var tols = [Math.max(1,maxR*0.75),Math.max(3,maxR*2.5),Math.max(6,maxR*5),Math.max(10,Math.min(diag*0.14,40))];
   try {
+    var area = function(poly){ var a = 0, i; for (i=0;i<poly.length;i++){ var p = poly[i], q = poly[(i+1)%poly.length]; a += p[0]*q[1]-q[0]*p[1]; } return a; };
+    /* distance d'un point à la ligne brisée d'un trait */
+    var distLine = function(v,line){
+      var best = Infinity, i, a, b, dx, dy, t, ll;
+      if (line.length===1) return Math.hypot(v[0]-line[0][0],v[1]-line[0][1]);
+      for (i=0;i<line.length-1;i++){
+        a = line[i]; b = line[i+1]; dx = b[0]-a[0]; dy = b[1]-a[1]; ll = dx*dx+dy*dy;
+        t = ll>0 ? Math.max(0,Math.min(1,((v[0]-a[0])*dx+(v[1]-a[1])*dy)/ll)) : 0;
+        best = Math.min(best,Math.hypot(v[0]-a[0]-t*dx,v[1]-a[1]-t*dy));
+      }
+      return best;
+    };
+    /* un contour de zone fermée touche un trait quand un de ses points est à la distance d'agrandissement de ce trait */
+    var borders = function(hole,P){
+      var j, v;
+      for (j=0;j<hole.length;j++){
+        v = hole[j];
+        if (v[0]<P.x0 || v[0]>P.x1 || v[1]<P.y0 || v[1]>P.y1) continue;
+        if (distLine(v,P.line)<=P.R+0.05) return true;
+      }
+      return false;
+    };
     tols.forEach(function(tol){
-      var pieces = [];
+      var per = [], pieces = [];
       strokes.forEach(function(s){
-        var circ = CS.circle(s.r+tol,16), prev = null, last = null;
+        var circ = CS.circle(s.r+tol,16), prev = null, last = null, mine = [], line = [];
         tmp.push(circ);
         s.pts.forEach(function(p){
           var q = planeUV(kind,p);
           if (last && Math.hypot(q[0]-last[0],q[1]-last[1])<0.4) return;
-          last = q; var c = circ.translate(q); tmp.push(c);
-          if (prev){ var h = CS.hull([prev,c]); tmp.push(h); pieces.push(h); } else pieces.push(c);
+          last = q; line.push(q); var c = circ.translate(q); tmp.push(c);
+          if (prev){ var h = CS.hull([prev,c]); tmp.push(h); mine.push(h); } else mine.push(c);
           prev = c;
         });
+        var R = s.r+tol, bx = line.map(function(q){ return q[0]; }), by = line.map(function(q){ return q[1]; });
+        per.push({pcs:mine,line:line,R:R,x0:Math.min.apply(null,bx)-R-0.1,x1:Math.max.apply(null,bx)+R+0.1,y0:Math.min.apply(null,by)-R-0.1,y1:Math.max.apply(null,by)+R+0.1});
+        pieces = pieces.concat(mine);
       });
       if (!pieces.length) return;
       var U = csUnion(CS,pieces); tmp.push(U);
-      var area = function(poly){ var a = 0, i; for (i=0;i<poly.length;i++){ var p = poly[i], q = poly[(i+1)%poly.length]; a += p[0]*q[1]-q[0]*p[1]; } return a; };
-      var comps = U.decompose ? U.decompose() : [U], outers = [], holes = [];
-      comps.forEach(function(c){
-        if (c!==U) tmp.push(c);
-        var polys = c.toPolygons(), hs = polys.filter(function(p){ return area(p)<0; });
-        if (!hs.length) return;
-        /* composante qui enferme au moins une zone : tout son intérieur est rempli, même si d'autres traits la recoupent */
-        polys.forEach(function(p){ if (area(p)>0) outers.push(p); });
+      var holes = U.toPolygons().filter(function(p){ return area(p)<0; });
+      if (!holes.length) return;
+      /* Chaque zone fermée n'est remplie qu'avec les traits qui la bordent : deux formes voisines ne se rejoignent pas par un pont */
+      var sets = {}, all = per.map(function(P,i){ return i; });
+      holes.forEach(function(h){
+        var ids = []; per.forEach(function(P,i){ if (borders(h,P)) ids.push(i); });
+        if (!ids.length) ids = all;
+        sets[ids.join(',')] = ids;
       });
-      if (!outers.length) return;
-      var H = new CS(outers,'NonZero'); tmp.push(H);
-      var G = H.offset(-tol+0.05,'Round',2,16); tmp.push(G); regions.push(G);
+      Object.keys(sets).forEach(function(key){
+        var ids = sets[key], V = U, outers = [];
+        if (ids.length<per.length){ var pcs = []; ids.forEach(function(i){ pcs = pcs.concat(per[i].pcs); }); V = csUnion(CS,pcs); tmp.push(V); }
+        var comps = V.decompose ? V.decompose() : [V];
+        comps.forEach(function(c){
+          if (c!==V && c!==U) tmp.push(c);
+          var polys = c.toPolygons(), hs = polys.filter(function(p){ return area(p)<0; });
+          if (!hs.length) return;
+          /* composante qui enferme au moins une zone : tout son intérieur est rempli, même si d'autres traits la recoupent */
+          polys.forEach(function(p){ if (area(p)>0) outers.push(p); });
+        });
+        if (!outers.length) return;
+        var H = new CS(outers,'NonZero'); tmp.push(H);
+        var G = H.offset(-tol+0.05,'Round',2,16); tmp.push(G); regions.push(G);
+      });
     });
     if (!regions.length) return null;
     var Gu = regions.length>1 ? csUnion(CS,regions) : regions[0]; tmp.push(Gu);
     var T = Math.max(2,+$('penFillT').value||10), t = span ? 600 : Math.max(T,2*maxR), M = Gu.extrude(t), R;
-    if (kind==='sol'){ R = M.rotate([-90,0,0]).translate([0,span ? -300 : Math.max(0,off-maxR),0]); }
+    if (kind==='sol'){ R = M.rotate([-90,0,0]).translate([0,span ? -300 : (off<=3 ? 0 : Math.max(0,off-maxR)),0]); }
     else if (kind==='face'){ R = M.translate([0,0,span ? -300 : off-t/2]); }
     else { R = M.rotate([0,90,0]).translate([span ? -300 : off-t/2,0,0]); }
     if (R!==M) M.delete();
@@ -1889,7 +2361,7 @@ function strokeGroups(){
   var g = {};
   var groups = [];
   draw.strokes.forEach(function(s){
-    if (!s.plane || s.plane.kind==='surface') return;
+    if (!s.plane || s.plane.kind==='surface' || !s.fill) return;
     var gr = null; groups.forEach(function(x){ if (!gr && x.kind===s.plane.kind && Math.abs(x.off-s.plane.off)<=Math.max(2,s.r*2)) gr = x; });
     if (!gr){ gr = {kind:s.plane.kind,off:s.plane.off,list:[]}; groups.push(gr); }
     gr.list.push(s);
@@ -1914,7 +2386,7 @@ function refreshFills(){
   if (!draw) return;
   (draw.fills||[]).forEach(function(m){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
   draw.fills = [];
-  if (!draw.free || !$('penFill').checked || !MF) return;
+  if (!draw.free || !MF) return;
   allFills().forEach(function(man){
     try {
       var cl = clipToPlate(man), pos = manToPositions(cl); cl.delete();
@@ -1927,34 +2399,36 @@ function refreshFills(){
     man.delete();
   });
 }
-$('penFill').addEventListener('change',function(){ refreshFills(); });
+$('penFill').addEventListener('change',function(){ savePen(); });
 $('penVol').addEventListener('change',function(){ refreshFills(); });
 $('penFillT').addEventListener('input',function(){ $('penFillTVal').textContent = this.value+' mm'; });
-$('penFillT').addEventListener('change',function(){ refreshFills(); });
-function endPenStroke(pts){
+$('penFillT').addEventListener('change',function(){ rebuildFlat(); refreshFills(); savePen(); });
+function endPenStroke(pts,rs){
   if (!draw || !draw.free || !pts.length) return;
   try {
-    var r = penR(), st = {pts:pts,r:r,mesh:null,plane:{kind:draw.plane.kind,off:draw.plane.off}}, raw = sweep(pts,r), man = clipToPlate(raw), pos = manToPositions(man);
-    raw.delete(); man.delete();
-    if (!pos.length) return;
-    var g = new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); setNormals(g);
-    var mat = new THREE.MeshStandardMaterial({roughness:0.6,metalness:0.04}); mat.color.set(cssVar('--accent')||'#d9520b').convertSRGBToLinear();
-    var mesh = new THREE.Mesh(g,mat); scene.add(mesh);
-    draw.redo.forEach(dropStroke); draw.redo = [];
-    st.mesh = mesh; draw.strokes.push(st); refreshFills();
+    var made = [], grp = ++draw.gid;
+    symCopies(pts,rs).forEach(function(S){
+      var st = {pts:S.pts,rs:S.rs,r0:penR(),style:penCfg.style,prof:penCfg.prof,fill:$('penFill').checked,grp:grp,mesh:null,plane:{kind:draw.plane.kind,off:draw.plane.off}};
+      st.r = Math.max.apply(null,S.rs && S.rs.length ? S.rs : [st.r0]);
+      var mesh = strokeMesh(st); if (!mesh) return;
+      scene.add(mesh); st.mesh = mesh; made.push(st);
+    });
+    if (!made.length) return;
+    made.forEach(function(st){ draw.strokes.push(st); draw.all.push(st); });
+    pushOp({add:made,del:[]}); refreshFills();
   } catch(e){ toast('Ce trait n’a pas pu être transformé en volume.'); }
   drawRefresh();
 }
 function finishPen(){
   if (!draw.strokes.length) return;
   try {
-    var fl = $('penFill').checked ? allFills() : [], mans = allFills.span && fl.length ? [] : draw.strokes.map(function(s){ return sweep(s.pts,s.r); });
+    var fl = allFills(), mans = allFills.span && fl.length ? [] : draw.strokes.map(function(s){ return strokeMan(s); });
     fl.forEach(function(m){ mans.push(m); });
     var U = mans.length>1 ? MF.Manifold.union(mans) : mans[0], R = clipToPlate(U), pos = manToPositions(R);
     mans.forEach(function(x){ if (x!==U) x.delete(); }); U.delete(); R.delete();
     if (!pos.length){ toast('Le dessin est vide.'); return; }
     var n = state.objs.filter(function(o){ return /^Dessin /.test(o.name); }).length+1;
-    draw.strokes.concat(draw.redo).forEach(dropStroke); (draw.fills||[]).forEach(function(m){ scene.remove(m); }); draw = null; drawRefresh();
+    dropAll(); draw = null; drawRefresh();
     var o = addMeshObject(pos,'Dessin '+n); state.sel = [o.id]; rebuild(); commit(); showNewObject();
     toast('Dessin transformé en objet 3D.');
   } catch(e){ toast('Le dessin n’a pas pu être transformé en objet.'); }
