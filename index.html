@@ -16,7 +16,7 @@
    Téléphone : plateau pleine largeur, outils puis formes en bandeaux bas, fiche de l'objet en tiroir. */
 :root{
   --bg:#e9edf1; --panel:#f8fafb; --ink:#18212c; --muted:#5f6b7a; --line:#cfd6de;
-  --accent:#d9520b; --accent-ink:#ffffff; --stage:#dfe5ea; --grid:#aab5c1; --grid-strong:#74828f;
+  --accent:#c64808; --accent-ink:#ffffff; --stage:#dfe5ea; --grid:#aab5c1; --grid-strong:#74828f;
   --danger:#b3261e;
   --glass:rgba(248,250,251,.94); --lift:0 8px 28px rgba(16,24,40,.18),0 1px 3px rgba(16,24,40,.14);
   --display:"Bricolage Grotesque","Trebuchet MS",sans-serif;
@@ -54,7 +54,7 @@ input[type=range],input[type=checkbox]{accent-color:var(--accent)}
 
 /* Barre du haut : l'essentiel seulement */
 #bar{grid-area:bar;display:flex;align-items:center;gap:.5em .8em;padding:.5em 1em;background:var(--panel);border-bottom:1px solid var(--line);position:relative;z-index:8}
-#brand{font-family:var(--display);font-weight:700;font-size:1.4em;letter-spacing:-.02em;white-space:nowrap;margin-right:.35em}
+#brand{font-family:var(--display);font-weight:700;font-size:1.4em;letter-spacing:-.02em;white-space:nowrap;margin:0 .35em 0 0}
 #brand span{color:var(--accent)}
 .group{display:flex;gap:4px;align-items:center}
 .sep{width:1px;align-self:stretch;background:var(--line);flex:none}
@@ -81,9 +81,9 @@ body.simple .adv{display:none!important}
 .menu button:hover,.menu button:focus-visible{background:var(--bg)}
 .menu hr{border:0;border-top:1px solid var(--line);margin:5px 4px}
 #menu .m-only{display:none}
-.menu button[aria-pressed]::after,#levelBtn::after{content:"";margin-left:auto;flex:none;width:2.3em;height:1.25em;border-radius:99px;
+.menu button[aria-checked]::after,#levelBtn::after{content:"";margin-left:auto;flex:none;width:2.3em;height:1.25em;border-radius:99px;
   background:radial-gradient(circle at center,#fff 0 .46em,transparent .48em) no-repeat .12em 50%/1.02em 1.02em,var(--grid);transition:background-position .15s}
-.menu button[aria-pressed="true"]::after,#levelBtn[aria-pressed="true"]::after{background:radial-gradient(circle at center,#fff 0 .46em,transparent .48em) no-repeat calc(100% - .12em) 50%/1.02em 1.02em,var(--accent)}
+.menu button[aria-checked="true"]::after,#levelBtn[aria-pressed="true"]::after{background:radial-gradient(circle at center,#fff 0 .46em,transparent .48em) no-repeat calc(100% - .12em) 50%/1.02em 1.02em,var(--accent)}
 #levelBtn{display:inline-flex;align-items:center;gap:.7em}
 #levelBtn[aria-pressed="true"]{background:transparent;color:var(--ink);border-color:var(--line)}
 
@@ -342,7 +342,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
 <body>
 <div id="app">
   <header id="bar">
-    <div id="brand">Atelier<span>3D</span></div>
+    <h1 id="brand">Atelier<span>3D</span></h1>
     <div class="menu-wrap">
       <button class="btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="menu" aria-label="Menu du projet"><span class="d">Projet ▾</span><span class="m" aria-hidden="true">⋯</span></button>
       <div class="menu" id="menu" role="menu" hidden>
@@ -353,8 +353,8 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
         <button role="menuitem" class="adv" id="printerBtn" title="Imprimante et taille du plateau">Imprimante et plateau…</button>
         <button role="menuitem" class="adv" id="platesBtn" title="Plusieurs plateaux séparés : un fichier par plateau">Plateaux : 1</button>
         <hr>
-        <button role="menuitem" class="m-only" id="levelBtn2" aria-pressed="false" title="Affiche ou cache les outils avancés">Mode expert</button>
-        <button role="menuitem" id="dockBtn" aria-pressed="false" title="Affiche le nom sous chaque icône d’outil">Noms sous les outils</button>
+        <button role="menuitemcheckbox" class="m-only" id="levelBtn2" aria-checked="false" title="Affiche ou cache les outils avancés">Mode expert</button>
+        <button role="menuitemcheckbox" id="dockBtn" aria-checked="false" title="Affiche le nom sous chaque icône d’outil">Noms sous les outils</button>
         <button role="menuitem" id="helpBtn" title="Revoir le guide de démarrage">Guide de démarrage</button>
       </div>
     </div>
@@ -518,7 +518,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
     <div id="toast" role="status"></div>
   </main>
 
-  <div id="dock" role="toolbar" aria-label="Outils">
+  <nav id="dock" aria-label="Outils">
     <div class="group" role="group" aria-label="Outil">
       <button class="btn" data-mode="translate" data-lb="Déplacer" aria-pressed="true" title="Déplacer (touche T)">Déplacer</button>
       <button class="btn" data-mode="rotate" data-lb="Tourner" aria-pressed="false" title="Tourner (touche R)">Tourner</button>
@@ -544,7 +544,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
       <button class="btn" id="mergeTop" data-lb="Fusionner" title="Réunit les formes sélectionnées en un seul objet (Ctrl+M). Sélectionnez-en au moins deux." disabled>Fusionner</button>
       <button class="btn danger" id="delTop" data-lb="Supprimer" title="Supprime les objets choisis (touche Suppr)" disabled>Supprimer</button>
     </div>
-  </div>
+  </nav>
 
   <aside id="inspector" aria-label="Objets et propriétés">
     <button class="btn" id="closeInspector" aria-label="Fermer la fiche de l’objet">✕</button>
@@ -794,7 +794,7 @@ function creasedNormals(pos){
   var out = new Float32Array(pos.length);
   for (i=0;i<n;i++) for (j=0;j<3;j++){
     var v = ids[i*3+j], sx = 0, sy = 0, sz = 0, nx = fn[i*3], ny = fn[i*3+1], nz = fn[i*3+2];
-    for (var a=start[v];a<start[v+1];a++){ var f = adj[a]; if (nx*fn[f*3]+ny*fn[f*3+1]+nz*fn[f*3+2]>=0.82){ sx += fn[f*3]; sy += fn[f*3+1]; sz += fn[f*3+2]; } }
+    for (var a=start[v],ae=Math.min(start[v+1],a+512);a<ae;a++){ var f = adj[a]; if (nx*fn[f*3]+ny*fn[f*3+1]+nz*fn[f*3+2]>=0.82){ sx += fn[f*3]; sy += fn[f*3+1]; sz += fn[f*3+2]; } }
     var L = Math.sqrt(sx*sx+sy*sy+sz*sz)||1;
     out[i*9+j*3] = sx/L; out[i*9+j*3+1] = sy/L; out[i*9+j*3+2] = sz/L;
   }
@@ -847,7 +847,16 @@ function cutMF(o,m,hs){
     return geoFromWorld(manToPositions(A),m);
   } finally { A.delete(); }
 }
-function saveMesh(mid,arr){ try { if (meshDb) meshDb.transaction('meshes','readwrite').objectStore('meshes').put(arr,mid); } catch(e){} }
+var meshWarn = 0;
+function saveMesh(mid,arr){
+  try {
+    if (!meshDb) return;
+    var tx = meshDb.transaction('meshes','readwrite');
+    tx.objectStore('meshes').put(arr,mid);
+    /* espace du navigateur insuffisant : on prévient, sinon le modèle disparaîtrait à la prochaine ouverture */
+    tx.onabort = tx.onerror = function(){ var now = Date.now(); if (now-meshWarn>5000){ meshWarn = now; toast('Ce modèle est trop lourd pour la mémoire du navigateur : enregistrez le projet dans un fichier pour le garder.'); } };
+  } catch(e){}
+}
 function newMid(){ return 'm'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function boxOf(pos){
   var b = [Infinity,-Infinity,Infinity,-Infinity,Infinity,-Infinity];
@@ -885,7 +894,10 @@ function polyOf(o){
     var sh = new THREE.Shape();
     o.pts.forEach(function(p,i){ if (i) sh.lineTo(p[0],-p[1]); else sh.moveTo(p[0],-p[1]); });
     sh.closePath();
+    var so = ringArea(o.pts,1)>0;
     (o.holes||[]).forEach(function(hp){
+      /* un trou doit tourner dans le sens opposé au contour, sinon ses parois sont retournées et le volume est faux */
+      if ((ringArea(hp,1)>0)===so) hp = hp.slice().reverse();
       var path = new THREE.Path();
       hp.forEach(function(p,i){ if (i) path.lineTo(p[0],-p[1]); else path.moveTo(p[0],-p[1]); });
       path.closePath(); sh.holes.push(path);
@@ -898,7 +910,7 @@ function polyOf(o){
   return c;
 }
 /* Modèles importés (STL) : géométrie gardée en mémoire et dans IndexedDB, l'objet ne porte que sa référence */
-var MESH = {}, meshDb = null;
+var MESH = Object.create(null), meshDb = null;
 function meshFromPositions(pos){
   var g = new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.BufferAttribute(pos,3)); setNormals(g); g.center(); g.computeBoundingBox();
@@ -1000,19 +1012,87 @@ function example(){
     {id:6,type:'cylinder',name:'Fenêtre',color:'#3b4350',hole:true,p:[14,12,0],r:[0,0,Math.PI/2],s:[8,6,8]}
   ];
 }
-function validObjs(a){
-  return Array.isArray(a) && a.every(function(o){ return o && (GEO[o.type] || (o.type==='poly' && Array.isArray(o.pts) && o.pts.length>=3) || (o.type==='mesh' && typeof o.mid==='string')) && Array.isArray(o.p) && Array.isArray(o.r) && Array.isArray(o.s); });
+/* Lecture stricte : un fichier abîmé ou modifié à la main ne doit jamais faire planter l'app ni créer d'objet invisible */
+var HEX6 = /^#[0-9a-f]{6}$/i, MIDRE = /^[A-Za-z0-9_-]{1,64}$/;
+function isNum(v){ return typeof v==='number' && isFinite(v); }
+function nums3(a,lim){ return Array.isArray(a) && a.length===3 && a.every(function(v){ return isNum(v) && Math.abs(v)<=lim; }); }
+function isPt(q){ return Array.isArray(q) && q.length>=2 && isNum(q[0]) && isNum(q[1]) && Math.abs(q[0])<=1e6 && Math.abs(q[1])<=1e6; }
+function ringArea(r,signed){ var a = 0, i, p, q; for (i=0;i<r.length;i++){ p = r[i]; q = r[(i+1)%r.length]; a += p[0]*q[1]-q[0]*p[1]; } return signed ? a/2 : Math.abs(a)/2; }
+function goodRing(r){ return Array.isArray(r) && r.length>=3 && r.length<=20000 && r.every(isPt) && ringArea(r)>=1e-3; }
+function goodPositions(a){
+  if (!a || !a.length || a.length<9 || a.length%9) return false;
+  for (var i=0;i<a.length;i++) if (!isFinite(a[i])) return false;
+  return true;
 }
+function cleanPaint(a){
+  if (!Array.isArray(a)) return null;
+  var out = [], i, op, col;
+  for (i=0;i<a.length;i++){
+    op = a[i]; if (!op || typeof op!=='object') return null;
+    col = op.c===0 || (typeof op.c==='string' && HEX6.test(op.c)); if (!col) return null;
+    if (op.t==='b'){
+      if (!isNum(op.r) || op.r<=0 || op.r>1e4 || !Array.isArray(op.p) || !op.p.length || op.p.length%6 || !op.p.every(isNum)) return null;
+      out.push({t:'b',c:op.c,r:op.r,p:op.p.slice()});
+    } else if (op.t==='f'){
+      if (!nums3(op.p,1e6) || !nums3(op.n,1e3) || !isNum(op.a)) return null;
+      out.push({t:'f',c:op.c,p:op.p.slice(),n:op.n.slice(),a:op.a});
+    } else return null;
+  }
+  return out;
+}
+function cleanObj(o,i){
+  if (!o || typeof o!=='object' || Array.isArray(o)) return null;
+  var ty = o.type, c;
+  if (ty==='poly'){ if (!goodRing(o.pts)) return null; }
+  else if (ty==='mesh'){ if (typeof o.mid!=='string' || !MIDRE.test(o.mid)) return null; }
+  else if (typeof ty!=='string' || !Object.prototype.hasOwnProperty.call(GEO,ty)) return null;
+  if (!nums3(o.p,1e6) || !nums3(o.r,1e5) || !nums3(o.s,1e9)) return null;
+  c = {id:o.id,type:ty,
+    name:(typeof o.name==='string' ? o.name.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,80) : '') || (NAMES[ty]+' '+(i+1)),
+    color:(typeof o.color==='string' && HEX6.test(o.color)) ? o.color.toLowerCase() : COLORS[i%COLORS.length],
+    p:o.p.slice(),r:o.r.slice(),s:o.s.map(function(v){ return Math.max(1e-6,Math.abs(v)); })};
+  if (o.hole===true) c.hole = true;
+  if (Number.isInteger(o.g) && o.g>=0 && o.g<1e9) c.g = o.g;
+  if (ty==='poly'){
+    c.pts = o.pts.map(function(q){ return [q[0],q[1]]; });
+    if (Array.isArray(o.holes)){ var hs = o.holes.filter(goodRing).map(function(h){ return h.map(function(q){ return [q[0],q[1]]; }); }); if (hs.length) c.holes = hs; }
+  } else if (ty==='mesh') c.mid = o.mid;
+  if (o.paint!=null){ var pa = cleanPaint(o.paint); if (pa && pa.length){ c.paint = pa; c.pv = (Number.isInteger(o.pv) && o.pv>=0) ? o.pv : 0; } }
+  return c;
+}
+/* Rend la liste d'objets sûre : renvoie {objs, bad} (bad = objets ignorés) ou null si ce n'est pas une liste */
+function cleanObjs(a){
+  if (!Array.isArray(a)) return null;
+  var out = [], used = Object.create(null), bad = 0, top = 0;
+  a.forEach(function(o){ if (o && typeof o==='object' && Number.isInteger(o.id) && o.id>top && o.id<1e9) top = o.id; });
+  a.forEach(function(o,i){
+    var c = cleanObj(o,i); if (!c){ bad++; return; }
+    if (!Number.isInteger(c.id) || c.id<1 || c.id>=1e9 || used[c.id]) c.id = ++top;
+    used[c.id] = 1; out.push(c);
+  });
+  return {objs:out,bad:bad};
+}
+function usableObjs(a){ var r = cleanObjs(a); return r && (r.objs.length || !a.length) ? r.objs : null; }
 function load(){
-  var hot = window.claude && window.claude.hot && window.claude.hot.data;
-  if (hot && validObjs(hot.objs)) return hot.objs;
-  try { var raw = localStorage.getItem(STORE); if (raw){ var a = JSON.parse(raw); if (validObjs(a)) return a; } } catch(e){}
+  var hot = window.claude && window.claude.hot && window.claude.hot.data, a;
+  if (hot && (a = usableObjs(hot.objs))) return a;
+  try { var raw = localStorage.getItem(STORE); if (raw && (a = usableObjs(JSON.parse(raw)))) return a; } catch(e){}
   return example();
 }
-function save(){ try { localStorage.setItem(STORE, JSON.stringify(state.objs)); } catch(e){} }
+var saveWarn = 0;
+function save(){
+  try { localStorage.setItem(STORE, JSON.stringify(state.objs)); }
+  catch(e){
+    /* mémoire du navigateur pleine (peinture très détaillée, gros modèles) : on prévient au lieu de perdre le travail sans rien dire */
+    var now = Date.now(); if (now-saveWarn>30000){ saveWarn = now; toast('La sauvegarde automatique est pleine : utilisez « Projet ▾ » puis « Enregistrer le projet… » pour garder votre travail.'); }
+  }
+}
+/* L'historique garde jusqu'à 100 étapes, mais pas plus de ~80 Mo de texte : une scène très peinte ne doit pas saturer la mémoire du téléphone */
+var HIST_CHARS = 80e6;
 function commit(){
   history = history.slice(0,hIndex+1); history.push(JSON.stringify(state.objs));
-  if (history.length > 100) history.shift();
+  var tot = 0; history.forEach(function(h){ tot += h.length; });
+  while (history.length>1 && (history.length>100 || tot>HIST_CHARS)){ tot -= history.shift().length; }
   hIndex = history.length-1; save(); recut(); refreshUI();
 }
 function restore(i){
@@ -1839,7 +1919,7 @@ function updateGuide(){
 var LEVEL_KEY = 'atelier3d.level.v1';
 function setLevel(expert){
   document.body.classList.toggle('simple',!expert);
-  ['levelBtn','levelBtn2'].forEach(function(id){ $(id).setAttribute('aria-pressed',String(expert)); });
+  $('levelBtn').setAttribute('aria-pressed',String(expert)); $('levelBtn2').setAttribute('aria-checked',String(expert));
   if (!expert){ if (erase) setErase(false); if (measure) setMeasure(false); if (draw && !draw.free) cancelDraw(); }
   try { localStorage.setItem(LEVEL_KEY,expert?'expert':'simple'); } catch(e){}
 }
@@ -1871,11 +1951,13 @@ function splitCounts(){
   });
   return {ok:ok,list:res,total:tot,max:mx};
 }
+var SPLIT_MAX = 100;
 function splitRefresh(){
   var c = splitCounts();
   if (!c.ok){ $('splitCount').textContent = 'Indiquez des tailles d’au moins 5 mm.'; $('splitGo').disabled = true; return; }
-  $('splitGo').disabled = c.total<=c.list.length;
-  $('splitCount').textContent = c.total<=c.list.length ? 'Ce modèle tient déjà dans cette taille : rien à découper.'
+  $('splitGo').disabled = c.total<=c.list.length || c.total>SPLIT_MAX;
+  $('splitCount').textContent = c.total>SPLIT_MAX ? 'Cela ferait '+c.total+' parties : c’est trop (maximum '+SPLIT_MAX+'). Choisissez des tailles plus grandes.'
+    : c.total<=c.list.length ? 'Ce modèle tient déjà dans cette taille : rien à découper.'
     : c.list.map(function(r){ return r.o.name+' : '+r.n.join(' × ')+' = '+(r.n[0]*r.n[1]*r.n[2])+' parties'; }).join(' · ');
 }
 function openSplit(){
@@ -1888,7 +1970,7 @@ function openSplit(){
   splitRefresh(); $('splitDlg').hidden = false;
 }
 function splitRun(){
-  var c = splitCounts(); if (!c.ok || c.total<=c.list.length) return;
+  var c = splitCounts(); if (!c.ok || c.total<=c.list.length || c.total>SPLIT_MAX) return;
   var made = [], gone = [], failed = 0, neg = state.neg; state.neg = false;
   c.list.forEach(function(r){
     var o = r.o, m = meshes[o.id], A = null, g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry, total = r.n[0]*r.n[1]*r.n[2];
@@ -2983,6 +3065,30 @@ function closeModals(){
 document.querySelectorAll('.modal').forEach(function(m){
   m.addEventListener('click',function(e){ if (e.target===m || e.target.hasAttribute('data-close')) m.hidden = true; });
 });
+/* Boîtes de dialogue au clavier : le focus entre dans la boîte, Tab y reste, et le focus revient au bouton d'origine à la fermeture */
+document.querySelectorAll('.modal').forEach(function(m){
+  var sheet = m.querySelector('.sheet'), back = null; if (!sheet) return;
+  sheet.tabIndex = -1;
+  new MutationObserver(function(){
+    if (!m.hidden){
+      if (!sheet.contains(document.activeElement)){ back = document.activeElement; try { sheet.focus({preventScroll:true}); } catch(e){} }
+    } else if (back){
+      var b = back; back = null;
+      try {
+        if (b.closest && b.closest('#menu')) b = $('menuBtn');   /* le menu s'est refermé : on revient à son bouton */
+        if (document.body.contains(b) && !b.disabled && !b.hidden) b.focus({preventScroll:true});
+      } catch(e){}
+    }
+  }).observe(m,{attributes:true,attributeFilter:['hidden']});
+  m.addEventListener('keydown',function(e){
+    if (e.key!=='Tab') return;
+    var f = Array.prototype.filter.call(sheet.querySelectorAll('button,a[href],input,select,textarea'),function(x){ return !x.disabled && !x.hidden && x.offsetParent!==null; });
+    if (!f.length){ e.preventDefault(); return; }
+    var first = f[0], last = f[f.length-1], cur = document.activeElement;
+    if (e.shiftKey && (cur===first || cur===sheet)){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && cur===last){ e.preventDefault(); first.focus(); }
+  });
+});
 (function(){
   var sel = $('printerSel');
   PRINTERS.forEach(function(pr,i){ var o = document.createElement('option'); o.value = i; o.textContent = pr.length>1 ? pr[0]+' ('+pr[1]+' × '+pr[2]+' × '+pr[3]+' mm)' : pr[0]; sel.appendChild(o); });
@@ -3148,6 +3254,7 @@ function createFromSpec(parts,label){
   return ok.length;
 }
 function localAssistant(text){
+  text = String(text||'').slice(0,1500);
   var t = ' '+text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’']/g,' ')+' ';
   [['deux',2],['trois',3],['quatre',4],['cinq',5],['six',6],['huit',8],['dix',10]].forEach(function(w){ t = t.replace(new RegExp(' '+w[0]+' ','g'),' '+w[1]+' '); });
   var N = '(\\d+(?:[.,]\\d+)?)';
@@ -3225,7 +3332,7 @@ var AI_PRESETS = {
   custom:{n:'Autre service compatible OpenAI',k:'openai',u:'',m:''}
 };
 var AI_STORE = 'atelier3d.ai.v1', userAI = null;
-try { var rawAI = JSON.parse(localStorage.getItem(AI_STORE)||'null'); if (rawAI && AI_PRESETS[rawAI.prov] && rawAI.url && rawAI.model) userAI = rawAI; } catch(e){}
+try { var rawAI = JSON.parse(localStorage.getItem(AI_STORE)||'null'); if (rawAI && typeof rawAI==='object' && Object.prototype.hasOwnProperty.call(AI_PRESETS,rawAI.prov) && typeof rawAI.url==='string' && rawAI.url && typeof rawAI.model==='string' && rawAI.model) userAI = rawAI; } catch(e){}
 function aiExtractJSON(txt){
   txt = String(txt||'').replace(/```[a-z]*\n?/gi,'').trim();
   var a = txt.indexOf('['), b = txt.lastIndexOf(']');
@@ -3468,7 +3575,7 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
     css += (sel==='#toggleInspector' ? '' : '#dock ')+sel+'{--ic:url("data:image/svg+xml,'+encodeURIComponent(svg)+'")}\n';
   }
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
-  var tip = document.createElement('div'); tip.id = 'dockTip'; document.body.appendChild(tip);
+  var tip = document.createElement('div'); tip.id = 'dockTip'; tip.setAttribute('aria-hidden','true'); document.body.appendChild(tip);
   var dock = $('dock'), shapes = $('shapes'), stageEl = $('stage');
   var fine = window.matchMedia ? window.matchMedia('(hover:hover) and (pointer:fine)') : {matches:true};
 
@@ -3482,7 +3589,7 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
     if (dock.scrollWidth>dock.clientWidth+1) dock.classList.add('scroll');
     layoutVars(); fitting = false;
   }
-  function applyLabels(){ var on = labelsOn(); document.body.classList.toggle('labels',on); $('dockBtn').setAttribute('aria-pressed',String(on)); fitDock(); }
+  function applyLabels(){ var on = labelsOn(); document.body.classList.toggle('labels',on); $('dockBtn').setAttribute('aria-checked',String(on)); fitDock(); }
   $('dockBtn').addEventListener('click',function(){ pref = labelsOn() ? 'off' : 'on'; try { localStorage.setItem('atelier3d.labels',pref); } catch(e){} applyLabels(); });
   window.addEventListener('resize',fitDock);
   if (window.ResizeObserver){ new ResizeObserver(fitDock).observe(stageEl); new ResizeObserver(fitDock).observe(dock); }
@@ -3601,25 +3708,37 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
     rd.onerror = function(){ toast('Le fichier n’a pas pu être lu.'); };
     rd.onload = function(){
       var d = null; try { d = JSON.parse(rd.result); } catch(e){}
-      if (!d || d.app!=='atelier3d' || !validObjs(d.objs)){ toast('Ce fichier n’est pas un projet Atelier 3D.'); return; }
+      if (!d || typeof d!=='object' || d.app!=='atelier3d' || !Array.isArray(d.objs)){ toast('Ce fichier n’est pas un projet Atelier 3D.'); return; }
+      if (d.objs.length>5000){ toast('Ce projet contient trop d’objets pour l’app (plus de 5000).'); return; }
+      var cl = cleanObjs(d.objs);
+      if (d.objs.length && !cl.objs.length){ toast('Ce projet est abîmé : aucun objet n’a pu être relu.'); return; }
+      var back = {objs:state.objs,plate:plate,count:plateCount};
       try {
-        Object.keys(d.meshes||{}).forEach(function(mid){
-          if (MESH[mid]) return;
-          var arr = b64f32(d.meshes[mid]); if (arr.length<9) return;
+        var ms = (d.meshes && typeof d.meshes==='object') ? d.meshes : {};
+        Object.keys(ms).forEach(function(mid){
+          if (!MIDRE.test(mid) || MESH[mid] || typeof ms[mid]!=='string') return;
+          var arr; try { arr = b64f32(ms[mid]); } catch(e){ return; }
+          if (!goodPositions(arr)) return;
           saveMesh(mid,arr.slice(0)); MESH[mid] = meshFromPositions(arr);
         });
-        var objs = d.objs.filter(function(o){ return o.type!=='mesh' || MESH[o.mid]; });
+        var objs = cl.objs.filter(function(o){ return o.type!=='mesh' || MESH[o.mid]; });
         if (draw) cancelDraw(); if (measure) setMeasure(false); if (erase) setErase(false); if (paint) setPaint(false); if (sculpt) setSculpt(false);
         var pl = d.plate;
         if (pl && [pl.w,pl.d,pl.h].every(function(v){ return typeof v==='number' && v>=20 && v<=2000; })){
-          plate = {w:pl.w,d:pl.d,h:pl.h,name:String(pl.name||'')}; try { localStorage.setItem(PLATE_KEY,JSON.stringify(plate)); } catch(e){}
+          plate = {w:pl.w,d:pl.d,h:pl.h,name:String(pl.name||'').slice(0,40)}; try { localStorage.setItem(PLATE_KEY,JSON.stringify(plate)); } catch(e){}
         }
         plateCount = Math.max(1,Math.min(MAXP,parseInt(d.plates,10)||1));
         objs.forEach(function(o){ if (!o.hole) plateCount = Math.min(MAXP,Math.max(plateCount,Math.round(o.p[0]/(plate.w+PGAP))+1)); });
         savePlates(); state.objs = objs; state.sel = [];
         buildPlate(); rebuild(); commit(); frameView();
-        toast(objs.length<d.objs.length ? 'Projet ouvert, mais un modèle importé manquait dans le fichier.' : 'Projet ouvert. Touchez Annuler pour retrouver l’ancien.');
-      } catch(e){ toast('Ce projet n’a pas pu être ouvert.'); }
+        var lost = d.objs.length-objs.length;
+        toast(lost ? 'Projet ouvert, mais '+lost+(lost>1 ? ' objets abîmés ou manquants ont été ignorés.' : ' objet abîmé ou manquant a été ignoré.') : 'Projet ouvert. Touchez Annuler pour retrouver l’ancien.');
+      } catch(e){
+        state.objs = back.objs; state.sel = []; plate = back.plate; plateCount = back.count;
+        try { localStorage.setItem(PLATE_KEY,JSON.stringify(plate)); } catch(e1){}
+        try { savePlates(); buildPlate(); rebuild(); } catch(e2){}
+        toast('Ce projet n’a pas pu être ouvert : le plateau actuel est conservé.');
+      }
     };
     rd.readAsText(file);
   }
@@ -3634,7 +3753,9 @@ $('toggleInspector').addEventListener('click',function(){ showInspector(!$('insp
 $('closeInspector').addEventListener('click',function(){ showInspector(false); });
 $('dupTop').addEventListener('click',duplicate);
 window.addEventListener('keydown',function(e){
-  var t = e.target.tagName; if (t==='INPUT'||t==='TEXTAREA') return;
+  if (e.key==='Escape' && closeModals()){ e.preventDefault(); return; }
+  var t = e.target.tagName; if (t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.target.isContentEditable) return;
+  if (document.querySelector('.modal:not([hidden])')) return;   /* une boîte est ouverte : Suppr ou Ctrl+A ne touchent pas à la scène derrière */
   var k = e.key.toLowerCase(), mod = e.ctrlKey||e.metaKey;
   if (mod && k==='z'){ e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
   else if (mod && k==='y'){ e.preventDefault(); redo(); }
@@ -3683,8 +3804,14 @@ function buildSTL(pk){
 
 /* ---------- Import d'un fichier STL ---------- */
 function parseSTL(buf){
-  var dv = new DataView(buf), n = buf.byteLength>=84 ? dv.getUint32(80,true) : 0, pos, i, j, k = 0;
-  if (buf.byteLength>=84 && 84+50*n===buf.byteLength && n>0){
+  var dv = new DataView(buf), len = buf.byteLength, n = len>=84 ? dv.getUint32(80,true) : 0, pos, i, j, k = 0;
+  /* Binaire : taille exacte, ou quelques octets en trop (certains logiciels en ajoutent) tant que le début n'est pas du texte STL */
+  var bin = n>0 && 84+50*n===len;
+  if (!bin && n>0 && 84+50*n<len){
+    var head = new TextDecoder().decode(new Uint8Array(buf,0,Math.min(len,512)));
+    bin = !(/^\s*solid/i.test(head) && /facet|vertex|endsolid/i.test(head));
+  }
+  if (bin){
     pos = new Float32Array(n*9);
     for (i=0;i<n;i++) for (j=0;j<3;j++){
       var o = 84+i*50+12+j*12, x = dv.getFloat32(o,true), y = dv.getFloat32(o+4,true), z = dv.getFloat32(o+8,true);
@@ -3692,14 +3819,20 @@ function parseSTL(buf){
     }
     return pos;
   }
-  var text = new TextDecoder().decode(buf), re = /vertex\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)/g, m, out = [];
-  while ((m = re.exec(text))){ out.push(parseFloat(m[1]),parseFloat(m[3]),-parseFloat(m[2])); }
+  /* Texte : « vertex x y z » (majuscules acceptées) ; un nombre illisible (nan, virgule décimale…) refuse le fichier au lieu de perdre des triangles */
+  var text = new TextDecoder().decode(buf), re = /vertex[ \t]+(\S+)[ \t]+(\S+)[ \t]+(\S+)/gi, m, out = [], px, py, pz;
+  while ((m = re.exec(text))){
+    px = +m[1]; py = +m[2]; pz = +m[3];
+    if (px!==px || py!==py || pz!==pz) return null;
+    out.push(px,pz,-py);
+  }
   if (out.length<9 || out.length%9) return null;
   return new Float32Array(out);
 }
 function addImported(parts,fileName){
   var tris = 0, i, x0 = Infinity, x1 = -Infinity, y0 = Infinity, z0 = Infinity, z1 = -Infinity;
-  parts = parts.filter(function(pt){ return pt.pos.length>=9; }).slice(0,60);
+  parts = parts.filter(function(pt){ return pt.pos.length>=9; });
+  var tooMany = parts.length>60; parts = parts.slice(0,60);
   if (!parts.length){ toast('Aucun modèle trouvé dans ce fichier.'); return; }
   for (var k=0;k<parts.length;k++){
     var pos = parts[k].pos, b = [Infinity,-Infinity,Infinity,-Infinity,Infinity,-Infinity];
@@ -3718,14 +3851,14 @@ function addImported(parts,fileName){
   parts.forEach(function(pt,n){
     var mid = 'm'+Date.now().toString(36)+n+Math.random().toString(36).slice(2,7), keep = pt.pos.slice(0), bx = pt.box;
     MESH[mid] = meshFromPositions(pt.pos);
-    try { if (meshDb) meshDb.transaction('meshes','readwrite').objectStore('meshes').put(keep,mid); } catch(e){}
+    saveMesh(mid,keep);
     var o = {id:nextId++,type:'mesh',mid:mid,name:(pt.name || (parts.length>1 ? base+' '+(n+1) : base)).slice(0,40),
       color:pt.color || COLORS[state.objs.length%COLORS.length],p:[(bx[0]+bx[1])/2-x0-plate.w/2,(bx[2]+bx[3])/2-y0,(bx[4]+bx[5])/2-z1+plate.d/2],r:[0,0,0],s:[1,1,1]};
     if (g!=null) o.g = g;
     state.objs.push(o); ids.push(o.id);
   });
   state.sel = ids; rebuild(); commit(); ensureVisible();
-  toast('« '+base+' » importé : '+(parts.length>1?parts.length+' objets, ':'')+tris+' triangles.'+(meshDb?'':' Il ne sera pas gardé après fermeture de cette fenêtre.'));
+  toast('« '+base+' » importé : '+(parts.length>1?parts.length+' objets, ':'')+tris+' triangles.'+(tooMany?' Seuls les 60 premiers objets du fichier ont été importés.':'')+(meshDb?'':' Il ne sera pas gardé après fermeture de cette fenêtre.'));
 }
 
 /* 3MF : zip + XML. Objets, composants, transformations, unités et couleurs de base */
@@ -3789,15 +3922,18 @@ function parse3MF(files){
   var rootName = names.filter(function(n){ return /^3D\/3dmodel\.model$/i.test(n); })[0] || names[0], root = model(rootName);
   if (!root) return [];
   if (!root.items.length) for (var q=0;q<names.length;q++){ var alt = model(names[q]); if (alt && alt.items.length){ root = alt; rootName = names[q]; break; } }
+  var visits = 0;
   function collect(path,id,m,out,depth){
+    if (++visits>20000 || out.length>5000) return;
     var md = model(path), ob = md && md.objs[id]; if (!ob || depth>8) return;
     if (ob.mesh) out.push({mesh:ob.mesh,m:m,unit:md.unit,color:ob.color});
     ob.comps.forEach(function(c){ collect(c.path||path,c.id,new THREE.Matrix4().multiplyMatrices(m,c.m),out,depth+1); });
   }
   var parts = [], p = new THREE.Vector3();
   root.items.forEach(function(it){
+    if (parts.length>60) return;
     var pieces = [], top = model(it.path||rootName), tob = top && top.objs[it.id];
-    collect(it.path||rootName,it.id,it.m,pieces,0);
+    visits = 0; collect(it.path||rootName,it.id,it.m,pieces,0);
     var total = 0; pieces.forEach(function(pc){ total += pc.mesh.t.length*3; });
     if (!total) return;
     var pos = new Float32Array(total), k = 0, color = tob && tob.color;
@@ -3824,7 +3960,7 @@ function importFile(file){
   rd.onload = function(){
     var buf = rd.result, u8 = new Uint8Array(buf);
     if (u8.length>4 && u8[0]===0x50 && u8[1]===0x4b){
-      unzip(buf).then(function(files){ addImported(parse3MF(files),file.name); })
+      new Promise(function(res){ res(unzip(buf)); }).then(function(files){ addImported(parse3MF(files),file.name); })
         .catch(function(e){ toast(e && e.message==='deflate' ? 'Ce navigateur ne sait pas ouvrir les fichiers 3MF compressés.' : 'Ce fichier 3MF n\u2019a pas pu être lu.'); });
       return;
     }
@@ -3979,7 +4115,7 @@ function start(){
         cur.onsuccess = function(){
           var c = cur.result;
           if (!c){ start(); return; }
-          try { if (c.value && c.value.length>=9) MESH[c.key] = meshFromPositions(new Float32Array(c.value)); } catch(e){}
+          try { var fa = c.value ? new Float32Array(c.value) : null; if (goodPositions(fa) && typeof c.key==='string') MESH[c.key] = meshFromPositions(fa); } catch(e){}
           c.continue();
         };
       } catch(e){ start(); }
