@@ -1,0 +1,12 @@
+*
+!.gitignore
+!.htaccess
+!keys/
+keys/*
+!keys/.gitkeep
+!app/
+app/*
+!app/.gitkeep
+!logs/
+logs/*
+!logs/.gitkeep

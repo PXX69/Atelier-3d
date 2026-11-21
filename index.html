@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Atelier 3D</title>
+<title>Liagos 3D</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#d9520b">
+<meta name="theme-color" content="#101820">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Atelier 3D : mise en page.
+/* Liagos 3D : mise en page.
    Ordinateur et tablette : barre fine en haut, formes à gauche, plateau au centre avec son dock d'outils flottant, fiche de l'objet à droite.
    Téléphone : plateau pleine largeur, outils puis formes en bandeaux bas, fiche de l'objet en tiroir. */
 :root{
@@ -55,7 +55,7 @@ input[type=range],input[type=checkbox]{accent-color:var(--accent)}
 /* Barre du haut : l'essentiel seulement */
 #bar{grid-area:bar;display:flex;align-items:center;gap:.5em .8em;padding:.5em 1em;background:var(--panel);border-bottom:1px solid var(--line);position:relative;z-index:8}
 #brand{font-family:var(--display);font-weight:700;font-size:1.4em;letter-spacing:-.02em;white-space:nowrap;margin:0 .35em 0 0}
-#brand span{color:var(--accent)}
+#brand .wm span{color:var(--accent)}
 .group{display:flex;gap:4px;align-items:center}
 .sep{width:1px;align-self:stretch;background:var(--line);flex:none}
 .spacer{flex:1}
@@ -253,7 +253,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
   #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto auto;grid-template-areas:"bar" "stage" "inspector" "dock" "shapes"}
   #bar{padding:.4em .7em;gap:.4em}
   #brand{font-size:1.25em;margin-right:0}
-  #menuBtn .d,#undo .w,#redo .w,#helpTop,#levelBtn{display:none}
+  #menuBtn .d,#undo .w,#redo .w,#helpTop,#levelBtn,#proBtn{display:none}
   #menuBtn .m{display:inline}
   #menuBtn,#undo,#redo{width:40px;padding:0}
   #toggleInspector{font-size:0;width:40px;padding:0;justify-content:center}
@@ -300,7 +300,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
   #app{grid-template-columns:9.6em minmax(0,1fr);grid-template-areas:"bar bar" "shapes stage"}
   #bar{padding:.3em .8em}
   #brand{font-size:1.2em}
-  #helpTop{display:none}
+  #helpTop,#proBtn{display:none}
   #toggleInspector{display:inline-flex}
   #closeInspector{display:inline-flex}
   #inspector{position:absolute;right:0;top:var(--bar-h,3em);bottom:0;width:min(22em,62vw);z-index:9;display:none;box-shadow:-10px 0 24px rgba(0,0,0,.2)}
@@ -337,24 +337,60 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
   .opts-ctrl .check input[type=checkbox]{width:22px;height:22px}
   .seg .btn,.stylusBtn{min-height:44px}
 }
+
+/* Liagos 3D : logo, pastilles Pro, boîtes Pro, accès navigateur, couleurs de l'interface */
+#brand{display:inline-flex;align-items:center;gap:.4em}
+#brand .logo{width:1.55em;height:1.55em;flex:none;display:block}
+.pro-tag{display:inline-block;font:700 9px/1 var(--body);letter-spacing:.05em;text-transform:uppercase;padding:2px 4px;border-radius:4px;background:var(--accent);color:var(--accent-ink);vertical-align:middle;margin-left:.15em}
+body[data-license="on"] .pro-tag{display:none}
+#dock .pro-tag{position:absolute;top:2px;right:2px;margin:0;font-size:8px;padding:1px 3px}
+.shape{position:relative}
+.shape .pro-tag{position:absolute;top:3px;right:2px;margin:0}
+.menu .pro-tag{margin-left:auto}
+#proBtn{border-color:var(--accent);font-weight:600}
+body[data-license="on"] #proBtn{border-color:var(--line);font-weight:400;color:var(--muted)}
+#proWhy{margin:0;font-size:14px;font-weight:600;line-height:1.4}
+.pro-price{margin:0;font-size:15px}
+#proOffer,#proOn{display:flex;flex-direction:column;gap:12px}
+#proOffer[hidden],#proOn[hidden]{display:none}
+.pro-list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13.5px;line-height:1.4}
+.keyrow{display:flex;gap:6px}
+.keyrow input{flex:1;min-width:0;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-family:var(--mono);font-size:12px}
+#proMsg,#gateMsg,#themeNote{margin:0;font-size:13px;line-height:1.4;color:var(--danger)}
+#proMsg:empty,#gateMsg:empty,#themeNote:empty{display:none}
+#proUntil{margin:0}
+.gate{z-index:70;background:var(--bg)}
+.gate .logo{width:56px;height:56px;display:block}
+.gate .sheet p{margin:0;line-height:1.5;font-size:14px}
+.gate-links{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.gate-links a{color:var(--ink)}
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.6em,1fr));gap:6px}
+.pset{display:flex;align-items:center;gap:6px;padding:8px;border:1px solid var(--line);border-radius:10px;background:transparent;text-align:left;font-size:13px;min-height:2.6em}
+.pset[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.pdot{width:14px;height:14px;border-radius:50%;border:1px solid rgba(128,128,128,.55);flex:none}
+.colorrow{display:flex;align-items:center;gap:10px}
+.colorrow label{flex:1;font-size:13px}
+.colorrow input[type=color]{width:46px;height:36px;padding:0;border:1px solid var(--line);border-radius:6px;background:transparent;cursor:pointer}
 </style>
 </head>
 <body>
 <div id="app">
   <header id="bar">
-    <h1 id="brand">Atelier<span>3D</span></h1>
+    <h1 id="brand"><svg class="logo" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="14" fill="#16202c"/><polygon points="11.3,43.5 20.6,48.9 20.6,38.1 11.3,32.7" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="29.9,43.5 20.6,48.9 20.6,38.1 29.9,32.7" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="20.6,27.4 29.9,32.7 20.6,38.1 11.3,32.7" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="21.2,49.2 30.5,54.6 30.5,43.8 21.2,38.5" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="39.8,49.2 30.5,54.6 30.5,43.8 39.8,38.5" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="30.5,33.1 39.8,38.5 30.5,43.8 21.2,38.5" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="11.3,32.1 20.6,37.4 20.6,26.7 11.3,21.3" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="29.9,32.1 20.6,37.4 20.6,26.7 29.9,21.3" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="20.6,15.9 29.9,21.3 20.6,26.7 11.3,21.3" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="11.3,20.6 20.6,26.0 20.6,15.3 11.3,9.9" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="29.9,20.6 20.6,26.0 20.6,15.3 29.9,9.9" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="20.6,4.5 29.9,9.9 20.6,15.3 11.3,9.9" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="34.1,54.1 43.4,59.5 43.4,48.7 34.1,43.4" fill="#2cc4ab" stroke="#2cc4ab" stroke-width="0.60" stroke-linejoin="round"/><polygon points="52.7,54.1 43.4,59.5 43.4,48.7 52.7,43.4" fill="#13917f" stroke="#13917f" stroke-width="0.60" stroke-linejoin="round"/><polygon points="43.4,38.0 52.7,43.4 43.4,48.7 34.1,43.4" fill="#a8f3e4" stroke="#a8f3e4" stroke-width="0.60" stroke-linejoin="round"/></svg><span class="wm">Liagos <span>3D</span></span></h1>
     <div class="menu-wrap">
       <button class="btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="menu" aria-label="Menu du projet"><span class="d">Projet ▾</span><span class="m" aria-hidden="true">⋯</span></button>
       <div class="menu" id="menu" role="menu" hidden>
         <button role="menuitem" id="newProject" title="Vide le plateau pour repartir de zéro">Nouveau projet</button>
-        <button role="menuitem" id="openProj" title="Rouvre un projet enregistré dans un fichier .atelier3d">Ouvrir un projet…</button>
-        <button role="menuitem" id="saveProj" title="Enregistre le projet dans un fichier .atelier3d : formes, couleurs et modèles importés">Enregistrer le projet…</button>
+        <button role="menuitem" id="openProj" title="Rouvre un projet enregistré dans un fichier .liagos3d">Ouvrir un projet…</button>
+        <button role="menuitem" id="saveProj" title="Enregistre le projet dans un fichier .liagos3d : formes, couleurs et modèles importés">Enregistrer le projet…</button>
         <hr class="adv">
         <button role="menuitem" class="adv" id="printerBtn" title="Imprimante et taille du plateau">Imprimante et plateau…</button>
-        <button role="menuitem" class="adv" id="platesBtn" title="Plusieurs plateaux séparés : un fichier par plateau">Plateaux : 1</button>
+        <button role="menuitem" class="adv" id="platesBtn" data-pro="Plateaux multiples" title="Plusieurs plateaux séparés : un fichier par plateau"><span id="platesLbl">Plateaux : 1</span></button>
         <hr>
         <button role="menuitemcheckbox" class="m-only" id="levelBtn2" aria-checked="false" title="Affiche ou cache les outils avancés">Mode expert</button>
         <button role="menuitemcheckbox" id="dockBtn" aria-checked="false" title="Affiche le nom sous chaque icône d’outil">Noms sous les outils</button>
+        <button role="menuitem" id="themeBtn" data-pro="Couleurs de l’interface" title="Change les couleurs de l’interface : accent et fond des menus">Couleurs de l’interface…</button>
+        <button role="menuitem" id="proMenu" title="Voir ou activer Liagos 3D Pro">Liagos 3D Pro…</button>
         <button role="menuitem" id="helpBtn" title="Revoir le guide de démarrage">Guide de démarrage</button>
       </div>
     </div>
@@ -365,6 +401,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
     <div class="spacer"></div>
     <button class="btn" id="toggleInspector" aria-expanded="false" aria-pressed="false" title="Liste des objets, dimensions, couleur">Objet</button>
     <button class="btn" id="levelBtn" aria-pressed="false" title="Affiche ou cache les outils avancés">Mode expert</button>
+    <button class="btn" id="proBtn" title="Liagos 3D Pro : outils avancés, achat unique">Passer à Pro</button>
     <button class="btn" id="helpTop" aria-label="Aide" title="Revoir le guide de démarrage">?</button>
     <button class="btn primary" id="export">Exporter</button>
   </header>
@@ -380,11 +417,11 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
     <button class="shape" data-add="torus"><svg viewBox="0 0 36 36"><ellipse class="f" cx="18" cy="18" rx="14" ry="9"/><ellipse cx="18" cy="18" rx="14" ry="9"/><ellipse cx="18" cy="17" rx="6" ry="3"/></svg>Anneau</button>
     <button class="shape" id="negBtn" aria-pressed="false" title="Activé : les formes que vous ajoutez deviennent des trous qui creusent les autres"><svg viewBox="0 0 36 36"><path d="M6 12l12-6 12 6v14l-12 6-12-6zM6 12l12 6 12-6M18 18v14" stroke-dasharray="3 3"/><path d="M13 22h10" stroke-width="2.4"/></svg>Trou</button>
     <h2>Créer</h2>
-    <button class="shape" id="aiBtn" title="Décrivez un objet avec vos mots : l'assistant le construit"><svg viewBox="0 0 36 36"><path class="f" d="M5 8h26v16H16l-7 6v-6H5z"/><path d="M5 8h26v16H16l-7 6v-6H5zM12 16h.1M18 16h.1M24 16h.1" stroke-width="2"/></svg>Assistant</button>
-    <button class="shape adv" data-draw aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
-    <button class="shape" data-free aria-pressed="false" title="Dessinez en 3D (sol, face, côté) : tous les traits sont réunis en un seul objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
+    <button class="shape" id="aiBtn" data-pro="Assistant de création" title="Décrivez un objet avec vos mots : l'assistant le construit"><svg viewBox="0 0 36 36"><path class="f" d="M5 8h26v16H16l-7 6v-6H5z"/><path d="M5 8h26v16H16l-7 6v-6H5zM12 16h.1M18 16h.1M24 16h.1" stroke-width="2"/></svg>Assistant</button>
+    <button class="shape adv" data-draw data-pro="Tracé" aria-pressed="false" title="Posez des points sur le plateau pour dessiner votre propre forme"><svg viewBox="0 0 36 36"><path class="f" d="M6 26L10 8l14-3 7 13-9 13z"/><path d="M6 26L10 8l14-3 7 13-9 13z"/><circle cx="6" cy="26" r="2.2"/><circle cx="10" cy="8" r="2.2"/><circle cx="24" cy="5" r="2.2"/><circle cx="31" cy="18" r="2.2"/><circle cx="22" cy="31" r="2.2"/></svg>Tracé</button>
+    <button class="shape" data-free data-pro="Dessin libre en 3D" aria-pressed="false" title="Dessinez en 3D (sol, face, côté) : tous les traits sont réunis en un seul objet"><svg viewBox="0 0 36 36"><path class="f" d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M8 22c-4-8 3-16 11-14 7 2 12 8 8 15-3 6-15 7-19-1z"/><path d="M24 30l2-6 6-6 3 3-6 6z"/></svg>Dessin</button>
     <button class="shape" id="imgBtn" title="Transformez la photo ou le fichier d'un dessin en objet"><svg viewBox="0 0 36 36"><path class="f" d="M5 7h26v22H5z"/><path d="M5 7h26v22H5zM5 24l8-8 6 6 4-4 8 8"/><circle cx="24" cy="13" r="2.5"/></svg>Image</button>
-    <button class="shape" id="importBtn" title="Ouvrez un fichier STL ou 3MF pour le modifier ici"><svg viewBox="0 0 36 36"><path class="f" d="M6 22v8h24v-8z"/><path d="M6 22v8h24v-8M18 5v17M11 15l7 7 7-7"/></svg>Importer</button>
+    <button class="shape" id="importBtn" data-pro="Importer un fichier STL ou 3MF" title="Ouvrez un fichier STL ou 3MF pour le modifier ici"><svg viewBox="0 0 36 36"><path class="f" d="M6 22v8h24v-8z"/><path d="M6 22v8h24v-8M18 5v17M11 15l7 7 7-7"/></svg>Importer</button>
     <button class="shape adv" id="sizeBtn" title="Créez une forme en tapant ses dimensions"><svg viewBox="0 0 36 36"><path class="f" d="M9 9h18v14H9z"/><path d="M9 9h18v14H9zM9 29h18M9 27v4M27 27v4M32 9v14M30 9h4M30 23h4"/></svg>Sur mesure</button>
   </nav>
 
@@ -534,8 +571,8 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
     <div class="sep"></div>
     <div class="group" role="group" aria-label="Modeler">
       <button class="btn adv" id="measureBtn" data-lb="Mesurer" aria-pressed="false" title="Touchez deux points pour connaître la distance entre eux">Mesurer</button>
-      <button class="btn adv" id="eraseBtn" data-lb="Gomme" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
-      <button class="btn" id="sculptBtn" data-lb="Sculpter" aria-pressed="false" title="Lisser, enfoncer, gonfler ou aplatir la surface d’un objet">Sculpter</button>
+      <button class="btn adv" id="eraseBtn" data-pro="Gomme" data-lb="Gomme" aria-pressed="false" title="Glissez sur un modèle pour effacer de la matière">Gomme</button>
+      <button class="btn" id="sculptBtn" data-pro="Sculpter" data-lb="Sculpter" aria-pressed="false" title="Lisser, enfoncer, gonfler ou aplatir la surface d’un objet">Sculpter</button>
       <button class="btn" id="paintBtn" data-lb="Peindre" aria-pressed="false" title="Pinceau, remplissage de zone, pipette et gomme de couleur">Peindre</button>
     </div>
     <div class="sep" id="selSep" hidden></div>
@@ -564,7 +601,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
         <button class="btn" id="drop">Poser sur le plateau</button>
         <button class="btn adv" id="alignZero" title="Place la sélection dans le coin avant gauche du plateau, le zéro de l'imprimante">Aligner au zéro</button>
         <button class="btn adv" id="centerBtn">Centrer sur le plateau</button>
-        <button class="btn" id="splitBtn" title="Coupe le modèle en parties qui tiennent sur le plateau de votre imprimante">Découper en parties</button>
+        <button class="btn" id="splitBtn" data-pro="Découper en parties" title="Coupe le modèle en parties qui tiennent sur le plateau de votre imprimante">Découper en parties</button>
       </div>
       <div id="single">
       <div class="field"><label for="name">Nom</label><input type="text" id="name" autocomplete="off"></div>
@@ -663,7 +700,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
 </div>
 <div class="modal" id="helpDlg" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-    <h2 id="helpTitle">Bienvenue dans Atelier 3D</h2>
+    <h2 id="helpTitle">Bienvenue dans Liagos 3D</h2>
     <ol class="steps">
       <li><b>Ajoutez une forme</b><span>Touchez Cube, Sphère, Cylindre… dans la colonne de gauche (en bas sur téléphone).</span></li>
       <li><b>Choisissez-la</b><span>Touchez l'objet sur le plateau : il s'entoure d'un cadre.</span></li>
@@ -671,7 +708,7 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
       <li><b>Combinez</b><span>Passez une forme en « Trou » pour creuser les autres. Pour en assembler plusieurs, choisissez-les puis touchez Fusionner.</span></li>
       <li><b>Imprimez</b><span>Exporter crée un fichier 3MF ou STL pour votre imprimante 3D. Le menu Projet enregistre votre travail pour le reprendre plus tard.</span></li>
     </ol>
-    <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer ; Dessus, Face et Côté (à droite du plateau) alignent la vue. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ». Le Dessin 3D propose crayon, ligne, rectangle, ovale, trait plein, effilé ou en pointillés, remplissage et symétrie ; avec un stylet, il dessine pendant que vos doigts déplacent la vue.</p>
+    <p class="note">Une erreur ? « Annuler » revient en arrière. Glissez le fond pour tourner la vue, pincez ou utilisez la molette pour zoomer ; Dessus, Face et Côté (à droite du plateau) alignent la vue. Les outils avancés (gomme, mesure, imprimante, tracé…) apparaissent avec « Mode expert ». Le Dessin 3D propose crayon, ligne, rectangle, ovale, trait plein, effilé ou en pointillés, remplissage et symétrie ; avec un stylet, il dessine pendant que vos doigts déplacent la vue. Les outils marqués « Pro » (sculpture, gomme, dessin 3D, assistant, import, plateaux multiples, découpe, export 3MF, couleurs) se débloquent avec une clé Liagos 3D Pro : menu Projet, puis « Liagos 3D Pro ».</p>
     <div class="actions"><button class="btn primary" data-close>C'est parti</button></div>
   </div>
 </div>
@@ -718,10 +755,62 @@ body.labels #dock .btn::after{content:attr(data-lb);font-size:calc(var(--u)*.74)
 <div class="modal" id="exportDlg" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
     <h2 id="exportTitle">Exporter le modèle</h2>
-    <button class="choice" id="exp3mf"><b>Fichier 3MF</b><span>Garde les couleurs, les noms et la position sur le plateau. Le meilleur choix pour l'impression.</span></button>
+    <button class="choice" id="exp3mf" data-pro="Export 3MF"><b>Fichier 3MF</b><span>Garde les couleurs, les noms et la position sur le plateau. Le meilleur choix pour l'impression.</span></button>
     <button class="choice" id="expStl"><b>Fichier STL</b><span>La forme seule, sans couleur. Accepté par tous les logiciels.</span></button>
     <p class="note" id="exportNote" hidden>Dans cette fenêtre, le fichier est rangé dans un .zip : décompressez-le pour obtenir le fichier.</p>
     <div class="actions"><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
+
+<div class="modal" id="proDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="proTitle">
+    <h2 id="proTitle">Liagos 3D Pro</h2>
+    <p id="proWhy" hidden></p>
+    <div id="proOffer">
+      <p class="pro-price"><b>9,99 €</b> TTC, une seule fois. Sans abonnement.</p>
+      <ul class="pro-list">
+        <li>Sculpter et gomme : modeler la matière à la main</li>
+        <li>Dessin 3D : tracé, dessin libre, stylet</li>
+        <li>Assistant : décrivez un objet, il le construit</li>
+        <li>Importer vos fichiers STL et 3MF</li>
+        <li>Plateaux multiples et découpe en plusieurs parties</li>
+        <li>Export 3MF</li>
+        <li>Couleurs de l’interface à votre goût</li>
+        <li>Utilisation dans le navigateur, sur tout ordinateur</li>
+      </ul>
+      <div class="actions"><a class="btn primary" id="proBuy" href="https://liagos3d.com/pro" target="_blank" rel="noopener">Voir l’offre Pro</a></div>
+      <div class="field"><label for="proKey">J’ai déjà une clé</label>
+        <div class="keyrow"><input type="text" id="proKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="L3D1-…"><button class="btn primary" id="proGo">Activer</button></div></div>
+    </div>
+    <div id="proOn" hidden>
+      <p><b>Liagos 3D Pro est activé sur cet appareil.</b></p>
+      <p class="note" id="proUntil"></p>
+      <div class="actions"><button class="btn" id="proOut">Retirer la clé de cet appareil</button></div>
+    </div>
+    <p id="proMsg" role="status"></p>
+    <div class="actions"><button class="btn" data-close>Fermer</button></div>
+  </div>
+</div>
+<div class="modal" id="themeDlg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="themeTitle">
+    <h2 id="themeTitle">Couleurs de l’interface</h2>
+    <p class="note">Choisissez une ambiance, ou réglez les deux couleurs vous-même. Le changement est immédiat et le texte reste lisible.</p>
+    <div class="presets" id="themePresets" role="group" aria-label="Ambiances"></div>
+    <div class="colorrow"><label for="thAccent">Accent : boutons, sélection</label><input type="color" id="thAccent" value="#c64808"></div>
+    <div class="colorrow"><label for="thPanel">Fond des menus et des barres</label><input type="color" id="thPanel" value="#f8fafb"></div>
+    <p id="themeNote" role="status"></p>
+    <div class="actions"><button class="btn" id="thReset">Couleurs d’origine</button><button class="btn primary" data-close>Terminer</button></div>
+  </div>
+</div>
+<div class="modal gate" id="gate" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+    <svg class="logo" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="14" fill="#16202c"/><polygon points="11.3,43.5 20.6,48.9 20.6,38.1 11.3,32.7" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="29.9,43.5 20.6,48.9 20.6,38.1 29.9,32.7" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="20.6,27.4 29.9,32.7 20.6,38.1 11.3,32.7" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="21.2,49.2 30.5,54.6 30.5,43.8 21.2,38.5" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="39.8,49.2 30.5,54.6 30.5,43.8 39.8,38.5" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="30.5,33.1 39.8,38.5 30.5,43.8 21.2,38.5" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="11.3,32.1 20.6,37.4 20.6,26.7 11.3,21.3" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="29.9,32.1 20.6,37.4 20.6,26.7 29.9,21.3" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="20.6,15.9 29.9,21.3 20.6,26.7 11.3,21.3" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="11.3,20.6 20.6,26.0 20.6,15.3 11.3,9.9" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="0.60" stroke-linejoin="round"/><polygon points="29.9,20.6 20.6,26.0 20.6,15.3 29.9,9.9" fill="#d9520b" stroke="#d9520b" stroke-width="0.60" stroke-linejoin="round"/><polygon points="20.6,4.5 29.9,9.9 20.6,15.3 11.3,9.9" fill="#ffc08c" stroke="#ffc08c" stroke-width="0.60" stroke-linejoin="round"/><polygon points="34.1,54.1 43.4,59.5 43.4,48.7 34.1,43.4" fill="#2cc4ab" stroke="#2cc4ab" stroke-width="0.60" stroke-linejoin="round"/><polygon points="52.7,54.1 43.4,59.5 43.4,48.7 52.7,43.4" fill="#13917f" stroke="#13917f" stroke-width="0.60" stroke-linejoin="round"/><polygon points="43.4,38.0 52.7,43.4 43.4,48.7 34.1,43.4" fill="#a8f3e4" stroke="#a8f3e4" stroke-width="0.60" stroke-linejoin="round"/></svg>
+    <h2 id="gateTitle">Liagos 3D dans le navigateur</h2>
+    <p>Cette version en ligne est réservée aux détenteurs de Liagos 3D Pro. Les applications Windows et Android sont gratuites : Pro y débloque les outils avancés.</p>
+    <div class="field"><label for="gateKey">Votre clé Pro</label>
+      <div class="keyrow"><input type="text" id="gateKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="L3D1-…"><button class="btn primary" id="gateGo">Activer</button></div></div>
+    <p id="gateMsg" role="status"></p>
+    <div class="gate-links"><a href="https://liagos3d.com/compte" target="_blank" rel="noopener">Retrouver ma clé dans mon compte</a><a href="https://liagos3d.com/telecharger" target="_blank" rel="noopener">Télécharger l’application gratuite</a><a href="https://liagos3d.com/pro" target="_blank" rel="noopener">Découvrir Liagos 3D Pro</a></div>
   </div>
 </div>
 
@@ -735,6 +824,326 @@ var $ = function(id){ return document.getElementById(id); };
 var STORE = 'atelier3d.scene.v1';
 var COLORS = ['#e8590c','#f2c14e','#4c9f70','#3a7ca5','#7d5ba6','#d64550','#e9e4d8','#3b4350'];
 var NAMES = {mesh:'Modèle importé',poly:'Tracé',cube:'Cube',sphere:'Sphère',cylinder:'Cylindre',cone:'Cône',pyramid:'Pyramide',ramp:'Rampe',torus:'Anneau'};
+
+/*L3D-CRYPTO-BEGIN*/
+/* Vérification d'une clé Pro sur l'appareil : SHA-256 puis signature ECDSA P-256 (entiers BigInt, sans réseau ni service externe).
+   Les constantes sont écrites avec BigInt('…') et non avec le suffixe n : un vieux moteur ne casse alors que la vérification, pas toute l'application. */
+var L3DCrypto = (function(){
+  var K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  function sha256(m){
+    var l = m.length, n = ((l+9+63)>>6)<<6, buf = new Uint8Array(n), i, o;
+    buf.set(m); buf[l] = 0x80;
+    var dv = new DataView(buf.buffer);
+    dv.setUint32(n-8,Math.floor(l/0x20000000)); dv.setUint32(n-4,(l<<3)>>>0);
+    var H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19], w = new Uint32Array(64);
+    for (o=0;o<n;o+=64){
+      for (i=0;i<16;i++) w[i] = dv.getUint32(o+i*4);
+      for (i=16;i<64;i++){
+        var a = w[i-15], b = w[i-2];
+        w[i] = (w[i-16] + (((a>>>7)|(a<<25))^((a>>>18)|(a<<14))^(a>>>3)) + w[i-7] + (((b>>>17)|(b<<15))^((b>>>19)|(b<<13))^(b>>>10)))|0;
+      }
+      var A = H[0], B = H[1], C = H[2], D = H[3], E = H[4], F = H[5], G = H[6], X = H[7];
+      for (i=0;i<64;i++){
+        var t1 = (X + (((E>>>6)|(E<<26))^((E>>>11)|(E<<21))^((E>>>25)|(E<<7))) + ((E&F)^(~E&G)) + K[i] + w[i])|0;
+        var t2 = ((((A>>>2)|(A<<30))^((A>>>13)|(A<<19))^((A>>>22)|(A<<10))) + ((A&B)^(A&C)^(B&C)))|0;
+        X = G; G = F; F = E; E = (D+t1)|0; D = C; C = B; B = A; A = (t1+t2)|0;
+      }
+      H[0] = (H[0]+A)|0; H[1] = (H[1]+B)|0; H[2] = (H[2]+C)|0; H[3] = (H[3]+D)|0; H[4] = (H[4]+E)|0; H[5] = (H[5]+F)|0; H[6] = (H[6]+G)|0; H[7] = (H[7]+X)|0;
+    }
+    var out = new Uint8Array(32), ov = new DataView(out.buffer);
+    for (i=0;i<8;i++) ov.setUint32(i*4,H[i]>>>0);
+    return out;
+  }
+  var Z, O, P, N, CB, G, ready = false;
+  try {
+    Z = BigInt(0); O = BigInt(1);
+    P = BigInt('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
+    N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+    CB = BigInt('0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b');
+    G = [BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296'),BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5'),O];
+    ready = true;
+  } catch(e){}
+  function md(a,m){ a %= m; return a<Z ? a+m : a; }
+  function inv(a,m){
+    var t = Z, nt = O, r = m, nr = md(a,m), q, x;
+    while (nr!==Z){ q = r/nr; x = t-q*nt; t = nt; nt = x; x = r-q*nr; r = nr; nr = x; }
+    if (r!==O) return null;
+    return t<Z ? t+m : t;
+  }
+  /* Points en coordonnées de Jacobi [X,Y,Z] sur y² = x³ − 3x + b ; Z = 0 : point à l'infini */
+  function dbl(p){
+    var X = p[0], Y = p[1], Zc = p[2];
+    if (Zc===Z || Y===Z) return [O,O,Z];
+    var d = md(Zc*Zc,P), g = md(Y*Y,P), b = md(X*g,P), a = md(BigInt(3)*(X-d)*(X+d),P);
+    var X3 = md(a*a-BigInt(8)*b,P);
+    return [X3, md(a*(BigInt(4)*b-X3)-BigInt(8)*g*g,P), md(BigInt(2)*Y*Zc,P)];
+  }
+  function add(p,q){
+    if (p[2]===Z) return q;
+    if (q[2]===Z) return p;
+    var a = md(p[2]*p[2],P), b = md(q[2]*q[2],P), U1 = md(p[0]*b,P), U2 = md(q[0]*a,P), S1 = md(p[1]*q[2]*b,P), S2 = md(q[1]*p[2]*a,P);
+    if (U1===U2) return S1===S2 ? dbl(p) : [O,O,Z];
+    var H = md(U2-U1,P), I = md(BigInt(4)*H*H,P), J = md(H*I,P), r = md(BigInt(2)*(S2-S1),P), V = md(U1*I,P);
+    var X3 = md(r*r-J-BigInt(2)*V,P);
+    return [X3, md(r*(V-X3)-BigInt(2)*S1*J,P), md(BigInt(2)*p[2]*q[2]*H,P)];
+  }
+  function mul(k,pt){
+    var bits = k.toString(2), acc = [O,O,Z], i;
+    for (i=0;i<bits.length;i++){ acc = dbl(acc); if (bits.charAt(i)==='1') acc = add(acc,pt); }
+    return acc;
+  }
+  function big(u){ var h = '', i; for (i=0;i<u.length;i++) h += (u[i]<16?'0':'')+u[i].toString(16); return BigInt('0x'+(h||'0')); }
+  /* pub : 65 octets (04 || X || Y) ; msg : octets signés ; sig : 64 octets (r || s). Retourne true seulement si la signature est exacte. */
+  function verify(pub,msg,sig){
+    if (!ready || pub.length!==65 || pub[0]!==4 || sig.length!==64) return false;
+    var qx = big(pub.subarray(1,33)), qy = big(pub.subarray(33,65)), r = big(sig.subarray(0,32)), s = big(sig.subarray(32,64));
+    if (qx>=P || qy>=P || md(qy*qy,P)!==md(qx*qx*qx-BigInt(3)*qx+CB,P)) return false;
+    if (r<=Z || r>=N || s<=Z || s>=N) return false;
+    var w = inv(s,N), e = big(sha256(msg)), R = add(mul(md(e*w,N),G),mul(md(r*w,N),[qx,qy,O]));
+    if (R[2]===Z) return false;
+    var zi = inv(R[2],P);
+    return md(md(R[0]*zi*zi,P),N)===r;
+  }
+  return {sha256:sha256,verify:verify,ready:function(){ return ready; }};
+})();
+/*L3D-CRYPTO-END*/
+
+/* ---------- Liagos 3D Pro : clé de licence vérifiée sur l'appareil, verrous, couleurs de l'interface ---------- */
+var SITE = 'https://liagos3d.com';
+var PRO_PUB = 'BBvPsanZ87izOQIadw9vRe6FQFEHr5xTtQnJW7QzMwuZfmDRrfnPRRehF_vhQ9-bJ9qGBGACVGZnWWGwzM3g-uo';              /* clé publique de vérification (base64url, 65 octets) : elle ne sert qu'à vérifier, jamais à fabriquer une clé */
+var PRO_KEY = 'atelier3d.pro.v1', PRO_EPOCH = 1767225600, PRO_CTX = 'Liagos3D-Pro-v1\u0000';
+var pro = {key:'',info:null}, proWhy = '', proHint = '';
+function isNative(){
+  var c = window.Capacitor;
+  return !!(c && typeof c.isNativePlatform==='function' && c.isNativePlatform()) || /\bElectron\//.test(navigator.userAgent||'');
+}
+function b64uBytes(s){
+  try {
+    s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while (s.length%4) s += '=';
+    var bin = atob(s), u = new Uint8Array(bin.length), i; for (i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i);
+    return u;
+  } catch(e){ return null; }
+}
+function proCheck(text){
+  var s = String(text||'').replace(/\s+/g,'');
+  if (s.indexOf('L3D1-')!==0) return {ok:false,why:'format'};
+  var raw = b64uBytes(s.slice(5));
+  if (!raw || raw.length!==76) return {ok:false,why:'format'};
+  var pub = b64uBytes(PRO_PUB);
+  if (!L3DCrypto.ready() || !pub || pub.length!==65) return {ok:false,why:'unsupported'};
+  var ctx = new TextEncoder().encode(PRO_CTX), msg = new Uint8Array(ctx.length+12), good = false;
+  msg.set(ctx); msg.set(raw.subarray(0,12),ctx.length);
+  try { good = L3DCrypto.verify(pub,msg,raw.subarray(12)); } catch(e){}
+  if (!good) return {ok:false,why:'signature'};
+  var info = {version:raw[0],edition:raw[1],days:(raw[2]<<8)|raw[3]};
+  if (info.version!==1 || info.edition<1) return {ok:false,why:'version'};
+  return {ok:true,info:info,key:s};
+}
+/* Dernier jour valable : jour n depuis le 01/01/2026 (UTC), fin de journée comprise ; 0 = sans limite */
+function proUntil(info){ return info && info.days ? (PRO_EPOCH+(info.days+1)*86400)*1000 : 0; }
+function proOk(){ if (!pro.info) return false; var u = proUntil(pro.info); return !u || Date.now()<u; }
+function fmtDay(ms){ try { return new Date(ms).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}); } catch(e){ return new Date(ms).toISOString().slice(0,10); } }
+var PRO_ERR = {
+  format:'Cette clé n’a pas le bon format. Copiez-la en entier : elle commence par L3D1-.',
+  signature:'Cette clé n’est pas valide. Vérifiez qu’elle est copiée en entier, sans caractère en plus.',
+  version:'Cette clé est prévue pour une autre version de Liagos 3D. Mettez l’application à jour.',
+  unsupported:'Cet appareil ne permet pas de vérifier la clé. Mettez à jour votre navigateur ou l’application.'
+};
+function proSave(){
+  try { if (pro.key) localStorage.setItem(PRO_KEY,JSON.stringify({k:pro.key,t:Date.now()})); else localStorage.removeItem(PRO_KEY); } catch(e){}
+}
+function proLoad(){
+  try {
+    var d = JSON.parse(localStorage.getItem(PRO_KEY)||'null');
+    if (d && typeof d.k==='string'){ var r = proCheck(d.k); if (r.ok){ pro.key = r.key; pro.info = r.info; } }
+  } catch(e){}
+}
+/* Active une clé collée par la personne : retourne true si elle est valable. out : zone de message (ou null) */
+function proTry(text,out){
+  var r = proCheck(text), u;
+  function say(m){ if (out) out.textContent = m; }
+  if (!r.ok){ say(PRO_ERR[r.why] || PRO_ERR.signature); return false; }
+  u = proUntil(r.info);
+  if (u && Date.now()>=u){ say('Cette clé a expiré le '+fmtDay(u-1)+'.'); return false; }
+  pro.key = r.key; pro.info = r.info; proSave(); proWhy = ''; proHint = '';
+  say(''); proRefresh(); toast('Liagos 3D Pro est activé. Merci !');
+  return true;
+}
+function proClear(){ pro.key = ''; pro.info = null; proSave(); proRefresh(); }
+
+/* Boîte « Liagos 3D Pro » : offre pour les uns, état de la licence pour les autres */
+function openPro(feature,hint){
+  proWhy = feature || ''; proHint = hint || '';
+  var m = $('menu'); if (!m.hidden){ m.hidden = true; $('menuBtn').setAttribute('aria-expanded','false'); }
+  proDlgFill(); $('proDlg').hidden = false;
+}
+function proDlgFill(){
+  var ok = proOk(), u = proUntil(pro.info);
+  $('proOffer').hidden = ok; $('proOn').hidden = !ok;
+  $('proWhy').hidden = ok || !proWhy;
+  $('proWhy').textContent = proWhy ? '« '+proWhy+' » fait partie de Liagos 3D Pro.'+(proHint ? ' '+proHint : '') : '';
+  $('proUntil').textContent = ok ? (u ? 'Valable jusqu’au '+fmtDay(u-1)+'.' : 'Licence sans limite de durée.') : '';
+  $('proOut').textContent = 'Retirer la clé de cet appareil'; clearTimeout(proArm); proArm = 0;
+}
+var proArm = 0;
+
+/* Pastille « Pro » sur chaque outil réservé, et blocage au clic tant que la licence manque */
+var proEls = Array.prototype.slice.call(document.querySelectorAll('[data-pro]'));
+proEls.forEach(function(el){
+  var tag = document.createElement('i'), host = el.querySelector('b') || el;
+  tag.className = 'pro-tag'; tag.textContent = 'Pro';
+  host.appendChild(document.createTextNode(' ')); host.appendChild(tag);
+});
+window.addEventListener('click',function(e){
+  var el = e.target && e.target.closest ? e.target.closest('[data-pro]') : null;
+  if (!el || proOk()) return;
+  e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+  openPro(el.getAttribute('data-pro'));
+},true);
+
+/* Dans le navigateur, l'application est réservée à Pro ; Windows et Android ne sont jamais bloqués */
+function gateRefresh(){
+  var show = !isNative() && !proOk(), g = $('gate');
+  if (g.hidden===!show) return;
+  g.hidden = !show;
+  if (show){
+    $('app').setAttribute('inert','');
+    document.querySelectorAll('.modal:not(.gate)').forEach(function(m){ m.hidden = true; });
+    setTimeout(function(){ try { $('gateKey').focus(); } catch(e){} },60);
+  } else { $('app').removeAttribute('inert'); welcome(); }
+}
+function welcome(){
+  try { if (!localStorage.getItem('atelier3d.welcome.v1') && $('gate').hidden){ $('helpDlg').hidden = false; localStorage.setItem('atelier3d.welcome.v1','1'); } } catch(e){}
+}
+/* Sur le site (liagos3d.com/app/), la clé du compte connecté est reprise toute seule */
+function proAuto(){
+  if (proOk() || isNative() || !/^https?:$/.test(location.protocol) || !/^\/app\/?$/.test(location.pathname)) return;
+  try {
+    fetch('/api/app-license',{credentials:'same-origin',cache:'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d && typeof d.key==='string') proTry(d.key,null); })
+      .catch(function(){});
+  } catch(e){}
+}
+
+/*L3D-THEME-BEGIN*/
+/* Couleurs de l'interface (Pro) : deux choix, accent et fond des menus ; tout le reste (texte, traits, grille) s'en déduit pour rester lisible */
+function hex2rgb(h){ h = String(h||'').replace('#',''); if (h.length===3) h = h.replace(/./g,'$&$&'); var n = parseInt(h,16)||0; return [(n>>16)&255,(n>>8)&255,n&255]; }
+function rgb2hex(c){ return '#'+c.map(function(v){ v = Math.max(0,Math.min(255,Math.round(v))); return (v<16?'0':'')+v.toString(16); }).join(''); }
+function mixc(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+function lumi(c){ var f = c.map(function(v){ v /= 255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*f[0]+0.7152*f[1]+0.0722*f[2]; }
+function contr(a,b){ var x = lumi(a), y = lumi(b); return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); }
+var INK_DARK = [24,33,44], INK_LIGHT = [231,236,241];
+function accentInk(A){
+  if (contr(A,[255,255,255])>=4.5) return '#ffffff';
+  if (contr(A,[26,13,4])>=4.5) return '#1a0d04';
+  return contr(A,[0,0,0])>=contr(A,[255,255,255]) ? '#000000' : '#ffffff';
+}
+/* Texte secondaire : on se rapproche du texte principal jusqu'à ce qu'il soit bien lisible (4,5) */
+function mutedOf(P,ink,t){
+  function at(k){ return mixc(P,ink,k).map(function(v){ return Math.max(0,Math.min(255,Math.round(v))); }); }
+  var c = at(t); while (t<1 && contr(P,c)<4.5){ t = Math.min(1,t+0.03); c = at(t); } return c;
+}
+function themeVars(panelHex,accentHex){
+  var v = {}, P, dark, ink, bg, stage;
+  if (accentHex){ var A = hex2rgb(accentHex); v['--accent'] = rgb2hex(A); v['--accent-ink'] = accentInk(A); }
+  if (panelHex){
+    P = hex2rgb(panelHex); ink = contr(P,INK_DARK)>=contr(P,INK_LIGHT) ? INK_DARK : INK_LIGHT; dark = ink===INK_LIGHT;
+    bg = mixc(P,dark ? [0,0,0] : [27,42,58],dark ? 0.31 : 0.06);
+    stage = dark ? mixc(bg,P,0.5) : mixc(bg,[15,28,42],0.04);
+    v['--panel'] = rgb2hex(P); v['--ink'] = rgb2hex(ink); v['--bg'] = rgb2hex(bg); v['--stage'] = rgb2hex(stage);
+    v['--muted'] = rgb2hex(mutedOf(P,ink,dark ? 0.62 : 0.66)); v['--line'] = rgb2hex(mixc(P,ink,dark ? 0.1 : 0.165));
+    v['--grid'] = rgb2hex(mixc(stage,ink,dark ? 0.1 : 0.25)); v['--grid-strong'] = rgb2hex(mixc(stage,ink,dark ? 0.26 : 0.5));
+    v['--glass'] = 'rgba('+P.map(Math.round).join(',')+',.94)'; v['--danger'] = dark ? '#ff8a80' : '#b3261e';
+    v['--lift'] = dark ? '0 8px 28px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.5)' : '0 8px 28px rgba(16,24,40,.18),0 1px 3px rgba(16,24,40,.14)';
+    v['color-scheme'] = dark ? 'dark' : 'light';
+  }
+  return v;
+}
+var THEMES = [
+  {id:'origine',name:'Orange (d’origine)'},
+  {id:'ocean',name:'Océan',panel:'#e8f1f9',accent:'#0b63b6'},
+  {id:'foret',name:'Forêt',panel:'#ecf5ee',accent:'#1d7a45'},
+  {id:'prune',name:'Prune',panel:'#f3edf8',accent:'#7a3fb0'},
+  {id:'rose',name:'Rose',panel:'#fbedf1',accent:'#c2255c'},
+  {id:'ardoise',name:'Ardoise',panel:'#1b232c',accent:'#5eb0ff'},
+  {id:'nuit',name:'Nuit',panel:'#17141f',accent:'#b79cff'},
+  {id:'sapin',name:'Sapin',panel:'#13201a',accent:'#4cc38a'}
+];
+/*L3D-THEME-END*/
+var THEME_KEY = 'atelier3d.theme.v1', themeCfg = null, THEME_VARS = ['--bg','--panel','--ink','--muted','--line','--accent','--accent-ink','--stage','--grid','--grid-strong','--danger','--glass','--lift'];
+var hexRe = /^#[0-9a-f]{6}$/i;
+try {
+  var tc0 = JSON.parse(localStorage.getItem(THEME_KEY)||'null');
+  if (tc0 && typeof tc0==='object') themeCfg = {preset:typeof tc0.preset==='string' ? tc0.preset : '',panel:hexRe.test(tc0.panel) ? tc0.panel : '',accent:hexRe.test(tc0.accent) ? tc0.accent : ''};
+} catch(e){}
+function themeSave(){ try { if (themeCfg && (themeCfg.panel || themeCfg.accent)) localStorage.setItem(THEME_KEY,JSON.stringify(themeCfg)); else localStorage.removeItem(THEME_KEY); } catch(e){} }
+function themeApply(){
+  var st = document.documentElement.style, t = proOk() ? themeCfg : null, v, k, meta = document.querySelector('meta[name="theme-color"]');
+  THEME_VARS.forEach(function(n){ st.removeProperty(n); }); st.removeProperty('color-scheme');
+  if (t && (t.panel || t.accent)){ v = themeVars(t.panel,t.accent); for (k in v) st.setProperty(k,v[k]); }
+  if (meta) meta.setAttribute('content',t && t.panel ? t.panel : '#101820');
+  if (typeof renderer!=='undefined' && renderer) applyTheme();
+}
+function themeDlgFill(){
+  var box = $('themePresets'), cfg = themeCfg || {}, curP = cssVar('--panel'), curA = cssVar('--accent');
+  box.textContent = '';
+  THEMES.forEach(function(t){
+    var b = document.createElement('button'), on = t.id==='origine' ? !(cfg.panel || cfg.accent) : cfg.preset===t.id;
+    b.type = 'button'; b.className = 'pset'; b.setAttribute('data-theme-id',t.id); b.setAttribute('aria-pressed',String(on));
+    var d1 = document.createElement('span'), d2 = document.createElement('span');
+    d1.className = 'pdot'; d2.className = 'pdot'; d1.style.background = t.panel || '#f8fafb'; d2.style.background = t.accent || '#c64808';
+    b.appendChild(d1); b.appendChild(d2); b.appendChild(document.createTextNode(t.name)); box.appendChild(b);
+  });
+  $('thPanel').value = hexRe.test(cfg.panel) ? cfg.panel : (hexRe.test(curP) ? curP : '#f8fafb');
+  $('thAccent').value = hexRe.test(cfg.accent) ? cfg.accent : (hexRe.test(curA) ? curA : '#c64808');
+  themeNote();
+}
+function themeNote(){
+  var P = hex2rgb($('thPanel').value), A = hex2rgb($('thAccent').value), ink = contr(P,INK_DARK)>=contr(P,INK_LIGHT) ? INK_DARK : INK_LIGHT, msg = '';
+  if (themeCfg && themeCfg.panel && contr(P,ink)<4.5) msg = 'Ce fond rend le texte difficile à lire : essayez une couleur plus claire ou plus sombre.';
+  else if (themeCfg && themeCfg.accent && contr(A,themeCfg.panel ? P : hex2rgb(cssVar('--panel')))<3) msg = 'Cette couleur d’accent se voit mal sur ce fond.';
+  $('themeNote').textContent = msg;
+}
+function themeSet(cfg){ themeCfg = cfg; themeSave(); themeApply(); themeDlgFill(); }
+$('themeBtn').addEventListener('click',function(){ if (!proOk()){ openPro('Couleurs de l’interface'); return; } themeDlgFill(); $('themeDlg').hidden = false; });
+$('themePresets').addEventListener('click',function(e){
+  var b = e.target.closest && e.target.closest('[data-theme-id]'); if (!b) return;
+  var id = b.getAttribute('data-theme-id'), t = THEMES.filter(function(x){ return x.id===id; })[0];
+  if (!t || !proOk()) return;
+  themeSet(id==='origine' ? null : {preset:id,panel:t.panel,accent:t.accent});
+});
+['thPanel','thAccent'].forEach(function(id){
+  $(id).addEventListener('input',function(){
+    if (!proOk()) return;
+    var cur = themeCfg || {};
+    themeCfg = {preset:'',panel:id==='thPanel' ? this.value : (cur.panel || ''),accent:id==='thAccent' ? this.value : (cur.accent || '')};
+    themeSave(); themeApply(); themeNote();
+    var box = $('themePresets'); Array.prototype.forEach.call(box.children,function(c){ c.setAttribute('aria-pressed','false'); });
+  });
+});
+$('thReset').addEventListener('click',function(){ themeSet(null); });
+
+/* Mise à jour de tout ce qui dépend de la licence */
+function proRefresh(){
+  var ok = proOk();
+  document.body.setAttribute('data-license',ok ? 'on' : 'off');
+  $('proBtn').textContent = ok ? 'Pro ✓' : 'Passer à Pro';
+  $('proBtn').setAttribute('aria-label',ok ? 'Liagos 3D Pro : activé' : 'Liagos 3D Pro : voir l’offre');
+  if (!ok){ if (typeof sculpt!=='undefined' && sculpt) setSculpt(false); if (typeof erase!=='undefined' && erase) setErase(false); if (typeof draw!=='undefined' && draw) cancelDraw(); }
+  themeApply(); gateRefresh(); proDlgFill();
+}
+$('proBtn').addEventListener('click',function(){ openPro(); });
+$('proMenu').addEventListener('click',function(){ openPro(); });
+$('proGo').addEventListener('click',function(){ proTry($('proKey').value,$('proMsg')); });
+$('proKey').addEventListener('keydown',function(e){ if (e.key==='Enter'){ e.preventDefault(); $('proGo').click(); } });
+$('gateGo').addEventListener('click',function(){ proTry($('gateKey').value,$('gateMsg')); });
+$('gateKey').addEventListener('keydown',function(e){ if (e.key==='Enter'){ e.preventDefault(); $('gateGo').click(); } });
+$('proOut').addEventListener('click',function(){
+  if (!proArm){ proArm = setTimeout(function(){ proArm = 0; $('proOut').textContent = 'Retirer la clé de cet appareil'; },5000); $('proOut').textContent = 'Confirmer le retrait'; return; }
+  clearTimeout(proArm); proArm = 0; proClear(); toast('La clé a été retirée de cet appareil.');
+});
+
 
 /* ---------- Géométries de base (centrées, 1 unité = 1 mm une fois mises à l'échelle) ---------- */
 var GEO = {}, BASE = {}, NI = {};
@@ -1678,7 +2087,7 @@ function buildPlate(){
   }
   scene.add(grid);
   $('plate').textContent = (plate.name?plate.name+' · ':'')+(plateCount>1?plateCount+' plateaux de ':'Plateau ')+plate.w+' × '+plate.d+' × '+plate.h+' mm · carreau 10 mm';
-  $('platesBtn').textContent = 'Plateaux : '+plateCount;
+  $('platesLbl').textContent = 'Plateaux : '+plateCount;
 }
 function onePlate(){
   var grid = new THREE.Group();
@@ -1961,6 +2370,7 @@ function splitRefresh(){
     : c.list.map(function(r){ return r.o.name+' : '+r.n.join(' × ')+' = '+(r.n[0]*r.n[1]*r.n[2])+' parties'; }).join(' · ');
 }
 function openSplit(){
+  if (!proOk()){ openPro('Découper en parties'); return; }
   var os = splitTargets(); if (!os.length){ toast('Sélectionnez un objet plein à découper.'); return; }
   if (!MF){ toast('Le moteur de volumes n’est pas disponible ici : la découpe est impossible.'); return; }
   $('splitX').value = plate.w; $('splitZ').value = plate.d; $('splitY').value = plate.h;
@@ -2051,7 +2461,7 @@ function platesDlgFill(){
   $('platesN').textContent = plateCount; $('platesMove').disabled = !state.sel.length;
 }
 function setPlateCount(n){ plateCount = n; savePlates(); buildPlate(); frameView(); platesDlgFill(); refreshUI(); }
-$('platesBtn').addEventListener('click',function(){ platesDlgFill(); $('platesDlg').hidden = false; });
+$('platesBtn').addEventListener('click',function(){ if (!proOk()){ openPro('Plateaux multiples'); return; } platesDlgFill(); $('platesDlg').hidden = false; });
 $('platesPlus').addEventListener('click',function(){ if (plateCount>=MAXP){ toast(MAXP+' plateaux au maximum.'); return; } setPlateCount(plateCount+1); });
 $('platesMinus').addEventListener('click',function(){
   if (plateCount<=1) return;
@@ -2332,6 +2742,7 @@ function hintVis(){
 var savedCam = null, keepCam = false;
 function startDraw(free){
   free = free===true;
+  if (!proOk()){ openPro(free ? 'Dessin libre en 3D' : 'Tracé'); return; }
   if (draw){ var same = !!draw.free===free; if (same){ cancelDraw(); return; } keepCam = true; cancelDraw(); keepCam = false; }
   if (free && !MF){ toast('Le dessin en 3D n’est pas encore prêt ou pas disponible dans cette fenêtre.'); return; }
   if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); if (sculpt) setSculpt(false);
@@ -2533,6 +2944,7 @@ function rdp(p,a,b,tol,out){
 var erase = null;
 function setErase(on){
   if (on){
+    if (!proOk()){ openPro('Gomme'); return; }
     if (!MF){ toast('La gomme n’est pas encore prête ou pas disponible dans cette fenêtre.'); return; }
     if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); if (sculpt) setSculpt(false); setSel([]);
   } else if (stroking==='erase') abortStroke();
@@ -2572,6 +2984,7 @@ var sculpt = false, sMode = 'push', sst = null, sRing = null;
 function sculptR(){ return Math.max(2,(+$('sculptSize').value||24)/2); }
 function setSculpt(on){
   if (on){
+    if (!proOk()){ openPro('Sculpter'); return; }
     if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false); setSel([]);
   } else { if (sst) sculptEnd(false); if (sRing) sRing.visible = false; }
   sculpt = !!on; $('sculptBar').hidden = !on; $('sculptBtn').setAttribute('aria-pressed',String(!!on)); hintVis();
@@ -3059,11 +3472,11 @@ function paintClick(e){
 /* ---------- Fenêtres : imprimante et export ---------- */
 function closeModals(){
   var open = false;
-  document.querySelectorAll('.modal').forEach(function(m){ if (!m.hidden){ m.hidden = true; open = true; } });
+  document.querySelectorAll('.modal').forEach(function(m){ if (!m.hidden && !m.classList.contains('gate')){ m.hidden = true; open = true; } });
   return open;
 }
 document.querySelectorAll('.modal').forEach(function(m){
-  m.addEventListener('click',function(e){ if (e.target===m || e.target.hasAttribute('data-close')) m.hidden = true; });
+  m.addEventListener('click',function(e){ if (m.classList.contains('gate')) return; if (e.target===m || e.target.hasAttribute('data-close')) m.hidden = true; });
 });
 /* Boîtes de dialogue au clavier : le focus entre dans la boîte, Tab y reste, et le focus revient au bouton d'origine à la fermeture */
 document.querySelectorAll('.modal').forEach(function(m){
@@ -3401,11 +3814,12 @@ function aiLocal(text,prefix){
   createFromSpec(res.parts); aiBusy(false,''); $('aiDlg').hidden = true; toast('Créé : '+res.what+'.');
 }
 function aiRun(){
+  if (!proOk()){ openPro('Assistant de création'); return; }
   var text = $('aiText').value.trim();
   if (text.length<3){ aiBusy(false,'Décrivez l’objet en quelques mots.'); return; }
   if (draw) cancelDraw(); if (paint) setPaint(false); if (measure) setMeasure(false); if (erase) setErase(false);
   if (!askClaude && !userAI){ aiLocal(text); return; }
-  var prompt = 'Tu es l’assistant de l’application de modélisation 3D « Atelier 3D », destinée à l’impression 3D. Transforme la description de l’utilisateur en une liste de formes simples à assembler.\n\n'
+  var prompt = 'Tu es l’assistant de l’application de modélisation 3D « Liagos 3D », destinée à l’impression 3D. Transforme la description de l’utilisateur en une liste de formes simples à assembler.\n\n'
     +'Repère : millimètres. Le plateau est le plan y = 0, centré en x = 0 et z = 0. x va vers la droite, y vers le haut, z vers l’avant. Plateau de '+plate.w+' × '+plate.d+' mm, hauteur maximale '+plate.h+' mm.\n\n'
     +'Formes disponibles (champ type). size = [largeur en x, hauteur en y, profondeur en z] de la boîte englobante avant rotation :\n'
     +'- cube : pavé plein\n- sphere : sphère ou ellipsoïde\n- cylinder : cylindre d’axe vertical (y)\n- cone : cône, pointe en haut\n- pyramid : pyramide à base carrée, pointe en haut\n'
@@ -3438,7 +3852,7 @@ function aiRun(){
     aiBusy(false,c==='rate_limited' ? 'Trop de demandes pour l’instant : réessayez dans un moment.' : (c==='refused' ? 'Claude a refusé cette demande : décrivez l’objet autrement.' : 'La création n’a pas abouti. Réessayez.'));
   });
 }
-$('aiBtn').addEventListener('click',function(){ aiFillCfg(); aiMode(); aiBusy(false,''); $('aiDlg').hidden = false; $('aiText').focus(); });
+$('aiBtn').addEventListener('click',function(){ if (!proOk()){ openPro('Assistant de création'); return; } aiFillCfg(); aiMode(); aiBusy(false,''); $('aiDlg').hidden = false; $('aiText').focus(); });
 $('aiGo').addEventListener('click',aiRun);
 $('aiStop').addEventListener('click',function(){ if (aiCtl) aiCtl.abort(); });
 document.querySelectorAll('[data-ex]').forEach(function(b){ b.addEventListener('click',function(){ $('aiText').value = b.textContent; }); });
@@ -3683,7 +4097,7 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
   $('frame').addEventListener('click',function(){ frameView(true); viewMark('frame'); });
   orbit.addEventListener('start',function(){ viewMark(null); });
 
-  /* Projets : un fichier .atelier3d garde les formes, les couleurs et les modèles importés */
+  /* Projets : un fichier .liagos3d (ou .atelier3d, l’ancien nom) garde les formes, les couleurs et les modèles importés */
   function f32b64(a){
     var u = new Uint8Array(a.buffer,a.byteOffset,a.byteLength), s = '', i;
     for (i=0;i<u.length;i+=0x8000) s += String.fromCharCode.apply(null,u.subarray(i,i+0x8000));
@@ -3696,9 +4110,9 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
   }
   $('saveProj').addEventListener('click',function(){
     if (!state.objs.length){ toast('Le plateau est vide : rien à enregistrer.'); return; }
-    var data = {app:'atelier3d',v:1,saved:new Date().toISOString(),plate:{w:plate.w,d:plate.d,h:plate.h,name:plate.name},plates:plateCount,objs:state.objs,meshes:{}};
+    var data = {app:'liagos3d',v:1,saved:new Date().toISOString(),plate:{w:plate.w,d:plate.d,h:plate.h,name:plate.name},plates:plateCount,objs:state.objs,meshes:{}};
     state.objs.forEach(function(o){ if (o.type==='mesh' && MESH[o.mid] && !data.meshes[o.mid]) data.meshes[o.mid] = f32b64(MESH[o.mid].geo.attributes.position.array); });
-    saveFile('projet-'+new Date().toISOString().slice(0,10)+'.atelier3d',new TextEncoder().encode(JSON.stringify(data)));
+    saveFile('projet-'+new Date().toISOString().slice(0,10)+'.liagos3d',new TextEncoder().encode(JSON.stringify(data)));
   });
   $('openProj').addEventListener('click',function(){ $('openFile').value = ''; $('openFile').click(); });
   $('openFile').addEventListener('change',function(){ if (this.files && this.files[0]) openProject(this.files[0]); });
@@ -3708,7 +4122,7 @@ $('helpBtn').addEventListener('click',function(){ $('helpDlg').hidden = false; }
     rd.onerror = function(){ toast('Le fichier n’a pas pu être lu.'); };
     rd.onload = function(){
       var d = null; try { d = JSON.parse(rd.result); } catch(e){}
-      if (!d || typeof d!=='object' || d.app!=='atelier3d' || !Array.isArray(d.objs)){ toast('Ce fichier n’est pas un projet Atelier 3D.'); return; }
+      if (!d || typeof d!=='object' || (d.app!=='liagos3d' && d.app!=='atelier3d') || !Array.isArray(d.objs)){ toast('Ce fichier n’est pas un projet Liagos 3D.'); return; }
       if (d.objs.length>5000){ toast('Ce projet contient trop d’objets pour l’app (plus de 5000).'); return; }
       var cl = cleanObjs(d.objs);
       if (d.objs.length && !cl.objs.length){ toast('Ce projet est abîmé : aucun objet n’a pu être relu.'); return; }
@@ -3782,7 +4196,7 @@ function buildSTL(pk){
   if (!solids.length) return null;
   var total = 0; solids.forEach(function(m){ total += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count)/3; });
   var buf = new ArrayBuffer(84+50*Math.ceil(total)), dv = new DataView(buf), off = 84, count = 0;
-  'Atelier 3D'.split('').forEach(function(ch,i){ dv.setUint8(i,ch.charCodeAt(0)); });
+  'Liagos 3D'.split('').forEach(function(ch,i){ dv.setUint8(i,ch.charCodeAt(0)); });
   var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
   function w(x,y,z){ dv.setFloat32(off,x,true); dv.setFloat32(off+4,-z,true); dv.setFloat32(off+8,y,true); off += 12; }
   solids.forEach(function(m){
@@ -3954,6 +4368,7 @@ function parse3MF(files){
   return parts;
 }
 function importFile(file){
+  if (!proOk()){ openPro('Importer un fichier STL ou 3MF'); return; }
   if (file.size>600*1024*1024){ toast('Ce fichier dépasse 600 Mo : il est trop lourd pour l\u2019app.'); return; }
   var rd = new FileReader();
   rd.onerror = function(){ toast('Le fichier n\u2019a pas pu être lu.'); };
@@ -4034,7 +4449,7 @@ function build3MF(pk){
   });
   if (!objs.length) return null;
   var model = '<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="fr" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
-    +'<metadata name="Application">Atelier 3D</metadata><resources><basematerials id="1">'+mats.join('')+'</basematerials>'+objs.join('')+'</resources><build>'+items.join('')+'</build></model>';
+    +'<metadata name="Application">Liagos 3D</metadata><resources><basematerials id="1">'+mats.join('')+'</basematerials>'+objs.join('')+'</resources><build>'+items.join('')+'</build></model>';
   var enc = new TextEncoder();
   return zip([
     {name:'[Content_Types].xml',data:enc.encode('<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>')},
@@ -4067,13 +4482,17 @@ function saveFile(name,bytes){
 $('export').addEventListener('click',function(){ $('exportNote').hidden = !downloads; $('exportDlg').hidden = false; });
 function exportPlates(ext,build){
   var ks = platesUsed(); if (!ks.length){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
+  if (!proOk() && (ext==='3mf' || ks.length>1)){
+    if (ext==='3mf') openPro('Export 3MF'); else openPro('Plateaux multiples','Vos objets sont sur plusieurs plateaux : rassemblez-les sur un seul pour exporter gratuitement en STL.');
+    return;
+  }
   if (ks.length===1){
     var one = build(ks[0]); if (!one){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
-    $('exportDlg').hidden = true; saveFile('atelier-3d.'+ext,one); return;
+    $('exportDlg').hidden = true; saveFile('liagos-3d.'+ext,one); return;
   }
   var files = []; ks.forEach(function(k){ var d = build(k); if (d) files.push({name:'plateau-'+(k+1)+'.'+ext,data:d}); });
   if (!files.length){ toast('Ajoutez une forme solide avant d\u2019exporter.'); return; }
-  $('exportDlg').hidden = true; saveFile('atelier-3d-plateaux.zip',zip(files));
+  $('exportDlg').hidden = true; saveFile('liagos-3d-plateaux.zip',zip(files));
   toast(files.length+' plateaux exportés : un fichier '+ext.toUpperCase()+' par plateau, dans un .zip.');
 }
 $('expStl').addEventListener('click',function(){ exportPlates('stl',buildSTL); });
@@ -4083,7 +4502,13 @@ $('exp3mf').addEventListener('click',function(){ exportPlates('3mf',build3MF); }
 var lvl = 'simple'; try { lvl = localStorage.getItem(LEVEL_KEY) || 'simple'; } catch(e){}
 setLevel(lvl==='expert');
 setMode('translate'); setSnap(true);
-try { if (!localStorage.getItem('atelier3d.welcome.v1')){ $('helpDlg').hidden = false; localStorage.setItem('atelier3d.welcome.v1','1'); } } catch(e){}
+proLoad(); proRefresh();
+/* Lien d'activation liagos3d.com/app/#pro=CLÉ : pris en compte à l'ouverture comme dans un onglet déjà ouvert */
+function proFromHash(){ var m = /^#pro=(L3D1-[A-Za-z0-9_-]+)$/.exec(location.hash||''), out; if (!m) return;
+  try { window.history.replaceState(null,'',location.pathname+location.search); } catch(e){}
+  out = $('gate').hidden ? $('proMsg') : $('gateMsg'); if (!proTry(m[1],out) && out===$('proMsg')) openPro(); }
+window.addEventListener('hashchange',proFromHash); proFromHash();
+window.addEventListener('load',gateRefresh); proAuto(); welcome();
 var started = false;
 function start(){
   if (started) return; started = true;

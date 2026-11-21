@@ -2,6 +2,7 @@ name: Application Windows
 on:
   push:
     branches: [main]
+    paths-ignore: ['site/**']
   workflow_dispatch:
 permissions:
   contents: write
@@ -18,6 +19,8 @@ jobs:
         run: |
           mkdir -p build/app build/res
           cp -r index.html manifest.webmanifest sw.js lib icons build/app/
+          # aucune requête vers un service extérieur (polices Google) dans l'application installée
+          sed -i '/fonts\.googleapis\.com/d' build/app/index.html
           cp desktop/main.js desktop/package.json build/
           cp desktop/icon.png build/res/icon.png
           cd build
@@ -27,8 +30,8 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk
-          name: Atelier 3D - téléchargements
+          name: Liagos 3D - téléchargements
           body: Application Android (.apk) et application Windows (.exe). Versions de test, non signées.
           files: |
-            build/dist/Atelier-3D-Installation.exe
-            build/dist/Atelier-3D-Portable.exe
+            build/dist/Liagos-3D-Installation.exe
+            build/dist/Liagos-3D-Portable.exe

@@ -1,8 +1,7 @@
-Atelier 3D
+Liagos 3D
 Copyright (c) 2026 PXX69. Tous droits réservés.
 
-Ce dépôt est public uniquement pour permettre l'hébergement et la distribution
-de l'application. Aucune licence n'est accordée sur son code source.
+Aucune licence n'est accordée sur le code source de ce dépôt.
 
 Sans autorisation écrite préalable du titulaire des droits, il est interdit de
 copier, modifier, redistribuer, publier, vendre ou réutiliser tout ou partie du
@@ -10,7 +9,8 @@ code, des textes et des éléments graphiques de ce projet, y compris pour en
 dériver une autre application.
 
 L'utilisation de l'application elle-même, telle que distribuée par le titulaire
-des droits, reste libre.
+des droits, est régie par les conditions publiées sur https://liagos3d.com
+(version gratuite ; outils avancés avec une clé de licence Liagos 3D Pro).
 
 Composants tiers, qui restent soumis à leurs propres licences :
 - three.js, licence MIT (voir lib/LICENSE-three.txt)
@@ -18,11 +18,10 @@ Composants tiers, qui restent soumis à leurs propres licences :
 
 --------------------------------------------------------------------------------
 
-Atelier 3D
+Liagos 3D
 Copyright (c) 2026 PXX69. All rights reserved.
 
-This repository is public only so that the application can be hosted and
-distributed. No license is granted to its source code. Copying, modifying,
+No license is granted to the source code of this repository. Copying, modifying,
 redistributing, publishing, selling or reusing any part of the code, texts or
 graphics of this project, including to derive another application, is prohibited
 without prior written permission from the copyright holder.

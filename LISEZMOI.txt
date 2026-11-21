@@ -1,25 +1,34 @@
-ATELIER 3D
-==========
+LIAGOS 3D
+=========
 
-Utiliser tout de suite sur Windows
-----------------------------------
-1. Décompressez ce dossier où vous voulez.
-2. Double-cliquez sur index.html : l'application s'ouvre dans votre navigateur.
-Elle fonctionne sans connexion Internet. Vos modèles restent enregistrés dans le navigateur.
+Modélisation 3D facile par assemblage de formes, pour l'impression 3D.
 
-Installer comme une vraie application (Windows et Android)
-----------------------------------------------------------
-Il faut d'abord mettre ce dossier en ligne sur une adresse en https
-(par exemple GitHub Pages, Netlify ou Cloudflare Pages, gratuits).
-Ensuite, en ouvrant cette adresse :
-- Windows (Edge ou Chrome) : menu "..." > Applications > Installer Atelier 3D.
-- Android (Chrome) : menu "..." > Ajouter à l'écran d'accueil > Installer.
-L'application a alors sa propre icône, sa propre fenêtre, et fonctionne hors connexion.
+Où utiliser Liagos 3D
+---------------------
+- Windows : installez l'application (Liagos-3D-Installation.exe), ou lancez
+  Liagos-3D-Portable.exe sans installation. Elle fonctionne sans connexion.
+- Android : installez le fichier liagos-3d.apk, ou l'application du Play Store.
+- Navigateur : sur https://liagos3d.com, après connexion à votre compte.
+  Cette version est réservée aux détenteurs de Liagos 3D Pro.
 
-Contenu
--------
-index.html             l'application
-lib/                   bibliothèque 3D three.js (licence MIT, voir LICENSE-three.txt)
+Les applications Windows et Android sont gratuites. Liagos 3D Pro (achat unique)
+débloque les outils avancés : sculpter, gomme, dessin 3D, assistant, import
+STL et 3MF, plateaux multiples, découpe, export 3MF, couleurs de l'interface,
+et l'utilisation dans le navigateur. Une clé s'active dans l'application :
+menu Projet, puis « Liagos 3D Pro ».
+
+Vos modèles restent enregistrés sur votre appareil, dans l'application.
+
+Contenu de ce dossier
+---------------------
+index.html             l'application (un seul fichier)
+lib/                   bibliothèque 3D three.js (licence MIT, voir lib/LICENSE-three.txt)
 manifest.webmanifest   nom, icône et couleurs de l'application installée
-sw.js                  fonctionnement hors connexion
-icons/                 icônes
+sw.js                  fonctionnement hors connexion de la version en ligne
+icons/                 icônes et logo
+desktop/               fabrication de l'application Windows
+android-assets/        logo pour l'application Android
+site/                  site liagos3d.com (voir site/LISEZMOI.md)
+
+Ouvrir index.html directement dans un navigateur affiche la porte « Liagos 3D
+dans le navigateur » : elle demande une clé Pro.

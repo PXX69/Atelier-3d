@@ -2,6 +2,7 @@ name: APK Android
 on:
   push:
     branches: [main]
+    paths-ignore: ['site/**']
   workflow_dispatch:
 permissions:
   contents: write
@@ -30,7 +31,7 @@ jobs:
           cd build
           npm init -y
           npm i @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/filesystem@latest @capacitor/share@latest
-          npx cap init "Atelier 3D" io.github.pxx69.atelier3d --web-dir www
+          npx cap init "Liagos 3D" io.github.pxx69.atelier3d --web-dir www
           npx cap add android
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
           grep -n "versionCode\|versionName\|targetSdk" android/app/build.gradle android/variables.gradle || true
@@ -39,7 +40,7 @@ jobs:
         run: |
           cd build
           npm i -D @capacitor/assets
-          npx @capacitor/assets generate --android --iconBackgroundColor '#d9520b' --iconBackgroundColorDark '#d9520b' --splashBackgroundColor '#12161b' --splashBackgroundColorDark '#12161b'
+          npx @capacitor/assets generate --android --iconBackgroundColor '#16202c' --iconBackgroundColorDark '#16202c' --splashBackgroundColor '#101820' --splashBackgroundColorDark '#101820'
       - name: Construire (signature définitive si la clé est enregistrée, sinon version de test)
         run: |
           cd build
@@ -49,19 +50,19 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
             SIGN="-Pandroid.injected.signing.store.file=$RUNNER_TEMP/upload.jks -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD -Pandroid.injected.signing.key.alias=atelier3d -Pandroid.injected.signing.key.password=$KEYSTORE_PASSWORD"
             ./gradlew assembleRelease bundleRelease --no-daemon $SIGN
-            cp app/build/outputs/apk/release/app-release.apk ../../atelier-3d.apk
-            cp app/build/outputs/bundle/release/app-release.aab ../../atelier-3d-playstore.aab
+            cp app/build/outputs/apk/release/app-release.apk ../../liagos-3d.apk
+            cp app/build/outputs/bundle/release/app-release.aab ../../liagos-3d-playstore.aab
             rm -f "$RUNNER_TEMP/upload.jks"
           else
             ./gradlew assembleDebug --no-daemon
-            cp app/build/outputs/apk/debug/app-debug.apk ../../atelier-3d.apk
+            cp app/build/outputs/apk/debug/app-debug.apk ../../liagos-3d.apk
           fi
-          ls -la ../../atelier-3d*
+          ls -la ../../liagos-3d*
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk
-          name: Atelier 3D - téléchargements
+          name: Liagos 3D - téléchargements
           body: Application Android (.apk), fichier pour le Play Store (.aab) et application Windows (.exe).
           files: |
-            atelier-3d.apk
-            atelier-3d-playstore.aab
+            liagos-3d.apk
+            liagos-3d-playstore.aab

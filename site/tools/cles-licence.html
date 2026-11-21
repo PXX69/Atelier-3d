@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Atelier des clés Liagos 3D</title>
+<style>
+:root{color-scheme:light dark;--bg:#f3f6f9;--card:#fff;--ink:#0f1b26;--muted:#475766;--line:#d3dce5;--accent:#bf4407;--ok:#0e7566;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#0d141c;--card:#141e29;--ink:#e8eef4;--muted:#a3b3c2;--line:#26333f;--accent:#ff8a3d;--ok:#5fd9c4;--bad:#ff8f86}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Segoe UI",system-ui,sans-serif}
+main{max-width:780px;margin:0 auto;padding:1.5rem 1rem 4rem}
+h1{font-size:1.8rem;margin:.3em 0 .2em}h2{font-size:1.2rem;margin:0 0 .5rem}
+section,details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem 1.3rem;margin:1rem 0}
+summary{cursor:pointer;font-weight:700}
+label{display:block;font-weight:700;margin:.8rem 0 .2rem}
+input,select,textarea,button{font:inherit}
+input,select,textarea{width:100%;padding:.55rem .7rem;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);min-height:44px}
+textarea{font:600 .85rem ui-monospace,Consolas,monospace;min-height:7rem;word-break:break-all}
+button{margin:.8rem .5rem 0 0;padding:.6rem 1.3rem;border:2px solid var(--accent);border-radius:10px;background:transparent;color:var(--accent);font-weight:700;cursor:pointer;min-height:44px}
+button.primary{background:var(--accent);color:#fff}
+button[disabled]{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid #1a73e8;outline-offset:2px}
+.muted{color:var(--muted);font-size:.95rem}
+.ok{color:var(--ok);font-weight:700}.bad{color:var(--bad);font-weight:700}
+code{font:600 .88em ui-monospace,Consolas,monospace;word-break:break-all}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}@media (max-width:640px){.row{grid-template-columns:1fr}}
+.out{white-space:pre-wrap;word-break:break-all;font:600 .85rem ui-monospace,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.7rem}
+</style>
+</head>
+<body>
+<main>
+<h1>Atelier des clés Liagos 3D</h1>
+<p class="muted">Cette page fonctionne <strong>hors connexion</strong> : rien n'est envoyé sur internet (elle ne peut pas se connecter, par construction). Votre clé privée reste sur votre ordinateur. Elle sert à créer ou vérifier des clés Pro en dehors du site.</p>
+
+<section aria-labelledby="h1">
+  <h2 id="h1">1. Ma clé privée</h2>
+  <label for="pem">Fichier <code>license-private.pem</code> (dossier Liagos-3D-prive)</label>
+  <input id="pem" type="file" accept=".pem,.txt">
+  <p id="pemOut" class="muted" role="status" aria-live="polite">Aucun fichier chargé.</p>
+  <div id="pemInfo" hidden>
+    <p><strong>Clé publique</strong> (la même doit figurer dans l'application et dans <code>src/keys.php</code>) :<br><code id="pub"></code></p>
+    <p><strong>Code d'installation</strong> du site : <code id="code"></code></p>
+  </div>
+</section>
+
+<section aria-labelledby="h2">
+  <h2 id="h2">2. Créer des clés Pro</h2>
+  <p class="muted">Les clés créées ici ne passent pas par le site : elles ne sont ni liées à un compte, ni révocables depuis l'administration. Pour un client ou un testeur, préférez « Licences » dans l'administration du site.</p>
+  <div class="row">
+    <div><label for="qty">Nombre de clés</label><input id="qty" type="number" min="1" max="50" value="1"></div>
+    <div><label for="exp">Valable jusqu'au (vide = sans limite)</label><input id="exp" type="date"></div>
+  </div>
+  <button id="mint" class="primary" type="button" disabled>Créer</button>
+  <button id="copy" type="button" disabled>Copier</button>
+  <button id="save" type="button" disabled>Enregistrer en .txt</button>
+  <p id="mintOut" class="muted" role="status" aria-live="polite"></p>
+  <div id="keys" class="out" hidden></div>
+</section>
+
+<section aria-labelledby="h3">
+  <h2 id="h3">3. Vérifier une clé</h2>
+  <label for="chk">Clé à vérifier</label>
+  <textarea id="chk" spellcheck="false" placeholder="L3D1-…"></textarea>
+  <button id="verify" type="button" disabled>Vérifier</button>
+  <p id="verOut" role="status" aria-live="polite"></p>
+</section>
+
+<details>
+  <summary>Créer une nouvelle paire de clés (rare)</summary>
+  <p class="bad">Attention : une nouvelle paire rend inutilisables toutes les clés déjà vendues et oblige à reconstruire les applications. N'en créez une que si votre clé privée est perdue ou a fuité.</p>
+  <button id="gen" type="button">Créer une nouvelle paire</button>
+  <p id="genOut" class="muted" role="status" aria-live="polite"></p>
+</details>
+</main>
+
+<script>
+"use strict";
+var S = crypto.subtle, EPOCH_MS = 1767225600000, CTX = new Uint8Array(Array.prototype.map.call("Liagos3D-Pro-v1", function (c) { return c.charCodeAt(0); }).concat([0]));
+var priv = null, pub = null, lastKeys = "";
+var $ = function (id) { return document.getElementById(id); };
+
+function b64u(bytes) { var s = ""; bytes.forEach(function (b) { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function unb64u(t) { t = t.replace(/-/g, "+").replace(/_/g, "/"); while (t.length % 4) t += "="; var s = atob(t), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+function hex(bytes) { return Array.prototype.map.call(new Uint8Array(bytes), function (b) { return ("0" + b.toString(16)).slice(-2); }).join(""); }
+function cat() { var n = 0, i, o; for (i = 0; i < arguments.length; i++) n += arguments[i].length; o = new Uint8Array(n); n = 0; for (i = 0; i < arguments.length; i++) { o.set(arguments[i], n); n += arguments[i].length; } return o; }
+function say(el, t, cls) { el.textContent = t; el.className = cls || "muted"; }
+function pemToDer(text) {
+  var m = /-----BEGIN PRIVATE KEY-----([\s\S]+?)-----END PRIVATE KEY-----/.exec(text);
+  if (!m) throw new Error("Ce fichier n'est pas une clé privée au format PEM « PRIVATE KEY ».");
+  return unb64u(m[1].replace(/\s+/g, "").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
+}
+function derToPem(der) {
+  var s = btoa(String.fromCharCode.apply(null, Array.prototype.slice.call(new Uint8Array(der)))), out = "-----BEGIN PRIVATE KEY-----\n";
+  for (var i = 0; i < s.length; i += 64) out += s.slice(i, i + 64) + "\n";
+  return out + "-----END PRIVATE KEY-----\n";
+}
+function download(name, text) {
+  var a = document.createElement("a"), u = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
+}
+async function rawPublic(jwk) { return cat(new Uint8Array([4]), unb64u(jwk.x), unb64u(jwk.y)); }
+async function useKey(key, fileBytes) {
+  var jwk = await S.exportKey("jwk", key);
+  priv = key; pub = await rawPublic(jwk);
+  $("pub").textContent = b64u(pub);
+  var d = await S.digest("SHA-256", fileBytes), h = hex(d).slice(0, 10).toUpperCase();
+  $("code").textContent = h.slice(0, 5) + "-" + h.slice(5);
+  $("pemInfo").hidden = false; $("mint").disabled = false; $("verify").disabled = false;
+}
+
+$("pem").addEventListener("change", async function () {
+  var f = this.files[0]; if (!f) return;
+  try {
+    var bytes = new Uint8Array(await f.arrayBuffer()), text = new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
+    var key = await S.importKey("pkcs8", pemToDer(text), { name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]);
+    await useKey(key, bytes);
+    say($("pemOut"), "Clé chargée.", "ok");
+  } catch (e) {
+    priv = null; $("pemInfo").hidden = true; $("mint").disabled = true; $("verify").disabled = true;
+    say($("pemOut"), "Clé illisible : " + (e && e.message ? e.message : e) + " (il faut une clé ECDSA P-256 au format PKCS#8).", "bad");
+  }
+});
+
+async function mintOne(days) {
+  var id = crypto.getRandomValues(new Uint8Array(8)), payload = cat(new Uint8Array([1, 1, days >> 8, days & 255]), id);
+  var sig = new Uint8Array(await S.sign({ name: "ECDSA", hash: "SHA-256" }, priv, cat(CTX, payload)));
+  return "L3D1-" + b64u(cat(payload, sig));
+}
+$("mint").addEventListener("click", async function () {
+  var n = Math.max(1, Math.min(50, parseInt($("qty").value, 10) || 1)), v = $("exp").value, days = 0;
+  if (v) {
+    var p = v.split("-").map(Number); days = Math.floor((Date.UTC(p[0], p[1] - 1, p[2]) - EPOCH_MS) / 86400000);
+    if (days < 1 || days > 65535) { say($("mintOut"), "Date hors limites (entre le 02/01/2026 et 2205).", "bad"); return; }
+  }
+  var list = []; for (var i = 0; i < n; i++) list.push(await mintOne(days));
+  lastKeys = list.join("\n");
+  $("keys").textContent = lastKeys; $("keys").hidden = false; $("copy").disabled = false; $("save").disabled = false;
+  say($("mintOut"), n + (n > 1 ? " clés créées" : " clé créée") + (v ? ", valables jusqu'au " + v.split("-").reverse().join("/") + " inclus." : ", sans limite de durée."), "ok");
+});
+$("copy").addEventListener("click", function () {
+  navigator.clipboard.writeText(lastKeys).then(function () { say($("mintOut"), "Copié dans le presse-papiers.", "ok"); }, function () { say($("mintOut"), "Copie impossible : sélectionnez le texte à la main.", "bad"); });
+});
+$("save").addEventListener("click", function () { download("cles-liagos-3d.txt", lastKeys + "\n"); });
+
+$("verify").addEventListener("click", async function () {
+  var out = $("verOut"), t = $("chk").value.replace(/\s+/g, "");
+  try {
+    if (t.slice(0, 5) !== "L3D1-") throw 0;
+    var raw = unb64u(t.slice(5)); if (raw.length !== 76) throw 0;
+    var pk = await S.importKey("raw", pub, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    var ok = await S.verify({ name: "ECDSA", hash: "SHA-256" }, pk, raw.slice(12), cat(CTX, raw.slice(0, 12)));
+    if (!ok) throw 0;
+    var days = (raw[2] << 8) | raw[3];
+    var end = days ? new Date(EPOCH_MS + days * 86400000).toISOString().slice(0, 10).split("-").reverse().join("/") : null;
+    say(out, "Clé valide (signée par votre clé privée), " + (end ? "valable jusqu'au " + end + " inclus." : "sans limite de durée."), "ok");
+  } catch (e) { say(out, "Clé invalide : elle n'a pas été signée par cette clé privée, ou elle est abîmée.", "bad"); }
+});
+
+$("gen").addEventListener("click", async function () {
+  try {
+    var kp = await S.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+    var der = await S.exportKey("pkcs8", kp.privateKey), pem = derToPem(der), bytes = new TextEncoder().encode(pem);
+    await useKey(await S.importKey("pkcs8", der, { name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]), bytes);
+    download("license-private.pem", pem);
+    say($("genOut"), "Nouvelle paire créée et chargée. Le fichier license-private.pem vient d'être téléchargé : rangez-le dans Liagos-3D-prive. Clé publique et code d'installation affichés plus haut.", "ok");
+  } catch (e) { say($("genOut"), "Création impossible : " + (e && e.message ? e.message : e), "bad"); }
+});
+</script>
+</body>
+</html>
